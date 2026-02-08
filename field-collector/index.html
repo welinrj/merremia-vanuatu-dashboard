@@ -382,6 +382,8 @@
     }
 
     // ── Settings ──
+    var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data' };
+
     function getSettings() {
       try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
       catch(e) { return {}; }
@@ -406,8 +408,14 @@
 
     function loadSettings() {
       var s = getSettings();
-      if (s.owner) document.getElementById('s-owner').value = s.owner;
-      if (s.repo) document.getElementById('s-repo').value = s.repo;
+      // Seed defaults on first load so sync works without manual config
+      if (!s.owner && !s.repo) {
+        s.owner = DEFAULTS.owner;
+        s.repo = DEFAULTS.repo;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+      }
+      document.getElementById('s-owner').value = s.owner || DEFAULTS.owner;
+      document.getElementById('s-repo').value = s.repo || DEFAULTS.repo;
       if (s.token) document.getElementById('s-token').value = s.token;
       if (s.defaultObserver) {
         document.getElementById('s-observer').value = s.defaultObserver;
@@ -418,8 +426,11 @@
     // ── Sync to GitHub ──
     async function syncData() {
       var s = getSettings();
-      if (!s.owner || !s.repo || !s.token) {
-        showToast('Configure GitHub settings first (Settings tab)', 'warn');
+      s.owner = s.owner || document.getElementById('s-owner').value.trim() || DEFAULTS.owner;
+      s.repo = s.repo || document.getElementById('s-repo').value.trim() || DEFAULTS.repo;
+      s.token = s.token || document.getElementById('s-token').value.trim();
+      if (!s.token) {
+        showToast('Enter a GitHub Personal Access Token in Settings to sync', 'warn');
         showView('settings');
         return;
       }
