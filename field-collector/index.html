@@ -461,7 +461,18 @@
 
       var records = getRecords();
       var pending = records.filter(function(r) { return !r.synced; });
-      if (pending.length === 0) { showToast('All records are synced!', 'info'); return; }
+
+      // Even with 0 pending, rebuild all-records.json so dashboard has all records
+      if (pending.length === 0) {
+        if (records.length > 0) {
+          showToast('Updating dashboard...', 'info');
+          await updateAllRecords(s, records);
+          showToast('Dashboard updated with all ' + records.length + ' records!', 'info');
+        } else {
+          showToast('No records to sync.', 'info');
+        }
+        return;
+      }
 
       var btn = document.getElementById('btn-sync');
       btn.classList.add('active');
@@ -744,6 +755,20 @@
     // ── Init ──
     loadSettings();
     updateRecordCount();
+
+    // Auto-rebuild all-records.json on page load so live dashboard stays in sync
+    (async function() {
+      if (navigator.onLine) {
+        var records = getRecords();
+        var synced = records.filter(function(r) { return r.synced; });
+        if (synced.length > 0) {
+          var s = getSettings();
+          if (s.token) {
+            try { await updateAllRecords(s, records); } catch(e) {}
+          }
+        }
+      }
+    })();
   </script>
 </body>
 </html>
