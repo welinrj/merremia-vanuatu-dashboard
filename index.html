@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#065f46">
+  <meta name="description" content="Invasive vine species monitoring dashboard for Vanuatu — Vanuatu Spatial Solutions for DEPC & NBSAP">
   <title>Merremia Vanuatu Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -140,6 +142,7 @@
       color: #cbd5e1;
     }
     .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .credibility-badge {
       display: inline-block;
       padding: 0.15rem 0.6rem;
@@ -271,7 +274,16 @@
       gap: 1rem;
       padding: 0 2rem 1.5rem;
     }
-    @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .tab-nav { padding: 0 0.5rem; }
+      .tab-btn { padding: 0.75rem 0.75rem; font-size: 0.8rem; }
+      .tab-page { padding: 1rem; }
+      .grid { padding: 1rem; }
+      .main-grid { padding: 0 1rem 1rem; }
+      .analysis-bar { padding: 0.75rem 1rem; }
+      #map { height: 250px; }
+    }
     .panel {
       background: #1e293b;
       border-radius: 0.75rem;
@@ -525,7 +537,7 @@
 
       <div class="section-card">
         <h3>Satellite Imagery</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
             <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th><th>Download</th></tr>
           </thead>
@@ -555,13 +567,13 @@
               <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Scenes</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
         <p style="margin-top:0.75rem;">Sentinel-2 and Landsat are open-access, peer-reviewed, and operationally validated datasets maintained by government space agencies. Planet SkySat is a commercial source used only for targeted validation.</p>
       </div>
 
       <div class="section-card">
         <h3>Training &amp; Ground-Truth Data</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
             <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th><th>Download</th></tr>
           </thead>
@@ -607,12 +619,12 @@
               <td><a href="https://www.gbif.org/occurrence/search?taxon_key=2928556&country=VU" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download CSV</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div class="section-card">
         <h3>Ancillary &amp; Reference Data</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
             <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th><th>Download</th></tr>
           </thead>
@@ -629,7 +641,7 @@
               <td>OSM Contributors</td>
               <td>Agricultural / urban area exclusion</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu-latest.osm.pbf" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download .pbf</a></td>
+              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu-latest.osm.pbf" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download .pbf</a></td>
             </tr>
             <tr>
               <td>Vanuatu national forest inventory</td>
@@ -646,7 +658,7 @@
               <td><a href="https://www.protectedplanet.net/country/VUT" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Shapefile</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div class="section-card">

@@ -722,27 +722,6 @@
       } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
     }
 
-    async function updateAllRecordsFromList(s, cleanRecords) {
-      try {
-        var existingSha = null;
-        var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (getResp.ok) {
-          var existing = await getResp.json();
-          existingSha = existing.sha;
-        }
-        var content = btoa(unescape(encodeURIComponent(JSON.stringify(cleanRecords, null, 2))));
-        var body = { message: 'Update all-records.json (' + cleanRecords.length + ' records)', content: content };
-        if (existingSha) body.sha = existingSha;
-        await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
-          body: JSON.stringify(body)
-        });
-      } catch(e) { console.warn('Could not update all-records.json:', e); }
-    }
-
     // ── Clear Data ──
     function clearAllData() {
       var pw = prompt('Enter admin password to clear all data:');
