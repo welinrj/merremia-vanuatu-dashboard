@@ -132,7 +132,7 @@
       // Stop any existing auto-refresh
       if (liveConnector) liveConnector.stopAutoRefresh();
 
-      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, cacheTTL: 15000 });
+      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 15000 });
 
       // Start auto-refreshing every 30 seconds
       liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
