@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#065f46">
+  <meta name="description" content="Real-time field data from Merremia monitoring across Vanuatu">
   <title>Merremia Live Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -41,6 +43,14 @@
     .badge-moderate{background:#78350f;color:#fcd34d}
     .badge-low{background:#064e3b;color:#6ee7b7}
     .empty{text-align:center;padding:3rem;color:#64748b;font-size:0.9rem}
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+    @media(max-width:768px){
+      .config-bar{padding:0.75rem 1rem}
+      .config-bar input{width:100%!important}
+      .grid{padding:1rem}
+      .map-section,.records-section{padding:0 1rem 1rem}
+      #live-map{height:300px}
+    }
     footer{text-align:center;padding:1.25rem;color:#475569;font-size:0.75rem;border-top:1px solid #1e293b}
     footer strong{color:#94a3b8}
   </style>
@@ -203,7 +213,7 @@
         return '<tr><td>' + d + '</td><td>' + (r.island || '-') + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + speciesLabel + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + threat + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
       }).join('');
 
-      document.getElementById('records-table').innerHTML = '<table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table>' + (sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '');
+      document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + (sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '');
     }
 
     // Auto-load if config exists

@@ -196,9 +196,12 @@ class MerremiaConnector {
    */
   async fetchCSV() {
     try {
-      const response = await fetch(`${this.baseURL}/data/all-records.csv?t=${Date.now()}`);
+      const response = await fetch(`${this.apiURL}/data/all-records.csv`, {
+        headers: this.authHeaders
+      });
       if (!response.ok) throw new Error(`CSV fetch failed: ${response.status}`);
-      return await response.text();
+      const fileData = await response.json();
+      return decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
     } catch (err) {
       this.onError('[Connector] CSV fetch error:', err);
       return null;
@@ -211,7 +214,7 @@ class MerremiaConnector {
   async getRecordPhotos(recordId) {
     try {
       const response = await fetch(`${this.apiURL}/photos`, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' }
+        headers: this.authHeaders
       });
       if (!response.ok) return [];
 

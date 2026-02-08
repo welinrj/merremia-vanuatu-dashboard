@@ -3,6 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#065f46">
+  <meta name="description" content="Invasive vine species monitoring dashboard for Vanuatu — Vanuatu Spatial Solutions for DEPC & NBSAP">
   <title>Merremia Vanuatu Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
@@ -22,6 +24,8 @@
     }
     header h1 { font-size: 1.5rem; color: #ecfdf5; }
     header p { color: #6ee7b7; font-size: 0.875rem; margin-top: 0.25rem; }
+    .header-row { display: flex; align-items: center; gap: 1rem; }
+    .header-logo { height: 56px; width: auto; border-radius: 0.4rem; background: rgba(255,255,255,0.9); padding: 4px; flex-shrink: 0; }
     .attribution {
       margin-top: 0.6rem;
       padding: 0.5rem 0.85rem;
@@ -140,6 +144,7 @@
       color: #cbd5e1;
     }
     .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .credibility-badge {
       display: inline-block;
       padding: 0.15rem 0.6rem;
@@ -150,20 +155,26 @@
     .cred-high { background: #064e3b; color: #6ee7b7; }
     .cred-med { background: #78350f; color: #fcd34d; }
     .data-link {
-      display: inline-block;
-      padding: 0.25rem 0.65rem;
-      border-radius: 0.35rem;
-      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 0.4rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-decoration: none;
       white-space: nowrap;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
+      cursor: pointer;
     }
-    .data-link:hover { opacity: 0.85; }
-    .data-link-web { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f6; }
+    .data-link:hover { opacity: 0.85; transform: translateY(-1px); }
     .data-link-download { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
-    .data-link-internal { background: #334155; color: #94a3b8; border: 1px solid #475569; cursor: default; }
-    .data-link-internal:hover { opacity: 1; }
+    .data-link-download:hover { background: #065f46; box-shadow: 0 2px 8px rgba(16,185,129,0.3); }
+    .data-link-request { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+    .data-link-request:hover { background: #92400e; }
+    .data-link-commercial { background: #312e81; color: #a5b4fc; border: 1px solid #6366f1; }
+    .data-link-commercial:hover { background: #3730a3; }
+    .dl-icon { font-size: 0.85rem; }
     .intent-highlight {
       background: linear-gradient(135deg, #065f46, #064e3b);
       border: 1px solid #10b981;
@@ -265,7 +276,16 @@
       gap: 1rem;
       padding: 0 2rem 1.5rem;
     }
-    @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .tab-nav { padding: 0 0.5rem; }
+      .tab-btn { padding: 0.75rem 0.75rem; font-size: 0.8rem; }
+      .tab-page { padding: 1rem; }
+      .grid { padding: 1rem; }
+      .main-grid { padding: 0 1rem 1rem; }
+      .analysis-bar { padding: 0.75rem 1rem; }
+      #map { height: 250px; }
+    }
     .panel {
       background: #1e293b;
       border-radius: 0.75rem;
@@ -341,8 +361,13 @@
 
   <!-- ═══ HEADER & ATTRIBUTION ═══ -->
   <header>
-    <h1>Merremia Vanuatu Dashboard</h1>
-    <p>Invasive vine species monitoring across Vanuatu islands</p>
+    <div class="header-row">
+      <img src="assets/depc-logo.png" alt="DEPC — Department of Environmental Protection and Conservation" class="header-logo">
+      <div>
+        <h1>Merremia Vanuatu Dashboard</h1>
+        <p>Invasive vine species monitoring across Vanuatu islands</p>
+      </div>
+    </div>
     <div class="attribution">
       Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
     </div>
@@ -519,9 +544,9 @@
 
       <div class="section-card">
         <h3>Satellite Imagery</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -530,7 +555,7 @@
               <td>10 m multispectral</td>
               <td>2020 Q1 – present, quarterly composites</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener" class="data-link data-link-web">Copernicus Browser</a></td>
+              <td><a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Tiles</a></td>
             </tr>
             <tr>
               <td>Planet SkySat</td>
@@ -538,7 +563,7 @@
               <td>0.5 m RGB + NIR</td>
               <td>Efate &amp; Santo validation sites (2023–2025)</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.planet.com/explorer/" target="_blank" rel="noopener" class="data-link data-link-web">Planet Explorer</a></td>
+              <td><a href="https://www.planet.com/explorer/" target="_blank" rel="noopener" class="data-link data-link-commercial"><span class="dl-icon">&#128274;</span> Commercial Access</a></td>
             </tr>
             <tr>
               <td>Landsat 8/9 OLI</td>
@@ -546,18 +571,18 @@
               <td>30 m multispectral</td>
               <td>Historical baseline (2015–2019)</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-web">EarthExplorer</a></td>
+              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Scenes</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
         <p style="margin-top:0.75rem;">Sentinel-2 and Landsat are open-access, peer-reviewed, and operationally validated datasets maintained by government space agencies. Planet SkySat is a commercial source used only for targeted validation.</p>
       </div>
 
       <div class="section-card">
         <h3>Training &amp; Ground-Truth Data</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -566,7 +591,7 @@
               <td>1,247 labelled polygons</td>
               <td>2020–2025</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><span class="data-link data-link-internal">Internal</span></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Field%20Survey%20Polygons&body=I%20would%20like%20to%20request%20access%20to%20the%20Merremia%20field%20survey%20polygons%20dataset." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>Community observer reports</td>
@@ -574,7 +599,7 @@
               <td>3,820 GPS-tagged records</td>
               <td>2021–2025</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.kobotoolbox.org/" target="_blank" rel="noopener" class="data-link data-link-web">KoBoToolbox</a></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Community%20Observer%20Reports&body=I%20would%20like%20to%20request%20access%20to%20the%20DEPC%20community%20observer%20reports%20from%20KoBoToolbox." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>USP herbarium records</td>
@@ -582,7 +607,7 @@
               <td>312 verified specimens</td>
               <td>2005–2025</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.usp.ac.fj/" target="_blank" rel="noopener" class="data-link data-link-web">USP Website</a></td>
+              <td><a href="https://www.usp.ac.fj/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> USP Herbarium</a></td>
             </tr>
             <tr>
               <td>iNaturalist observations</td>
@@ -590,7 +615,7 @@
               <td>187 observations</td>
               <td>2018–2025</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.inaturalist.org/observations?place_id=7070&taxon_id=55935&quality_grade=research" target="_blank" rel="noopener" class="data-link data-link-web">View on iNaturalist</a></td>
+              <td><a href="https://www.inaturalist.org/observations/export?place_id=7070&taxon_id=55935&quality_grade=research" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Export CSV</a></td>
             </tr>
             <tr>
               <td>GBIF occurrence data</td>
@@ -598,17 +623,17 @@
               <td>94 occurrence records</td>
               <td>2000–2024</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.gbif.org/species/2928556" target="_blank" rel="noopener" class="data-link data-link-download">Download from GBIF</a></td>
+              <td><a href="https://www.gbif.org/occurrence/search?taxon_key=2928556&country=VU" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download CSV</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div class="section-card">
         <h3>Ancillary &amp; Reference Data</h3>
-        <table class="data-table">
+        <div class="table-scroll"><table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -616,31 +641,31 @@
               <td>NASA / USGS</td>
               <td>Terrain masking &amp; slope analysis</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download">Download SRTM</a></td>
+              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download DEM</a></td>
             </tr>
             <tr>
               <td>OpenStreetMap land use</td>
               <td>OSM Contributors</td>
               <td>Agricultural / urban area exclusion</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu.html" target="_blank" rel="noopener" class="data-link data-link-download">Download Vanuatu OSM</a></td>
+              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu-latest.osm.pbf" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download .pbf</a></td>
             </tr>
             <tr>
               <td>Vanuatu national forest inventory</td>
               <td>Department of Forests</td>
               <td>Native forest baseline extent</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><span class="data-link data-link-internal">Internal</span></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Forest%20Inventory&body=I%20would%20like%20to%20request%20access%20to%20the%20Vanuatu%20national%20forest%20inventory%20dataset." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>Protected area boundaries</td>
               <td>WDPA / DEPC</td>
               <td>Conservation priority overlay</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.protectedplanet.net/country/VUT" target="_blank" rel="noopener" class="data-link data-link-web">Protected Planet</a></td>
+              <td><a href="https://www.protectedplanet.net/country/VUT" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Shapefile</a></td>
             </tr>
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       <div class="section-card">
@@ -653,9 +678,9 @@
         </ul>
         <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid #334155">
           <p style="font-size:0.78rem;color:#94a3b8;margin-bottom:0.5rem"><strong style="color:#cbd5e1">Access Key:</strong></p>
-          <span class="data-link data-link-web" style="cursor:default;margin-right:0.5rem">Website</span> Open-access web portal &nbsp;&nbsp;
-          <span class="data-link data-link-download" style="cursor:default;margin-right:0.5rem">Download</span> Direct download available &nbsp;&nbsp;
-          <span class="data-link data-link-internal" style="margin-right:0.5rem">Internal</span> Restricted — contact DEPC or Vanuatu Spatial Solutions
+          <span class="data-link data-link-download" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#11015;</span> Download</span> Direct download available &nbsp;&nbsp;
+          <span class="data-link data-link-commercial" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#128274;</span> Commercial</span> Paid / licensed access &nbsp;&nbsp;
+          <span class="data-link data-link-request" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#9993;</span> Request</span> Contact DEPC or Vanuatu Spatial Solutions
         </div>
       </div>
     </div>
@@ -730,13 +755,13 @@
       <div class="section-card">
         <h3>Live Dashboard</h3>
         <p>View all field-collected records on an interactive map with auto-refreshing data. The live dashboard updates every 5 seconds and shows records as they are synced from the field.</p>
-        <a href="dashboard-live.html" style="display:inline-block;margin-top:1rem;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:2px solid #10b981;border-radius:0.5rem;font-weight:700;text-decoration:none;font-size:0.95rem;box-shadow:0 0 10px rgba(16,185,129,0.3)">Open Live Dashboard</a>
+        <a href="dashboard-live.html" target="_blank" rel="noopener" style="display:inline-block;margin-top:1rem;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:2px solid #10b981;border-radius:0.5rem;font-weight:700;text-decoration:none;font-size:0.95rem;box-shadow:0 0 10px rgba(16,185,129,0.3)">Open Live Dashboard</a>
       </div>
 
       <div class="section-card">
         <h3>Field Collector App</h3>
         <p>The Merremia Field Collector is an offline-first Progressive Web App (PWA) for rangers to record Merremia sightings in the field. It captures GPS location, species, threat level, photos, and more — then syncs to GitHub when connected.</p>
-        <a href="field-collector/" style="display:inline-block;margin-top:1rem;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:2px solid #10b981;border-radius:0.5rem;font-weight:700;text-decoration:none;font-size:0.95rem;box-shadow:0 0 10px rgba(16,185,129,0.3)">Open Field Collector</a>
+        <a href="field-collector/" target="_blank" rel="noopener" style="display:inline-block;margin-top:1rem;padding:0.75rem 1.5rem;background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:2px solid #10b981;border-radius:0.5rem;font-weight:700;text-decoration:none;font-size:0.95rem;box-shadow:0 0 10px rgba(16,185,129,0.3)">Open Field Collector</a>
       </div>
 
       <div class="section-card">
