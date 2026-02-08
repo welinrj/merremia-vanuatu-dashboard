@@ -491,12 +491,56 @@
         localStorage.setItem(DB_KEY, JSON.stringify(records));
         updateRecordCount();
         if (document.getElementById('view-records').classList.contains('active')) renderRecords();
+
+        // Update aggregated all-records.json for the live dashboard
+        await updateAllRecords(s, records);
+
         showToast('Synced ' + pending.length + ' record(s) to GitHub!', 'info');
       } catch(err) {
         showToast('Sync error — records saved locally. Try again later.', 'error');
       }
 
       btn.classList.remove('active');
+    }
+
+    // ── Update aggregated data file for live dashboard ──
+    async function updateAllRecords(s, localRecords) {
+      try {
+        // Fetch existing all-records.json (may not exist yet)
+        var allRecords = [];
+        var existingSha = null;
+        var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (getResp.ok) {
+          var existing = await getResp.json();
+          existingSha = existing.sha;
+          allRecords = JSON.parse(atob(existing.content.replace(/\n/g, '')));
+        }
+
+        // Merge: add/update records by ID
+        var syncedLocal = localRecords.filter(function(r) { return r.synced; });
+        syncedLocal.forEach(function(r) {
+          var clean = Object.assign({}, r);
+          delete clean.photos;
+          var idx = allRecords.findIndex(function(x) { return x.id === r.id; });
+          if (idx >= 0) allRecords[idx] = clean;
+          else allRecords.push(clean);
+        });
+
+        // Upload aggregated file
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(allRecords, null, 2))));
+        var body = { message: 'Update all-records.json (' + allRecords.length + ' records)', content: content };
+        if (existingSha) body.sha = existingSha;
+
+        await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch(e) {
+        console.warn('Could not update all-records.json:', e);
+      }
     }
 
     // ── Download Records ──
