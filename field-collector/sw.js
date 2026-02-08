@@ -1,4 +1,4 @@
-var CACHE_NAME = 'merremia-collector-v1';
+var CACHE_NAME = 'merremia-collector-v2';
 var URLS_TO_CACHE = [
   './',
   './index.html',
@@ -30,20 +30,18 @@ self.addEventListener('fetch', function(event) {
   // Don't cache API calls
   if (event.request.url.includes('api.github.com')) return;
 
+  // Network-first: always try to get fresh code, fall back to cache when offline
   event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      var fetched = fetch(event.request).then(function(response) {
-        if (response && response.status === 200) {
-          var clone = response.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, clone);
-          });
-        }
-        return response;
-      }).catch(function() {
-        return cached;
-      });
-      return cached || fetched;
+    fetch(event.request).then(function(response) {
+      if (response && response.status === 200) {
+        var clone = response.clone();
+        caches.open(CACHE_NAME).then(function(cache) {
+          cache.put(event.request, clone);
+        });
+      }
+      return response;
+    }).catch(function() {
+      return caches.match(event.request);
     })
   );
 });
