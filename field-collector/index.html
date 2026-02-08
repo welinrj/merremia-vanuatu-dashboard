@@ -42,10 +42,10 @@
     .photo-btn:active{border-color:#10b981;color:#10b981}
     .photo-preview{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem}
     .photo-preview img{width:60px;height:60px;object-fit:cover;border-radius:0.4rem;border:1px solid #334155}
-    .record-card{background:#1e293b;border-radius:0.75rem;padding:1rem;border:1px solid #334155;margin-bottom:0.75rem;position:relative}
-    .record-card h4{color:#34d399;font-size:0.9rem;margin-bottom:0.25rem;padding-right:75px}
-    .btn-delete-record{position:absolute;top:0.75rem;right:0.75rem;background:#7f1d1d;color:#fca5a5;border:2px solid #ef4444;border-radius:0.4rem;padding:0.45rem 0.85rem;font-size:0.8rem;font-weight:700;cursor:pointer;z-index:10;letter-spacing:0.02em}
-    .btn-delete-record:active{background:#991b1b;transform:scale(0.95)}
+    .record-card{background:#1e293b;border-radius:0.75rem;padding:1rem;border:1px solid #334155;margin-bottom:0.75rem}
+    .record-card h4{color:#34d399;font-size:0.9rem;margin-bottom:0.25rem}
+    .btn-delete-record{display:block;width:100%;margin-top:0.75rem;background:#7f1d1d;color:#fca5a5;border:2px solid #ef4444;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em}
+    .btn-delete-record:active{background:#991b1b;transform:scale(0.98)}
     .delete-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:9998;display:flex;align-items:center;justify-content:center}
     .delete-modal{background:#1e293b;border:1px solid #334155;border-radius:0.75rem;padding:1.5rem;max-width:340px;width:90%;z-index:9999}
     .delete-modal h3{color:#ef4444;font-size:1rem;margin-bottom:0.75rem}
@@ -388,7 +388,12 @@
       list.innerHTML = records.map(function(r) {
         var date = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
         var badge = r.synced ? '<span class="badge-sm badge-synced">Synced</span>' : '<span class="badge-sm badge-pending">Pending</span>';
-        return '<div class="record-card"><button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button><h4>' + r.species + ' ' + badge + '</h4><p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p><div class="meta"><span>' + date + '</span><span>Count: ' + r.count + '</span><span>Threat: ' + r.threatLevel + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div></div>';
+        return '<div class="record-card">' +
+          '<h4>' + r.species + ' ' + badge + '</h4>' +
+          '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
+          '<div class="meta"><span>' + date + '</span><span>Count: ' + r.count + '</span><span>Threat: ' + r.threatLevel + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
+          '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete Record</button>' +
+          '</div>';
       }).join('');
     }
 
