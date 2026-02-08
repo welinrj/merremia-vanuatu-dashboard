@@ -3,4 +3,4 @@ merremia-vanuatu-dashboard
 
 ## Dashboard
 
-[View Dashboard](https://github.com/welinrj/merremia-vanuatu-dashboard)
+[View Dashboard](https://welinrj.github.io/merremia-vanuatu-dashboard/)
