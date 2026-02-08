@@ -112,6 +112,9 @@
       if (saved.token) document.getElementById('cfg-token').value = saved.token;
     } catch(e) {}
 
+    var liveConnector = null;
+    var REFRESH_INTERVAL = 30000; // 30 seconds
+
     async function loadFieldData() {
       var owner = document.getElementById('cfg-owner').value.trim();
       var repo = document.getElementById('cfg-repo').value.trim();
@@ -126,26 +129,27 @@
       status.textContent = 'Loading...';
       status.className = 'status-msg';
 
-      try {
-        var connector = new MerremiaConnector({ owner: owner, repo: repo });
-        var data = await connector.fetchAll();
+      // Stop any existing auto-refresh
+      if (liveConnector) liveConnector.stopAutoRefresh();
 
+      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, cacheTTL: 15000 });
+
+      // Start auto-refreshing every 30 seconds
+      liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
         if (!data || !data.records || data.records.length === 0) {
-          status.textContent = 'No records found yet — click Load Data after field data is collected';
+          status.textContent = 'No records found yet — auto-refreshing every 30s';
           status.className = 'status-msg err';
           return;
         }
 
-        status.textContent = data.records.length + ' records loaded';
+        var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        status.textContent = data.records.length + ' records loaded (auto-refreshing \u2014 ' + now + ')';
         status.className = 'status-msg ok';
 
         renderSummary(data);
         renderMap(data);
         renderTable(data.records);
-      } catch(err) {
-        status.textContent = 'Could not load data — repo may not exist yet';
-        status.className = 'status-msg err';
-      }
+      });
     }
 
     function renderSummary(data) {

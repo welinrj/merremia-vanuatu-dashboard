@@ -208,8 +208,11 @@ class MerremiaConnector {
   processRecords(records) {
     if (!Array.isArray(records) || records.length === 0) return this.emptyData();
 
+    // Normalize all records (handles both field-collector and connector formats)
+    const normalized = records.map(r => this.normalizeRecord(r));
+
     // Sort by timestamp descending
-    const sorted = [...records].sort((a, b) =>
+    const sorted = [...normalized].sort((a, b) =>
       new Date(b.timestamp) - new Date(a.timestamp)
     );
 
