@@ -646,10 +646,13 @@
         showToast('Incorrect password', 'error');
         return;
       }
+
+      // Save ID before closeDeleteModal clears it
+      var deleteId = pendingDeleteId;
       closeDeleteModal();
 
       var records = getRecords();
-      var record = records.find(function(r) { return r.id === pendingDeleteId; });
+      var record = records.find(function(r) { return r.id === deleteId; });
       if (!record) { showToast('Record not found', 'error'); return; }
 
       // Remove from GitHub if synced
@@ -686,16 +689,15 @@
           }
 
           // Update all-records.json: fetch from GitHub, remove by ID, re-upload
-          await removeRecordFromAllRecords(s, pendingDeleteId);
+          await removeRecordFromAllRecords(s, deleteId);
         } catch(e) {
           showToast('Error deleting from GitHub — removed locally only', 'warn');
         }
       }
 
       // Remove locally
-      records = records.filter(function(r) { return r.id !== pendingDeleteId; });
+      records = records.filter(function(r) { return r.id !== deleteId; });
       localStorage.setItem(DB_KEY, JSON.stringify(records));
-      pendingDeleteId = null;
       updateRecordCount();
       renderRecords();
       showToast('Record deleted', 'info');
