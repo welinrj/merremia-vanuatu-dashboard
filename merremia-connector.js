@@ -70,28 +70,30 @@ class MerremiaConnector {
       const cached = this.getCache();
       if (cached) return cached;
 
-      // Fetch master data file
+      // Try master data file first
       const response = await fetch(`${this.baseURL}/data/all-records.json?t=${Date.now()}`);
 
-      if (!response.ok) {
-        if (response.status === 404) {
-          console.warn('[Connector] No data file found yet — repo may be empty');
-          return this.emptyData();
-        }
-        throw new Error(`GitHub fetch failed: ${response.status}`);
+      if (response.ok) {
+        const records = await response.json();
+        const processed = this.processRecords(records);
+        this.setCache(processed);
+        this.lastFetch = new Date();
+        return processed;
       }
 
-      const records = await response.json();
-      const processed = this.processRecords(records);
+      // Fallback: read individual record files from records/ directory
+      console.info('[Connector] No all-records.json, reading individual records...');
+      const records = await this.fetchIndividualRecords();
+      if (records.length > 0) {
+        const processed = this.processRecords(records);
+        this.setCache(processed);
+        this.lastFetch = new Date();
+        return processed;
+      }
 
-      // Cache it
-      this.setCache(processed);
-      this.lastFetch = new Date();
-
-      return processed;
+      return this.emptyData();
     } catch (err) {
       this.onError('[Connector] Fetch error:', err);
-      // Return cached data if available, even if stale
       const staleCache = this.getCache(true);
       if (staleCache) {
         console.warn('[Connector] Using stale cache');
@@ -99,6 +101,64 @@ class MerremiaConnector {
       }
       return this.emptyData();
     }
+  }
+
+  /**
+   * Fetch individual record files from the records/ directory
+   */
+  async fetchIndividualRecords() {
+    try {
+      // List files in records/ via GitHub API
+      const listResp = await fetch(`${this.apiURL}/records`, {
+        headers: { 'Accept': 'application/vnd.github.v3+json' }
+      });
+      if (!listResp.ok) return [];
+
+      const files = await listResp.json();
+      const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+
+      // Fetch each record
+      const records = await Promise.all(
+        jsonFiles.map(async (f) => {
+          try {
+            const resp = await fetch(f.download_url);
+            if (!resp.ok) return null;
+            const record = await resp.json();
+            // Normalize field names to match connector's expected format
+            return this.normalizeRecord(record);
+          } catch { return null; }
+        })
+      );
+
+      return records.filter(r => r !== null);
+    } catch (err) {
+      this.onError('[Connector] Individual records fetch error:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Normalize a field-collected record to the connector's expected format
+   */
+  normalizeRecord(r) {
+    return {
+      id: r.id,
+      timestamp: r.timestamp,
+      gps: {
+        lat: r.latitude || (r.gps && r.gps.lat),
+        lng: r.longitude || (r.gps && r.gps.lng),
+        accuracy: r.accuracy || (r.gps && r.gps.accuracy)
+      },
+      island: r.island,
+      siteName: r.siteName,
+      species: Array.isArray(r.species) ? r.species : [r.species],
+      count: r.count || 1,
+      threatLevel: (r.threatLevel || 'low').toLowerCase(),
+      coverageArea: r.coverageArea || 0,
+      observer: r.observer,
+      notes: r.notes || '',
+      synced: r.synced
+    };
   }
 
   /**
