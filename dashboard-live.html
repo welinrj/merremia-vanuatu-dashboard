@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merremia Live Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+    header{background:linear-gradient(135deg,#065f46,#064e3b);padding:1.25rem 2rem 1rem;border-bottom:2px solid #10b981}
+    header h1{font-size:1.5rem;color:#ecfdf5}
+    header p{color:#6ee7b7;font-size:0.875rem;margin-top:0.25rem}
+    .attribution{margin-top:0.6rem;padding:0.5rem 0.85rem;background:rgba(0,0,0,0.25);border-radius:0.4rem;display:inline-block;font-size:0.78rem;color:#a7f3d0;border:1px solid rgba(167,243,208,0.2)}
+    .attribution strong{color:#ecfdf5}
+    .config-bar{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:#1e293b;border-bottom:1px solid #334155;flex-wrap:wrap}
+    .config-bar label{font-size:0.8rem;color:#94a3b8}
+    .config-bar input{padding:0.4rem 0.6rem;background:#0f172a;border:1px solid #334155;border-radius:0.35rem;color:#e2e8f0;font-size:0.8rem}
+    .config-bar button{padding:0.4rem 1rem;background:#065f46;color:#ecfdf5;border:1px solid #10b981;border-radius:0.35rem;font-size:0.8rem;font-weight:600;cursor:pointer}
+    .config-bar button:hover{background:#047857}
+    .status-msg{font-size:0.8rem;color:#94a3b8;margin-left:auto}
+    .status-msg.ok{color:#34d399}
+    .status-msg.err{color:#ef4444}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;padding:1.5rem 2rem}
+    .card{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
+    .card h3{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:0.4rem}
+    .card .value{font-size:1.8rem;font-weight:700;color:#34d399}
+    .card .sub{font-size:0.78rem;color:#64748b;margin-top:0.2rem}
+    .map-section{padding:0 2rem 1.5rem}
+    .map-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
+    .map-panel h2{font-size:1rem;color:#cbd5e1;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #334155}
+    #live-map{height:450px;border-radius:0.5rem}
+    .records-section{padding:0 2rem 1.5rem}
+    .records-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
+    .records-panel h2{font-size:1rem;color:#cbd5e1;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #334155}
+    table{width:100%;border-collapse:collapse;font-size:0.82rem}
+    th{text-align:left;color:#94a3b8;padding:0.5rem;border-bottom:1px solid #334155;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em}
+    td{padding:0.5rem;border-bottom:1px solid #0f172a;color:#cbd5e1}
+    .badge{display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.65rem;font-weight:600}
+    .badge-high{background:#7f1d1d;color:#fca5a5}
+    .badge-moderate{background:#78350f;color:#fcd34d}
+    .badge-low{background:#064e3b;color:#6ee7b7}
+    .empty{text-align:center;padding:3rem;color:#64748b;font-size:0.9rem}
+    footer{text-align:center;padding:1.25rem;color:#475569;font-size:0.75rem;border-top:1px solid #1e293b}
+    footer strong{color:#94a3b8}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Merremia Live Dashboard</h1>
+    <p>Real-time field data from Merremia monitoring across Vanuatu</p>
+    <div class="attribution">
+      Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
+    </div>
+  </header>
+
+  <div class="config-bar">
+    <label>GitHub Owner:</label>
+    <input id="cfg-owner" placeholder="username" style="width:120px">
+    <label>Data Repo:</label>
+    <input id="cfg-repo" value="merremia-field-data" style="width:160px">
+    <label>Token (optional):</label>
+    <input id="cfg-token" type="password" placeholder="for private repos" style="width:160px">
+    <button onclick="loadFieldData()">Load Data</button>
+    <span class="status-msg" id="status-msg"></span>
+  </div>
+
+  <div class="grid" id="summary-cards">
+    <div class="card"><h3>Field Records</h3><div class="value" id="v-records">--</div><div class="sub">observations collected</div></div>
+    <div class="card"><h3>Total Count</h3><div class="value" id="v-count">--</div><div class="sub">individual sightings</div></div>
+    <div class="card"><h3>Area Surveyed</h3><div class="value" id="v-area">--</div><div class="sub">hectares reported</div></div>
+    <div class="card"><h3>Islands Covered</h3><div class="value" id="v-islands">--</div><div class="sub">with field data</div></div>
+    <div class="card"><h3>Latest Record</h3><div class="value" id="v-latest" style="font-size:1.1rem">--</div><div class="sub" id="v-latest-sub">waiting for data</div></div>
+  </div>
+
+  <div class="map-section">
+    <div class="map-panel">
+      <h2>Field Observation Map</h2>
+      <div id="live-map"></div>
+    </div>
+  </div>
+
+  <div class="records-section">
+    <div class="records-panel">
+      <h2>Recent Records</h2>
+      <div id="records-table">
+        <div class="empty">Enter your GitHub details above and click "Load Data" to see field-collected records.</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Live Field Data View
+  </footer>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="merremia-connector.js"></script>
+  <script>
+    var liveMap = L.map('live-map').setView([-16.5, 167.8], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
+    }).addTo(liveMap);
+
+    var markersLayer = L.layerGroup().addTo(liveMap);
+    var threatColors = { High: '#ef4444', Moderate: '#f59e0b', Low: '#10b981' };
+
+    // Load saved config
+    try {
+      var saved = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      if (saved.owner) document.getElementById('cfg-owner').value = saved.owner;
+      if (saved.repo) document.getElementById('cfg-repo').value = saved.repo;
+      if (saved.token) document.getElementById('cfg-token').value = saved.token;
+    } catch(e) {}
+
+    async function loadFieldData() {
+      var owner = document.getElementById('cfg-owner').value.trim();
+      var repo = document.getElementById('cfg-repo').value.trim();
+      var token = document.getElementById('cfg-token').value.trim();
+      var status = document.getElementById('status-msg');
+
+      if (!owner) { status.textContent = 'Enter a GitHub owner'; status.className = 'status-msg err'; return; }
+
+      // Save config
+      localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo, token: token }));
+
+      status.textContent = 'Loading...';
+      status.className = 'status-msg';
+
+      var connector = new MerremiaConnector(owner, repo, token || null);
+      var records = await connector.fetchRecords();
+
+      if (!records || records.length === 0) {
+        status.textContent = 'No records found (or repo is empty)';
+        status.className = 'status-msg err';
+        return;
+      }
+
+      status.textContent = records.length + ' records loaded';
+      status.className = 'status-msg ok';
+
+      var summary = connector.summarize(records);
+      renderSummary(summary);
+
+      var points = connector.getMapPoints(records);
+      renderMap(points);
+
+      renderTable(records);
+    }
+
+    function renderSummary(s) {
+      document.getElementById('v-records').textContent = s.totalRecords;
+      document.getElementById('v-count').textContent = s.totalObservations.toLocaleString();
+      document.getElementById('v-area').textContent = s.totalArea.toLocaleString();
+      document.getElementById('v-islands').textContent = Object.keys(s.byIsland).length;
+      if (s.latestRecord) {
+        var d = new Date(s.latestRecord.timestamp);
+        document.getElementById('v-latest').textContent = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
+        document.getElementById('v-latest-sub').textContent = s.latestRecord.species + ' at ' + s.latestRecord.island;
+      }
+    }
+
+    function renderMap(points) {
+      markersLayer.clearLayers();
+      points.forEach(function(p) {
+        var color = threatColors[p.threat] || '#94a3b8';
+        L.circleMarker([p.lat, p.lng], {
+          radius: Math.max(5, Math.sqrt(p.count) * 2),
+          color: color, fillColor: color, fillOpacity: 0.6, weight: 1
+        }).addTo(markersLayer)
+          .bindPopup('<strong>' + p.species + '</strong><br>' + p.island + (p.site ? ' — ' + p.site : '') + '<br>Count: ' + p.count + ' | Threat: ' + p.threat + '<br><small>' + new Date(p.date).toLocaleDateString('en-GB') + ' by ' + (p.observer || 'Unknown') + '</small>');
+      });
+
+      if (points.length > 0) {
+        var bounds = L.latLngBounds(points.map(function(p) { return [p.lat, p.lng]; }));
+        liveMap.fitBounds(bounds, { padding: [30, 30] });
+      }
+    }
+
+    function renderTable(records) {
+      var sorted = records.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+      var rows = sorted.slice(0, 50).map(function(r) {
+        var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+        var badge = r.threatLevel === 'High' ? 'badge-high' : r.threatLevel === 'Moderate' ? 'badge-moderate' : 'badge-low';
+        return '<tr><td>' + d + '</td><td>' + r.island + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + r.species + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + r.threatLevel + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
+      }).join('');
+
+      document.getElementById('records-table').innerHTML = '<table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table>' + (sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '');
+    }
+
+    // Auto-load if config exists
+    if (document.getElementById('cfg-owner').value) {
+      setTimeout(loadFieldData, 300);
+    }
+  </script>
+</body>
+</html>
