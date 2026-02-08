@@ -1,41 +1,15 @@
 # Merremia Vanuatu Dashboard
 
-A dashboard application for tracking and visualizing Merremia vine sightings across Vanuatu.
+Invasive vine species monitoring dashboard for Vanuatu.
 
-Built with React, TypeScript, and Vite.
+Created by **Vanuatu Spatial Solutions** for **DEPC** & **NBSAP**.
 
-## Getting Started
+## Components
 
-```bash
-npm install
-npm run dev
-```
+- **[Dashboard](https://welinrj.github.io/merremia-vanuatu-dashboard/)** — Main monitoring dashboard with tabs (Dashboard, Methodology, Data Sources, Intent)
+- **[Live Dashboard](https://welinrj.github.io/merremia-vanuatu-dashboard/dashboard-live.html)** — Real-time view of field-collected data
+- **[Field Collector](https://welinrj.github.io/merremia-vanuatu-dashboard/field-collector/)** — Mobile PWA for rangers to collect data in the field (works offline)
 
-## Scripts
+## Data Pipeline
 
-| Command | Description |
-| --- | --- |
-| `npm run dev` | Start development server |
-| `npm run build` | Type-check and build for production |
-| `npm run preview` | Preview production build |
-| `npm run lint` | Run ESLint |
-| `npm test` | Run tests |
-| `npm run test:watch` | Run tests in watch mode |
-
-## Project Structure
-
-```
-src/
-  components/    # Reusable UI components
-  data/          # Sample data and data utilities
-  test/          # Test setup
-  types/         # TypeScript type definitions
-  App.tsx        # Main application component
-  main.tsx       # Entry point
-```
-# merremia-vanuatu-dashboard
-merremia-vanuatu-dashboard
-
-## Dashboard
-
-[View Dashboard](https://welinrj.github.io/merremia-vanuatu-dashboard/)
+Field Collector (PWA) → GitHub API → merremia-field-data repo → Merremia Connector → Live Dashboard

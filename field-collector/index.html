@@ -548,7 +548,7 @@
         if (getResp.ok) {
           var existing = await getResp.json();
           existingSha = existing.sha;
-          allRecords = JSON.parse(atob(existing.content.replace(/\n/g, '')));
+          allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
         }
 
         // Merge: add/update records by ID
@@ -768,26 +768,28 @@
 
     // ── Service Worker ──
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(function(){});
+      // Auto-reload when a new service worker takes over
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        location.reload();
+      });
+      // Unregister all existing SWs first, then register fresh
+      navigator.serviceWorker.getRegistrations().then(function(regs) {
+        var needsClean = regs.length > 0;
+        var p = Promise.all(regs.map(function(r) { return r.unregister(); }));
+        p.then(function() {
+          if (needsClean && 'caches' in window) {
+            caches.keys().then(function(names) {
+              names.forEach(function(n) { caches.delete(n); });
+            });
+          }
+          navigator.serviceWorker.register('sw.js');
+        });
+      });
     }
 
     // ── Init ──
     loadSettings();
     updateRecordCount();
-
-    // Auto-rebuild all-records.json on page load so live dashboard stays in sync
-    (async function() {
-      if (navigator.onLine) {
-        var records = getRecords();
-        var synced = records.filter(function(r) { return r.synced; });
-        if (synced.length > 0) {
-          var s = getSettings();
-          if (s.token) {
-            try { await updateAllRecords(s, records); } catch(e) {}
-          }
-        }
-      }
-    })();
   </script>
 </body>
 </html>
