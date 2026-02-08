@@ -150,20 +150,26 @@
     .cred-high { background: #064e3b; color: #6ee7b7; }
     .cred-med { background: #78350f; color: #fcd34d; }
     .data-link {
-      display: inline-block;
-      padding: 0.25rem 0.65rem;
-      border-radius: 0.35rem;
-      font-size: 0.72rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 0.4rem;
+      font-size: 0.75rem;
       font-weight: 600;
       text-decoration: none;
       white-space: nowrap;
-      transition: opacity 0.2s;
+      transition: all 0.2s;
+      cursor: pointer;
     }
-    .data-link:hover { opacity: 0.85; }
-    .data-link-web { background: #1e3a5f; color: #93c5fd; border: 1px solid #3b82f6; }
+    .data-link:hover { opacity: 0.85; transform: translateY(-1px); }
     .data-link-download { background: #064e3b; color: #6ee7b7; border: 1px solid #10b981; }
-    .data-link-internal { background: #334155; color: #94a3b8; border: 1px solid #475569; cursor: default; }
-    .data-link-internal:hover { opacity: 1; }
+    .data-link-download:hover { background: #065f46; box-shadow: 0 2px 8px rgba(16,185,129,0.3); }
+    .data-link-request { background: #78350f; color: #fcd34d; border: 1px solid #f59e0b; }
+    .data-link-request:hover { background: #92400e; }
+    .data-link-commercial { background: #312e81; color: #a5b4fc; border: 1px solid #6366f1; }
+    .data-link-commercial:hover { background: #3730a3; }
+    .dl-icon { font-size: 0.85rem; }
     .intent-highlight {
       background: linear-gradient(135deg, #065f46, #064e3b);
       border: 1px solid #10b981;
@@ -521,7 +527,7 @@
         <h3>Satellite Imagery</h3>
         <table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -530,7 +536,7 @@
               <td>10 m multispectral</td>
               <td>2020 Q1 – present, quarterly composites</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener" class="data-link data-link-web">Copernicus Browser</a></td>
+              <td><a href="https://browser.dataspace.copernicus.eu/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Tiles</a></td>
             </tr>
             <tr>
               <td>Planet SkySat</td>
@@ -538,7 +544,7 @@
               <td>0.5 m RGB + NIR</td>
               <td>Efate &amp; Santo validation sites (2023–2025)</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.planet.com/explorer/" target="_blank" rel="noopener" class="data-link data-link-web">Planet Explorer</a></td>
+              <td><a href="https://www.planet.com/explorer/" target="_blank" rel="noopener" class="data-link data-link-commercial"><span class="dl-icon">&#128274;</span> Commercial Access</a></td>
             </tr>
             <tr>
               <td>Landsat 8/9 OLI</td>
@@ -546,7 +552,7 @@
               <td>30 m multispectral</td>
               <td>Historical baseline (2015–2019)</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-web">EarthExplorer</a></td>
+              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Scenes</a></td>
             </tr>
           </tbody>
         </table>
@@ -557,7 +563,7 @@
         <h3>Training &amp; Ground-Truth Data</h3>
         <table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -566,7 +572,7 @@
               <td>1,247 labelled polygons</td>
               <td>2020–2025</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><span class="data-link data-link-internal">Internal</span></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Field%20Survey%20Polygons&body=I%20would%20like%20to%20request%20access%20to%20the%20Merremia%20field%20survey%20polygons%20dataset." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>Community observer reports</td>
@@ -574,7 +580,7 @@
               <td>3,820 GPS-tagged records</td>
               <td>2021–2025</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.kobotoolbox.org/" target="_blank" rel="noopener" class="data-link data-link-web">KoBoToolbox</a></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Community%20Observer%20Reports&body=I%20would%20like%20to%20request%20access%20to%20the%20DEPC%20community%20observer%20reports%20from%20KoBoToolbox." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>USP herbarium records</td>
@@ -582,7 +588,7 @@
               <td>312 verified specimens</td>
               <td>2005–2025</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.usp.ac.fj/" target="_blank" rel="noopener" class="data-link data-link-web">USP Website</a></td>
+              <td><a href="https://www.usp.ac.fj/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> USP Herbarium</a></td>
             </tr>
             <tr>
               <td>iNaturalist observations</td>
@@ -590,7 +596,7 @@
               <td>187 observations</td>
               <td>2018–2025</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.inaturalist.org/observations?place_id=7070&taxon_id=55935&quality_grade=research" target="_blank" rel="noopener" class="data-link data-link-web">View on iNaturalist</a></td>
+              <td><a href="https://www.inaturalist.org/observations/export?place_id=7070&taxon_id=55935&quality_grade=research" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Export CSV</a></td>
             </tr>
             <tr>
               <td>GBIF occurrence data</td>
@@ -598,7 +604,7 @@
               <td>94 occurrence records</td>
               <td>2000–2024</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://www.gbif.org/species/2928556" target="_blank" rel="noopener" class="data-link data-link-download">Download from GBIF</a></td>
+              <td><a href="https://www.gbif.org/occurrence/search?taxon_key=2928556&country=VU" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download CSV</a></td>
             </tr>
           </tbody>
         </table>
@@ -608,7 +614,7 @@
         <h3>Ancillary &amp; Reference Data</h3>
         <table class="data-table">
           <thead>
-            <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th><th>Access</th></tr>
+            <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th><th>Download</th></tr>
           </thead>
           <tbody>
             <tr>
@@ -616,28 +622,28 @@
               <td>NASA / USGS</td>
               <td>Terrain masking &amp; slope analysis</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download">Download SRTM</a></td>
+              <td><a href="https://earthexplorer.usgs.gov/" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download DEM</a></td>
             </tr>
             <tr>
               <td>OpenStreetMap land use</td>
               <td>OSM Contributors</td>
               <td>Agricultural / urban area exclusion</td>
               <td><span class="credibility-badge cred-med">Medium</span></td>
-              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu.html" target="_blank" rel="noopener" class="data-link data-link-download">Download Vanuatu OSM</a></td>
+              <td><a href="https://download.geofabrik.de/australia-oceania/vanuatu-latest.osm.pbf" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download .pbf</a></td>
             </tr>
             <tr>
               <td>Vanuatu national forest inventory</td>
               <td>Department of Forests</td>
               <td>Native forest baseline extent</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><span class="data-link data-link-internal">Internal</span></td>
+              <td><a href="mailto:info@vanuatuspatialsolutions.com?subject=Request%20Access%3A%20Forest%20Inventory&body=I%20would%20like%20to%20request%20access%20to%20the%20Vanuatu%20national%20forest%20inventory%20dataset." class="data-link data-link-request"><span class="dl-icon">&#9993;</span> Request Access</a></td>
             </tr>
             <tr>
               <td>Protected area boundaries</td>
               <td>WDPA / DEPC</td>
               <td>Conservation priority overlay</td>
               <td><span class="credibility-badge cred-high">High</span></td>
-              <td><a href="https://www.protectedplanet.net/country/VUT" target="_blank" rel="noopener" class="data-link data-link-web">Protected Planet</a></td>
+              <td><a href="https://www.protectedplanet.net/country/VUT" target="_blank" rel="noopener" class="data-link data-link-download"><span class="dl-icon">&#11015;</span> Download Shapefile</a></td>
             </tr>
           </tbody>
         </table>
@@ -653,9 +659,9 @@
         </ul>
         <div style="margin-top:1rem;padding-top:0.75rem;border-top:1px solid #334155">
           <p style="font-size:0.78rem;color:#94a3b8;margin-bottom:0.5rem"><strong style="color:#cbd5e1">Access Key:</strong></p>
-          <span class="data-link data-link-web" style="cursor:default;margin-right:0.5rem">Website</span> Open-access web portal &nbsp;&nbsp;
-          <span class="data-link data-link-download" style="cursor:default;margin-right:0.5rem">Download</span> Direct download available &nbsp;&nbsp;
-          <span class="data-link data-link-internal" style="margin-right:0.5rem">Internal</span> Restricted — contact DEPC or Vanuatu Spatial Solutions
+          <span class="data-link data-link-download" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#11015;</span> Download</span> Direct download available &nbsp;&nbsp;
+          <span class="data-link data-link-commercial" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#128274;</span> Commercial</span> Paid / licensed access &nbsp;&nbsp;
+          <span class="data-link data-link-request" style="cursor:default;margin-right:0.5rem"><span class="dl-icon">&#9993;</span> Request</span> Contact DEPC or Vanuatu Spatial Solutions
         </div>
       </div>
     </div>
