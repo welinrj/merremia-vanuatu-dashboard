@@ -114,7 +114,7 @@
 
     var liveConnector = null;
     var REFRESH_INTERVAL = 5000; // 5 seconds — real-time feel
-    var lastRecordCount = -1;
+    var lastDataSha = null;
 
     async function loadFieldData() {
       var owner = document.getElementById('cfg-owner').value.trim();
@@ -132,7 +132,7 @@
 
       // Stop any existing auto-refresh
       if (liveConnector) liveConnector.stopAutoRefresh();
-      lastRecordCount = -1;
+      lastDataSha = null;
 
       liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 3000 });
 
@@ -146,16 +146,15 @@
 
         var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
-        // Only re-render when data actually changes
-        if (data.records.length !== lastRecordCount) {
+        // Re-render when SHA changes (detects adds, deletes, and edits)
+        var currentSha = liveConnector._lastSha || '';
+        if (currentSha !== lastDataSha) {
           renderSummary(data);
           renderMap(data);
           renderTable(data.records);
-          lastRecordCount = data.records.length;
-          status.textContent = data.records.length + ' records \u2014 live (' + now + ')';
-        } else {
-          status.textContent = data.records.length + ' records \u2014 live (' + now + ')';
+          lastDataSha = currentSha;
         }
+        status.textContent = data.records.length + ' records \u2014 live (' + now + ')';
         status.className = 'status-msg ok';
       });
     }

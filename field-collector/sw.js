@@ -1,4 +1,4 @@
-var CACHE_NAME = 'merremia-collector-v2';
+var CACHE_NAME = 'merremia-collector-v3';
 var URLS_TO_CACHE = [
   './',
   './index.html',
