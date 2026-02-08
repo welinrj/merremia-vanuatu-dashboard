@@ -86,6 +86,76 @@
       color: #475569;
       font-size: 0.75rem;
     }
+    .analysis-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 2rem;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    .analysis-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.85rem;
+      color: #94a3b8;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #f59e0b;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .status-dot.done { background: #10b981; animation: none; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1.25rem;
+      background: #065f46;
+      color: #ecfdf5;
+      border: 1px solid #10b981;
+      border-radius: 0.5rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-download:hover { background: #047857; }
+    .btn-download:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-download svg { width: 16px; height: 16px; }
+    .analysis-panel {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 1px solid #334155;
+      grid-column: 1 / -1;
+    }
+    .analysis-panel h2 {
+      font-size: 1rem;
+      color: #cbd5e1;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #334155;
+    }
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .finding {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      border-left: 3px solid #10b981;
+    }
+    .finding.warn { border-left-color: #f59e0b; }
+    .finding.critical { border-left-color: #ef4444; }
+    .finding h4 { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
+    .finding .result { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; }
+    .finding .detail { font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; }
   </style>
 </head>
 <body>
@@ -93,6 +163,17 @@
     <h1>Merremia Vanuatu Dashboard</h1>
     <p>Invasive vine species monitoring across Vanuatu islands</p>
   </header>
+
+  <div class="analysis-bar">
+    <div class="analysis-status">
+      <span class="status-dot" id="analysis-dot"></span>
+      <span id="analysis-text">Background analysis running...</span>
+    </div>
+    <button class="btn-download" id="btn-download" disabled onclick="downloadReport()">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+      Download Report
+    </button>
+  </div>
 
   <div class="grid">
     <div class="card">
@@ -147,10 +228,18 @@
     </div>
   </div>
 
+  <div class="main-grid">
+    <div class="analysis-panel" id="analysis-panel" style="display:none">
+      <h2>Analysis Findings</h2>
+      <div class="findings-grid" id="findings-grid"></div>
+    </div>
+  </div>
+
   <footer>Merremia Vanuatu Dashboard &mdash; Ecological Monitoring Project</footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script>
     // Last updated date
     document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -212,13 +301,15 @@
     });
 
     // Line chart – Spread trend
+    const trendLabels = ['2020 Q1','2020 Q3','2021 Q1','2021 Q3','2022 Q1','2022 Q3','2023 Q1','2023 Q3','2024 Q1','2024 Q3','2025 Q1','2025 Q3'];
+    const trendData = [820, 910, 1020, 1100, 1240, 1350, 1480, 1580, 1720, 1860, 1980, 2140];
     new Chart(document.getElementById('chart-trend'), {
       type: 'line',
       data: {
-        labels: ['2020 Q1','2020 Q3','2021 Q1','2021 Q3','2022 Q1','2022 Q3','2023 Q1','2023 Q3','2024 Q1','2024 Q3','2025 Q1','2025 Q3'],
+        labels: trendLabels,
         datasets: [{
           label: 'Total area (ha)',
-          data: [820, 910, 1020, 1100, 1240, 1350, 1480, 1580, 1720, 1860, 1980, 2140],
+          data: trendData,
           borderColor: green,
           backgroundColor: 'rgba(52,211,153,0.1)',
           fill: true,
@@ -235,6 +326,239 @@
         }
       }
     });
+
+    // ── Background Analysis Engine (Web Worker) ──
+    const speciesData = [
+      { species: 'M. peltata', count: 482, threat: 'High' },
+      { species: 'M. vitifolia', count: 215, threat: 'Moderate' },
+      { species: 'M. tridentata', count: 167, threat: 'Moderate' },
+      { species: 'M. gemella', count: 98, threat: 'Low' },
+      { species: 'M. umbellata', count: 73, threat: 'Low' },
+      { species: 'M. tuberosa', count: 41, threat: 'Low' },
+      { species: 'M. dissecta', count: 29, threat: 'Low' },
+    ];
+    const islandData = [
+      { island: 'Efate', area: 620 },
+      { island: 'Espiritu Santo', area: 480 },
+      { island: 'Tanna', area: 310 },
+      { island: 'Malakula', area: 275 },
+      { island: 'Pentecost', area: 185 },
+      { island: 'Ambae', area: 120 },
+      { island: 'Erromango', area: 90 },
+      { island: 'Epi', area: 60 },
+    ];
+
+    const workerCode = `
+      self.onmessage = function(e) {
+        const { trendData, speciesData, islandData, sites } = e.data;
+
+        // 1. Growth rate analysis (linear regression on trend data)
+        const n = trendData.length;
+        const xMean = (n - 1) / 2;
+        const yMean = trendData.reduce((a, b) => a + b, 0) / n;
+        let num = 0, den = 0;
+        for (let i = 0; i < n; i++) {
+          num += (i - xMean) * (trendData[i] - yMean);
+          den += (i - xMean) * (i - xMean);
+        }
+        const slope = num / den;
+        const intercept = yMean - slope * xMean;
+        const growthPerQuarter = slope;
+        const annualGrowthRate = ((trendData[n - 1] / trendData[0]) ** (1 / ((n - 1) / 2)) - 1) * 100;
+        self.postMessage({ type: 'progress', step: 'Growth rate analysis complete' });
+
+        // 2. Projection – next 4 quarters
+        const projections = [];
+        for (let i = 1; i <= 4; i++) {
+          projections.push(Math.round(intercept + slope * (n - 1 + i)));
+        }
+        self.postMessage({ type: 'progress', step: 'Spread projections computed' });
+
+        // 3. Risk scoring per island
+        const totalObs = sites.reduce((s, x) => s + x.count, 0);
+        const islandRisk = sites.map(s => ({
+          name: s.name,
+          score: Math.round((s.count / totalObs) * 100),
+          threat: s.threat,
+        })).sort((a, b) => b.score - a.score);
+        self.postMessage({ type: 'progress', step: 'Island risk scoring complete' });
+
+        // 4. Species dominance
+        const totalSpecies = speciesData.reduce((s, x) => s + x.count, 0);
+        const dominance = speciesData.map(s => ({
+          species: s.species,
+          pct: ((s.count / totalSpecies) * 100).toFixed(1),
+          threat: s.threat,
+        }));
+        self.postMessage({ type: 'progress', step: 'Species dominance analysis complete' });
+
+        // 5. Control priority matrix
+        const priorities = sites.map(s => {
+          const urgency = s.threat === 'High' ? 3 : s.threat === 'Moderate' ? 2 : 1;
+          return { name: s.name, urgency, density: (s.count / totalObs * 100).toFixed(1), priority: urgency * s.count };
+        }).sort((a, b) => b.priority - a.priority);
+        self.postMessage({ type: 'progress', step: 'Control priority matrix built' });
+
+        // 6. Estimated time to threshold (3000 ha)
+        const threshold = 3000;
+        const currentArea = trendData[n - 1];
+        const quartersToThreshold = slope > 0 ? Math.ceil((threshold - currentArea) / slope) : null;
+        self.postMessage({ type: 'progress', step: 'Threshold projection complete' });
+
+        // Send full results
+        self.postMessage({
+          type: 'done',
+          results: {
+            annualGrowthRate: annualGrowthRate.toFixed(1),
+            growthPerQuarter: Math.round(growthPerQuarter),
+            projections,
+            islandRisk,
+            dominance,
+            priorities,
+            currentArea,
+            threshold,
+            quartersToThreshold,
+          }
+        });
+      };
+    `;
+
+    let analysisResults = null;
+    const blob = new Blob([workerCode], { type: 'application/javascript' });
+    const worker = new Worker(URL.createObjectURL(blob));
+
+    worker.onmessage = function(e) {
+      if (e.data.type === 'progress') {
+        document.getElementById('analysis-text').textContent = e.data.step;
+      }
+      if (e.data.type === 'done') {
+        analysisResults = e.data.results;
+        document.getElementById('analysis-dot').classList.add('done');
+        document.getElementById('analysis-text').textContent = 'Analysis complete — 6 findings ready';
+        document.getElementById('btn-download').disabled = false;
+        renderFindings(analysisResults);
+        worker.terminate();
+      }
+    };
+
+    // Kick off background analysis after a short delay to let charts render
+    setTimeout(() => {
+      worker.postMessage({ trendData, speciesData, islandData, sites });
+    }, 500);
+
+    function renderFindings(r) {
+      const panel = document.getElementById('analysis-panel');
+      const grid = document.getElementById('findings-grid');
+      panel.style.display = '';
+
+      const severityClass = (v) => v === 'critical' ? 'critical' : v === 'warn' ? 'warn' : '';
+      const findings = [
+        { title: 'Annual Growth Rate', result: r.annualGrowthRate + '% per year', detail: 'Average ' + r.growthPerQuarter + ' ha added per quarter', severity: parseFloat(r.annualGrowthRate) > 15 ? 'critical' : 'warn' },
+        { title: 'Projected Spread (Next Year)', result: r.projections[3].toLocaleString() + ' ha', detail: 'Q1–Q4 projections: ' + r.projections.map(p => p.toLocaleString()).join(', ') + ' ha', severity: 'warn' },
+        { title: 'Highest-Risk Site', result: r.islandRisk[0].name, detail: 'Risk score: ' + r.islandRisk[0].score + '/100 — Threat level: ' + r.islandRisk[0].threat, severity: r.islandRisk[0].threat === 'High' ? 'critical' : 'warn' },
+        { title: 'Dominant Species', result: r.dominance[0].species + ' (' + r.dominance[0].pct + '%)', detail: 'Threat level: ' + r.dominance[0].threat + ' — ' + r.dominance.length + ' species total', severity: r.dominance[0].threat === 'High' ? 'critical' : '' },
+        { title: 'Top Control Priority', result: r.priorities[0].name, detail: 'Urgency × density score: ' + r.priorities[0].priority + ' — ' + r.priorities[0].density + '% of all observations', severity: 'warn' },
+        { title: 'Time to 3,000 ha Threshold', result: r.quartersToThreshold ? r.quartersToThreshold + ' quarters (~' + (r.quartersToThreshold / 4).toFixed(1) + ' years)' : 'N/A', detail: 'Current: ' + r.currentArea.toLocaleString() + ' ha — Threshold: ' + r.threshold.toLocaleString() + ' ha', severity: r.quartersToThreshold && r.quartersToThreshold <= 8 ? 'critical' : 'warn' },
+      ];
+
+      grid.innerHTML = findings.map(f => `
+        <div class="finding ${severityClass(f.severity)}">
+          <h4>${f.title}</h4>
+          <div class="result">${f.result}</div>
+          <div class="detail">${f.detail}</div>
+        </div>
+      `).join('');
+    }
+
+    // ── Report Generation (PDF) ──
+    function downloadReport() {
+      if (!analysisResults) return;
+      const r = analysisResults;
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      const now = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      let y = 20;
+
+      const addHeading = (text) => { doc.setFontSize(14); doc.setTextColor(6, 95, 70); doc.text(text, 14, y); y += 8; };
+      const addSubheading = (text) => { doc.setFontSize(11); doc.setTextColor(60, 60, 60); doc.text(text, 14, y); y += 6; };
+      const addLine = (text) => { doc.setFontSize(10); doc.setTextColor(80, 80, 80); doc.text(text, 18, y); y += 5; };
+      const addSpacer = () => { y += 4; };
+      const checkPage = () => { if (y > 270) { doc.addPage(); y = 20; } };
+
+      // Title
+      doc.setFontSize(20);
+      doc.setTextColor(6, 78, 59);
+      doc.text('Merremia Vanuatu', 14, y); y += 8;
+      doc.text('Monitoring Report', 14, y); y += 10;
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Generated: ' + now, 14, y); y += 5;
+      doc.text('Report type: Automated background analysis', 14, y); y += 4;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.5);
+      doc.line(14, y, 196, y); y += 10;
+
+      // Executive summary
+      addHeading('1. Executive Summary');
+      addLine('Total area affected: ' + r.currentArea.toLocaleString() + ' hectares across 8 islands');
+      addLine('Annual growth rate: ' + r.annualGrowthRate + '% per year (' + r.growthPerQuarter + ' ha/quarter)');
+      addLine('Species tracked: ' + r.dominance.length + ' Merremia species');
+      addLine('Survey sites: ' + sites.length + ' active monitoring sites');
+      if (r.quartersToThreshold) {
+        addLine('Projected time to 3,000 ha threshold: ' + r.quartersToThreshold + ' quarters (~' + (r.quartersToThreshold / 4).toFixed(1) + ' years)');
+      }
+      addSpacer(); checkPage();
+
+      // Spread projections
+      addHeading('2. Spread Projections');
+      addSubheading('Projected coverage for the next 4 quarters:');
+      r.projections.forEach((p, i) => { addLine('  Quarter ' + (i + 1) + ': ' + p.toLocaleString() + ' ha'); });
+      addSpacer(); checkPage();
+
+      // Island risk assessment
+      addHeading('3. Island Risk Assessment');
+      r.islandRisk.forEach(ir => {
+        addLine(ir.name + '  —  Risk score: ' + ir.score + '/100  |  Threat: ' + ir.threat);
+      });
+      addSpacer(); checkPage();
+
+      // Species dominance
+      addHeading('4. Species Dominance Analysis');
+      r.dominance.forEach(d => {
+        addLine(d.species + '  —  ' + d.pct + '% of observations  |  Threat: ' + d.threat);
+      });
+      addSpacer(); checkPage();
+
+      // Control priorities
+      addHeading('5. Control Priority Matrix');
+      addSubheading('Sites ranked by urgency x observation density:');
+      r.priorities.forEach((p, i) => {
+        addLine((i + 1) + '. ' + p.name + '  —  Priority score: ' + p.priority + '  |  Density: ' + p.density + '%');
+        checkPage();
+      });
+      addSpacer(); checkPage();
+
+      // Recommendations
+      addHeading('6. Recommendations');
+      const recs = [
+        'Prioritize containment efforts on ' + r.priorities[0].name + ' (highest priority score)',
+        'Focus biological control research on ' + r.dominance[0].species + ' (dominant species, ' + r.dominance[0].pct + '% of observations)',
+        'Increase survey frequency on high-threat islands (Efate, Espiritu Santo)',
+        'Establish buffer zones around unaffected areas on low-threat islands',
+        r.quartersToThreshold ? 'Implement aggressive intervention before ' + r.threshold.toLocaleString() + ' ha threshold is reached in ~' + (r.quartersToThreshold / 4).toFixed(1) + ' years' : 'Monitor growth rate trend for changes',
+      ];
+      recs.forEach((rec, i) => { addLine((i + 1) + '. ' + rec); checkPage(); });
+
+      // Footer
+      y += 10; checkPage();
+      doc.setDrawColor(16, 185, 129);
+      doc.line(14, y, 196, y); y += 6;
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('Merremia Vanuatu Dashboard — Automated Monitoring Report — ' + now, 14, y);
+
+      doc.save('merremia-vanuatu-report-' + new Date().toISOString().slice(0, 10) + '.pdf');
+    }
   </script>
 </body>
 </html>
