@@ -358,7 +358,12 @@
       document.getElementById('photo-input').value = '';
       updateRecordCount();
 
-      showToast('Observation saved! (' + records.length + ' total)', 'info');
+      showToast('Observation saved! Syncing...', 'info');
+
+      // Auto-sync to GitHub immediately if online
+      if (navigator.onLine) {
+        setTimeout(function() { syncData(); }, 500);
+      }
     }
 
     // ── Records ──
