@@ -685,10 +685,8 @@
             } else break;
           }
 
-          // Update all-records.json
-          var remaining = records.filter(function(r) { return r.id !== pendingDeleteId && r.synced; });
-          var cleanRemaining = remaining.map(function(r) { var c = Object.assign({}, r); delete c.photos; return c; });
-          await updateAllRecordsFromList(s, cleanRemaining);
+          // Update all-records.json: fetch from GitHub, remove by ID, re-upload
+          await removeRecordFromAllRecords(s, pendingDeleteId);
         } catch(e) {
           showToast('Error deleting from GitHub — removed locally only', 'warn');
         }
@@ -701,6 +699,25 @@
       updateRecordCount();
       renderRecords();
       showToast('Record deleted', 'info');
+    }
+
+    async function removeRecordFromAllRecords(s, deleteId) {
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!getResp.ok) return;
+        var existing = await getResp.json();
+        var allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
+        var filtered = allRecords.filter(function(r) { return r.id !== deleteId; });
+        if (filtered.length === allRecords.length) return; // record not found, nothing to update
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
+        await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
+        });
+      } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
     }
 
     async function updateAllRecordsFromList(s, cleanRecords) {
