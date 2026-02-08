@@ -183,7 +183,9 @@
       <div class="count" id="pending-count">0</div>
       <div class="label">records pending sync</div>
     </div>
-    <button class="btn btn-secondary" onclick="syncData()" style="margin-bottom:1rem">Sync All to GitHub</button>
+    <button class="btn btn-secondary" onclick="syncData()" style="margin-bottom:0.5rem">Sync All to GitHub</button>
+    <button class="btn btn-secondary" onclick="downloadRecords()" style="margin-bottom:1rem;background:#1e3a5f;border-color:#3b82f6">Download Records (JSON)</button>
+    <button class="btn btn-secondary" onclick="downloadCSV()" style="margin-bottom:1rem;background:#1e3a5f;border-color:#3b82f6">Download Records (CSV)</button>
     <div id="records-list"></div>
   </div>
 
@@ -495,6 +497,44 @@
       }
 
       btn.classList.remove('active');
+    }
+
+    // ── Download Records ──
+    function downloadRecords() {
+      var records = getRecords();
+      if (records.length === 0) { showToast('No records to download', 'warn'); return; }
+      var clean = records.map(function(r) {
+        var copy = Object.assign({}, r);
+        delete copy.photos; // strip base64 photo data for smaller file
+        return copy;
+      });
+      var blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'merremia-records-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded ' + records.length + ' record(s)', 'info');
+    }
+
+    function downloadCSV() {
+      var records = getRecords();
+      if (records.length === 0) { showToast('No records to download', 'warn'); return; }
+      var headers = ['id','timestamp','latitude','longitude','accuracy','island','siteName','species','count','threatLevel','coverageArea','observer','notes','synced'];
+      var rows = records.map(function(r) {
+        return headers.map(function(h) {
+          var v = r[h] != null ? String(r[h]) : '';
+          return '"' + v.replace(/"/g, '""') + '"';
+        }).join(',');
+      });
+      var csv = headers.join(',') + '\n' + rows.join('\n');
+      var blob = new Blob([csv], { type: 'text/csv' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'merremia-records-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded ' + records.length + ' record(s) as CSV', 'info');
     }
 
     // ── Clear Data ──
