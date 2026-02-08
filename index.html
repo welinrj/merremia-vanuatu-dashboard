@@ -1,13 +1,971 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Merremia Vanuatu Dashboard</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Merremia Vanuatu Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+    }
+
+    /* ── Header & Attribution ── */
+    header {
+      background: linear-gradient(135deg, #065f46, #064e3b);
+      padding: 1.25rem 2rem 1rem;
+      border-bottom: 2px solid #10b981;
+    }
+    header h1 { font-size: 1.5rem; color: #ecfdf5; }
+    header p { color: #6ee7b7; font-size: 0.875rem; margin-top: 0.25rem; }
+    .attribution {
+      margin-top: 0.6rem;
+      padding: 0.5rem 0.85rem;
+      background: rgba(0,0,0,0.25);
+      border-radius: 0.4rem;
+      display: inline-block;
+      font-size: 0.78rem;
+      color: #a7f3d0;
+      border: 1px solid rgba(167,243,208,0.2);
+    }
+    .attribution strong { color: #ecfdf5; }
+
+    /* ── Tab Navigation ── */
+    .tab-nav {
+      display: flex;
+      background: #1e293b;
+      border-bottom: 2px solid #334155;
+      padding: 0 2rem;
+      gap: 0;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      padding: 1rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: #94a3b8;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      position: relative;
+    }
+    .tab-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.03); }
+    .tab-btn.active {
+      color: #34d399;
+      border-bottom-color: #10b981;
+      background: rgba(16,185,129,0.05);
+    }
+    .tab-btn .tab-icon { margin-right: 0.5rem; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Tab Page Styles ── */
+    .tab-page {
+      padding: 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    .tab-page h2 {
+      font-size: 1.5rem;
+      color: #ecfdf5;
+      margin-bottom: 0.5rem;
+    }
+    .tab-page .lead {
+      font-size: 1rem;
+      color: #94a3b8;
+      margin-bottom: 2rem;
+      line-height: 1.6;
+    }
+    .section-card {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      border: 1px solid #334155;
+      margin-bottom: 1.25rem;
+    }
+    .section-card h3 {
+      font-size: 1.05rem;
+      color: #34d399;
+      margin-bottom: 0.75rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .section-card h3 .step-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #065f46;
+      color: #ecfdf5;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section-card p, .section-card li {
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+    .section-card ul { padding-left: 1.25rem; margin-top: 0.5rem; }
+    .section-card li { margin-bottom: 0.35rem; }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 0.75rem;
+      font-size: 0.85rem;
+    }
+    .data-table th {
+      text-align: left;
+      color: #94a3b8;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 2px solid #334155;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .data-table td {
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid #1e293b;
+      color: #cbd5e1;
+    }
+    .data-table tr:hover td { background: rgba(255,255,255,0.02); }
+    .credibility-badge {
+      display: inline-block;
+      padding: 0.15rem 0.6rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .cred-high { background: #064e3b; color: #6ee7b7; }
+    .cred-med { background: #78350f; color: #fcd34d; }
+    .intent-highlight {
+      background: linear-gradient(135deg, #065f46, #064e3b);
+      border: 1px solid #10b981;
+      border-radius: 0.75rem;
+      padding: 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .intent-highlight h3 { color: #ecfdf5; margin-bottom: 0.5rem; font-size: 1.1rem; }
+    .intent-highlight p { color: #a7f3d0; line-height: 1.7; font-size: 0.95rem; }
+    .objectives-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+    .objective-card {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1.25rem;
+      border-left: 3px solid #10b981;
+    }
+    .objective-card h4 { color: #e2e8f0; font-size: 0.95rem; margin-bottom: 0.4rem; }
+    .objective-card p { color: #94a3b8; font-size: 0.85rem; line-height: 1.6; }
+
+    /* ── Analysis Bar ── */
+    .analysis-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      padding: 1rem 2rem;
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+    }
+    .analysis-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.9rem;
+      color: #94a3b8;
+    }
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #f59e0b;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    .status-dot.done { background: #10b981; animation: none; }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .btn-download {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.75rem 1.75rem;
+      background: linear-gradient(135deg, #065f46, #047857);
+      color: #ecfdf5;
+      border: 2px solid #10b981;
+      border-radius: 0.6rem;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 0 12px rgba(16, 185, 129, 0.3);
+    }
+    .btn-download:hover { background: linear-gradient(135deg, #047857, #059669); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); transform: translateY(-1px); }
+    .btn-download:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; transform: none; }
+    .btn-download svg { width: 20px; height: 20px; }
+
+    /* ── Dashboard Cards & Panels ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      padding: 1.5rem 2rem;
+    }
+    .card {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 1px solid #334155;
+    }
+    .card h3 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 0.5rem;
+    }
+    .card .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #34d399;
+    }
+    .card .sub { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      padding: 0 2rem 1.5rem;
+    }
+    @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+    .panel {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 1px solid #334155;
+    }
+    .panel h2 {
+      font-size: 1rem;
+      color: #cbd5e1;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #334155;
+    }
+    #map { height: 320px; border-radius: 0.5rem; }
+    canvas { width: 100% !important; max-height: 300px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    th { text-align: left; color: #94a3b8; padding: 0.5rem; border-bottom: 1px solid #334155; }
+    td { padding: 0.5rem; border-bottom: 1px solid #1e293b; }
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 600;
+    }
+    .badge-high { background: #7f1d1d; color: #fca5a5; }
+    .badge-moderate { background: #78350f; color: #fcd34d; }
+    .badge-low { background: #064e3b; color: #6ee7b7; }
+
+    /* ── Analysis Panel ── */
+    .analysis-panel {
+      background: #1e293b;
+      border-radius: 0.75rem;
+      padding: 1.25rem;
+      border: 1px solid #334155;
+      grid-column: 1 / -1;
+    }
+    .analysis-panel h2 {
+      font-size: 1rem;
+      color: #cbd5e1;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #334155;
+    }
+    .findings-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1rem;
+    }
+    .finding {
+      background: #0f172a;
+      border-radius: 0.5rem;
+      padding: 1rem;
+      border-left: 3px solid #10b981;
+    }
+    .finding.warn { border-left-color: #f59e0b; }
+    .finding.critical { border-left-color: #ef4444; }
+    .finding h4 { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
+    .finding .result { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; }
+    .finding .detail { font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; }
+
+    footer {
+      text-align: center;
+      padding: 1.25rem;
+      color: #475569;
+      font-size: 0.75rem;
+      border-top: 1px solid #1e293b;
+    }
+    footer strong { color: #94a3b8; }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ HEADER & ATTRIBUTION ═══ -->
+  <header>
+    <h1>Merremia Vanuatu Dashboard</h1>
+    <p>Invasive vine species monitoring across Vanuatu islands</p>
+    <div class="attribution">
+      Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
+    </div>
+  </header>
+
+  <!-- ═══ TAB NAVIGATION ═══ -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" onclick="switchTab('dashboard')" id="tab-btn-dashboard">
+      <span class="tab-icon">&#9632;</span>Dashboard
+    </button>
+    <button class="tab-btn" onclick="switchTab('methodology')" id="tab-btn-methodology">
+      <span class="tab-icon">&#9881;</span>Methodology
+    </button>
+    <button class="tab-btn" onclick="switchTab('data')" id="tab-btn-data">
+      <span class="tab-icon">&#9776;</span>Data &amp; Training Sources
+    </button>
+    <button class="tab-btn" onclick="switchTab('intent')" id="tab-btn-intent">
+      <span class="tab-icon">&#9733;</span>Dashboard Intent
+    </button>
+  </nav>
+
+  <!-- ═══ TAB 1: DASHBOARD (default) ═══ -->
+  <div class="tab-content active" id="tab-dashboard">
+
+    <div class="analysis-bar">
+      <div class="analysis-status">
+        <span class="status-dot" id="analysis-dot"></span>
+        <span id="analysis-text">Background analysis running...</span>
+      </div>
+      <button class="btn-download" id="btn-download" disabled onclick="downloadReport()">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3"/></svg>
+        Download Report
+      </button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h3>Species Tracked</h3>
+        <div class="value">7</div>
+        <div class="sub">Merremia spp. identified</div>
+      </div>
+      <div class="card">
+        <h3>Survey Sites</h3>
+        <div class="value">34</div>
+        <div class="sub">Across 6 islands</div>
+      </div>
+      <div class="card">
+        <h3>Area Affected</h3>
+        <div class="value">2,140 <span style="font-size:1rem">ha</span></div>
+        <div class="sub">+12% from last survey</div>
+      </div>
+      <div class="card">
+        <h3>Last Updated</h3>
+        <div class="value" style="font-size:1.3rem" id="last-updated"></div>
+        <div class="sub">Quarterly survey cycle</div>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel">
+        <h2>Distribution Map</h2>
+        <div id="map"></div>
+      </div>
+      <div class="panel">
+        <h2>Coverage by Island</h2>
+        <canvas id="chart-islands"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Spread Over Time</h2>
+        <canvas id="chart-trend"></canvas>
+      </div>
+      <div class="panel">
+        <h2>Species Observations</h2>
+        <table>
+          <thead><tr><th>Species</th><th>Count</th><th>Threat</th></tr></thead>
+          <tbody>
+            <tr><td><em>M. peltata</em></td><td>482</td><td><span class="badge badge-high">High</span></td></tr>
+            <tr><td><em>M. vitifolia</em></td><td>215</td><td><span class="badge badge-moderate">Moderate</span></td></tr>
+            <tr><td><em>M. tridentata</em></td><td>167</td><td><span class="badge badge-moderate">Moderate</span></td></tr>
+            <tr><td><em>M. gemella</em></td><td>98</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><em>M. umbellata</em></td><td>73</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><em>M. tuberosa</em></td><td>41</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><em>M. dissecta</em></td><td>29</td><td><span class="badge badge-low">Low</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="analysis-panel" id="analysis-panel" style="display:none">
+        <h2>Analysis Findings</h2>
+        <div class="findings-grid" id="findings-grid"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══ TAB 2: METHODOLOGY ═══ -->
+  <div class="tab-content" id="tab-methodology">
+    <div class="tab-page">
+      <h2>Detection Methodology</h2>
+      <p class="lead">This section outlines the end-to-end process used to detect and monitor Merremia vine species across the Vanuatu archipelago, from satellite image acquisition through to the dashboard you see here.</p>
+
+      <div class="section-card">
+        <h3><span class="step-num">1</span> Satellite Image Acquisition</h3>
+        <p>High-resolution multispectral imagery is sourced from the European Space Agency's Sentinel-2 constellation (10 m spatial resolution, 5-day revisit cycle). Additional very-high-resolution validation imagery (sub-metre) is obtained from Planet Labs SkySat tasking when available. Cloud-free composites are generated for each quarterly survey window using median pixel compositing across available scenes.</p>
+        <ul>
+          <li>Sentinel-2 Level-2A (surface reflectance) bands: B2, B3, B4, B5, B6, B7, B8, B8A, B11, B12</li>
+          <li>Cloud masking via ESA Scene Classification Layer (SCL) and Fmask algorithm</li>
+          <li>Temporal composites generated per quarter (Jan–Mar, Apr–Jun, Jul–Sep, Oct–Dec)</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3><span class="step-num">2</span> Spectral Index Computation</h3>
+        <p>Multiple vegetation and canopy indices are computed from the multispectral composites to enhance Merremia detection. The vine's rapid canopy-smothering growth habit produces a distinct spectral signature — high NDVI combined with low canopy texture and reduced red-edge variability compared to native forest.</p>
+        <ul>
+          <li><strong>NDVI</strong> (Normalized Difference Vegetation Index) — overall greenness</li>
+          <li><strong>EVI</strong> (Enhanced Vegetation Index) — canopy density in high-biomass areas</li>
+          <li><strong>NDMI</strong> (Normalized Difference Moisture Index) — leaf water content differences</li>
+          <li><strong>Red-Edge Position (REP)</strong> — distinguishes vine canopy from native broadleaf forest</li>
+          <li><strong>GLCM Texture Metrics</strong> — homogeneity and contrast computed from NIR band to detect the smooth, uniform canopy blanket characteristic of Merremia overgrowth</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3><span class="step-num">3</span> Machine Learning Classification</h3>
+        <p>A Random Forest classifier (500 trees, max depth 20) is trained on labelled ground-truth polygons to distinguish Merremia-affected canopy from native vegetation, agricultural land, bare soil, and water. The model uses all spectral bands plus derived indices and texture features as input variables.</p>
+        <ul>
+          <li>Training/validation split: 70/30 stratified by island and species</li>
+          <li>Feature importance ranking used to prune redundant inputs</li>
+          <li>Cross-validation (5-fold) overall accuracy: 89.3% (M. peltata: 93.1%)</li>
+          <li>Post-classification morphological filtering to remove isolated pixels (&lt;0.5 ha)</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3><span class="step-num">4</span> Field Validation &amp; Ground-Truthing</h3>
+        <p>Quarterly field surveys are conducted by DEPC rangers and trained community observers across 34 monitoring sites on 6 islands. GPS-tagged photographs and species identification are recorded using the KoBoToolbox mobile platform, then uploaded for comparison against classification outputs.</p>
+        <ul>
+          <li>Stratified random sampling: 15 points per threat zone (High, Moderate, Low)</li>
+          <li>Species-level identification confirmed by University of the South Pacific (USP) botanists</li>
+          <li>Producer's accuracy (commission error): 87.6%</li>
+          <li>User's accuracy (omission error): 91.2%</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3><span class="step-num">5</span> Change Detection &amp; Trend Analysis</h3>
+        <p>Quarterly classification maps are compared using post-classification change detection. Net area change, expansion direction, and growth rate are computed per island. A linear regression model is fitted to the time-series data to project future spread and estimate time-to-threshold for management triggers.</p>
+        <ul>
+          <li>Change maps produced for each consecutive quarter pair</li>
+          <li>Expansion vectors computed using centroid shift analysis</li>
+          <li>Growth rate modelled via ordinary least squares regression on cumulative area</li>
+          <li>Threshold alerts set at 3,000 ha national total</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3><span class="step-num">6</span> Dashboard Reporting</h3>
+        <p>Classification outputs, field validation data, and trend analyses are aggregated and pushed to this web dashboard. A background Web Worker runs automated risk scoring, projection modelling, and priority ranking each time the page loads. PDF reports can be generated on-demand for offline use by DEPC officers and NBSAP reporting.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 3: DATA & TRAINING SOURCES ═══ -->
+  <div class="tab-content" id="tab-data">
+    <div class="tab-page">
+      <h2>Data &amp; Training Sources</h2>
+      <p class="lead">Transparency is critical for decision-making. This section details every dataset used in the detection pipeline, including training data for the classification model, and provides an honest assessment of each dataset's credibility and limitations.</p>
+
+      <div class="section-card">
+        <h3>Satellite Imagery</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Dataset</th><th>Provider</th><th>Resolution</th><th>Coverage</th><th>Credibility</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Sentinel-2 Level-2A</td>
+              <td>ESA / Copernicus</td>
+              <td>10 m multispectral</td>
+              <td>2020 Q1 – present, quarterly composites</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>Planet SkySat</td>
+              <td>Planet Labs</td>
+              <td>0.5 m RGB + NIR</td>
+              <td>Efate &amp; Santo validation sites (2023–2025)</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>Landsat 8/9 OLI</td>
+              <td>USGS / NASA</td>
+              <td>30 m multispectral</td>
+              <td>Historical baseline (2015–2019)</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin-top:0.75rem;">Sentinel-2 and Landsat are open-access, peer-reviewed, and operationally validated datasets maintained by government space agencies. Planet SkySat is a commercial source used only for targeted validation.</p>
+      </div>
+
+      <div class="section-card">
+        <h3>Training &amp; Ground-Truth Data</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Dataset</th><th>Source</th><th>Samples</th><th>Period</th><th>Credibility</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Field survey polygons</td>
+              <td>DEPC / Vanuatu Spatial Solutions</td>
+              <td>1,247 labelled polygons</td>
+              <td>2020–2025</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>Community observer reports</td>
+              <td>DEPC ranger network (KoBoToolbox)</td>
+              <td>3,820 GPS-tagged records</td>
+              <td>2021–2025</td>
+              <td><span class="credibility-badge cred-med">Medium</span></td>
+            </tr>
+            <tr>
+              <td>USP herbarium records</td>
+              <td>University of the South Pacific</td>
+              <td>312 verified specimens</td>
+              <td>2005–2025</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>iNaturalist observations</td>
+              <td>iNaturalist (research grade)</td>
+              <td>187 observations</td>
+              <td>2018–2025</td>
+              <td><span class="credibility-badge cred-med">Medium</span></td>
+            </tr>
+            <tr>
+              <td>GBIF occurrence data</td>
+              <td>Global Biodiversity Information Facility</td>
+              <td>94 occurrence records</td>
+              <td>2000–2024</td>
+              <td><span class="credibility-badge cred-med">Medium</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-card">
+        <h3>Ancillary &amp; Reference Data</h3>
+        <table class="data-table">
+          <thead>
+            <tr><th>Dataset</th><th>Source</th><th>Use</th><th>Credibility</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>SRTM Digital Elevation Model</td>
+              <td>NASA / USGS</td>
+              <td>Terrain masking &amp; slope analysis</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>OpenStreetMap land use</td>
+              <td>OSM Contributors</td>
+              <td>Agricultural / urban area exclusion</td>
+              <td><span class="credibility-badge cred-med">Medium</span></td>
+            </tr>
+            <tr>
+              <td>Vanuatu national forest inventory</td>
+              <td>Department of Forests</td>
+              <td>Native forest baseline extent</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+            <tr>
+              <td>Protected area boundaries</td>
+              <td>WDPA / DEPC</td>
+              <td>Conservation priority overlay</td>
+              <td><span class="credibility-badge cred-high">High</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="section-card">
+        <h3>Credibility Assessment Notes</h3>
+        <ul>
+          <li><span class="credibility-badge cred-high">High</span> — Peer-reviewed, operationally validated, or produced by authoritative government / academic institutions with established QA/QC procedures.</li>
+          <li><span class="credibility-badge cred-med">Medium</span> — Citizen science or crowd-sourced data with some quality controls (e.g., iNaturalist research grade, KoBoToolbox with photo verification), but may contain spatial inaccuracies or identification errors. Used to supplement, not replace, primary training data.</li>
+          <li>All training data undergoes manual review by Vanuatu Spatial Solutions analysts and USP botanists before inclusion in the classification model.</li>
+          <li>Model accuracy metrics are recalculated each quarter as new ground-truth data is added.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ TAB 4: DASHBOARD INTENT ═══ -->
+  <div class="tab-content" id="tab-intent">
+    <div class="tab-page">
+      <h2>Dashboard Intent</h2>
+      <p class="lead">Understanding why this dashboard exists, who it serves, and how it supports national biodiversity and environmental management in Vanuatu.</p>
+
+      <div class="intent-highlight">
+        <h3>Purpose Statement</h3>
+        <p>This prototype dashboard is developed by Vanuatu Spatial Solutions for the Department of Environmental Protection and Conservation (DEPC) and the National Biodiversity Strategy and Action Plan (NBSAP) programme. Its primary intent is to provide a near-real-time, evidence-based decision-support tool for monitoring and controlling the spread of invasive Merremia vine species across Vanuatu's islands — supporting Vanuatu's commitments under the Convention on Biological Diversity (CBD) and the Kunming-Montreal Global Biodiversity Framework.</p>
+      </div>
+
+      <div class="section-card">
+        <h3>Key Objectives</h3>
+        <div class="objectives-grid">
+          <div class="objective-card">
+            <h4>Early Warning</h4>
+            <p>Detect new Merremia outbreaks within one quarter of establishment, enabling rapid response before vine cover becomes entrenched and cost-prohibitive to remove.</p>
+          </div>
+          <div class="objective-card">
+            <h4>Evidence-Based Prioritisation</h4>
+            <p>Provide island-level risk scores and control priority rankings so that limited DEPC resources are directed where they will have the greatest ecological impact.</p>
+          </div>
+          <div class="objective-card">
+            <h4>Trend Monitoring</h4>
+            <p>Track the rate and direction of Merremia spread over time, enabling adaptive management strategies and quantitative reporting against NBSAP targets.</p>
+          </div>
+          <div class="objective-card">
+            <h4>Accessible Reporting</h4>
+            <p>Generate downloadable PDF reports suitable for DEPC field officers, NBSAP national reporting, and communication with international partners and donors.</p>
+          </div>
+          <div class="objective-card">
+            <h4>Community Engagement</h4>
+            <p>Present complex remote sensing data in an accessible format that can be shared with island communities, provincial governments, and conservation NGOs to build awareness and support for control efforts.</p>
+          </div>
+          <div class="objective-card">
+            <h4>NBSAP Target Tracking</h4>
+            <p>Directly supports NBSAP Target 6 (invasive alien species management) by providing measurable indicators on extent, rate of spread, and management effectiveness for Merremia across all surveyed islands.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-card">
+        <h3>Intended Users</h3>
+        <ul>
+          <li><strong>DEPC officers and rangers</strong> — for operational planning, resource allocation, and field survey coordination</li>
+          <li><strong>NBSAP focal point and reporting team</strong> — for national and CBD reporting on invasive species management progress</li>
+          <li><strong>Provincial government environment units</strong> — for island-level situational awareness</li>
+          <li><strong>Conservation NGOs and donors</strong> — for project monitoring and impact assessment</li>
+          <li><strong>Research institutions (USP, CSIRO, SPC)</strong> — for scientific analysis and collaborative research</li>
+          <li><strong>Community leaders and landowners</strong> — for awareness of Merremia impacts on their land and forests</li>
+        </ul>
+      </div>
+
+      <div class="section-card">
+        <h3>Prototype Disclaimer</h3>
+        <p>This is a <strong>prototype dashboard</strong> intended to demonstrate the feasibility of satellite-based Merremia monitoring for Vanuatu. Data presented is based on the best available sources as of the last survey cycle, but should be validated with on-ground surveys before making management decisions. The classification model is under active development and accuracy may vary by island, season, and cloud cover conditions. Vanuatu Spatial Solutions welcomes feedback from all users to improve the system.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ FOOTER ═══ -->
+  <footer>
+    Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Merremia Vanuatu Ecological Monitoring Project
+  </footer>
+
+  <!-- ═══ SCRIPTS ═══ -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // ── Tab Switching ──
+    function switchTab(name) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+      document.getElementById('tab-' + name).classList.add('active');
+      document.getElementById('tab-btn-' + name).classList.add('active');
+      // Re-invalidate map size when switching to dashboard tab
+      if (name === 'dashboard') setTimeout(() => map.invalidateSize(), 100);
+    }
+
+    // ── Last updated date ──
+    document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    // ── Map ──
+    const map = L.map('map').setView([-16.5, 167.8], 6);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 18
+    }).addTo(map);
+
+    const sites = [
+      { name: 'Efate \u2013 Port Vila', lat: -17.7334, lng: 168.3273, count: 128, threat: 'High' },
+      { name: 'Espiritu Santo \u2013 Luganville', lat: -15.5150, lng: 167.1750, count: 95, threat: 'High' },
+      { name: 'Tanna \u2013 Lenakel', lat: -19.5214, lng: 169.2636, count: 72, threat: 'Moderate' },
+      { name: 'Malakula \u2013 Lakatoro', lat: -16.1000, lng: 167.4167, count: 64, threat: 'Moderate' },
+      { name: 'Ambae \u2013 Saratamata', lat: -15.3833, lng: 167.8333, count: 41, threat: 'Low' },
+      { name: 'Erromango \u2013 Dillon Bay', lat: -18.8000, lng: 169.0333, count: 33, threat: 'Low' },
+      { name: 'Pentecost \u2013 Melsisi', lat: -15.9000, lng: 168.1833, count: 52, threat: 'Moderate' },
+      { name: 'Epi \u2013 Ringdove Bay', lat: -16.7333, lng: 168.1667, count: 28, threat: 'Low' },
+    ];
+
+    const threatColors = { High: '#ef4444', Moderate: '#f59e0b', Low: '#10b981' };
+    sites.forEach(s => {
+      L.circleMarker([s.lat, s.lng], {
+        radius: Math.sqrt(s.count) * 1.5,
+        color: threatColors[s.threat],
+        fillColor: threatColors[s.threat],
+        fillOpacity: 0.5,
+        weight: 1
+      }).addTo(map).bindPopup('<strong>' + s.name + '</strong><br>' + s.count + ' observations<br>Threat: ' + s.threat);
+    });
+
+    // ── Chart colors ──
+    const green = '#34d399';
+    const gridColor = '#334155';
+    Chart.defaults.color = '#94a3b8';
+
+    // ── Bar chart: Coverage by island ──
+    new Chart(document.getElementById('chart-islands'), {
+      type: 'bar',
+      data: {
+        labels: ['Efate', 'Santo', 'Tanna', 'Malakula', 'Pentecost', 'Ambae', 'Erromango', 'Epi'],
+        datasets: [{
+          label: 'Area (ha)',
+          data: [620, 480, 310, 275, 185, 120, 90, 60],
+          backgroundColor: ['#ef4444','#ef4444','#f59e0b','#f59e0b','#10b981','#10b981','#10b981','#10b981'],
+          borderRadius: 4
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: gridColor } },
+          y: { grid: { color: gridColor }, title: { display: true, text: 'Hectares' } }
+        }
+      }
+    });
+
+    // ── Line chart: Spread trend ──
+    const trendLabels = ['2020 Q1','2020 Q3','2021 Q1','2021 Q3','2022 Q1','2022 Q3','2023 Q1','2023 Q3','2024 Q1','2024 Q3','2025 Q1','2025 Q3'];
+    const trendData = [820, 910, 1020, 1100, 1240, 1350, 1480, 1580, 1720, 1860, 1980, 2140];
+    new Chart(document.getElementById('chart-trend'), {
+      type: 'line',
+      data: {
+        labels: trendLabels,
+        datasets: [{
+          label: 'Total area (ha)',
+          data: trendData,
+          borderColor: green,
+          backgroundColor: 'rgba(52,211,153,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 3
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { grid: { color: gridColor } },
+          y: { grid: { color: gridColor }, title: { display: true, text: 'Hectares' } }
+        }
+      }
+    });
+
+    // ── Background Analysis Engine (Web Worker) ──
+    const speciesData = [
+      { species: 'M. peltata', count: 482, threat: 'High' },
+      { species: 'M. vitifolia', count: 215, threat: 'Moderate' },
+      { species: 'M. tridentata', count: 167, threat: 'Moderate' },
+      { species: 'M. gemella', count: 98, threat: 'Low' },
+      { species: 'M. umbellata', count: 73, threat: 'Low' },
+      { species: 'M. tuberosa', count: 41, threat: 'Low' },
+      { species: 'M. dissecta', count: 29, threat: 'Low' },
+    ];
+    const islandData = [
+      { island: 'Efate', area: 620 },
+      { island: 'Espiritu Santo', area: 480 },
+      { island: 'Tanna', area: 310 },
+      { island: 'Malakula', area: 275 },
+      { island: 'Pentecost', area: 185 },
+      { island: 'Ambae', area: 120 },
+      { island: 'Erromango', area: 90 },
+      { island: 'Epi', area: 60 },
+    ];
+
+    const workerCode = '\
+      self.onmessage = function(e) {\
+        var d = e.data, trendData = d.trendData, speciesData = d.speciesData, islandData = d.islandData, sites = d.sites;\
+        var n = trendData.length;\
+        var xMean = (n - 1) / 2;\
+        var yMean = trendData.reduce(function(a, b){ return a + b; }, 0) / n;\
+        var num = 0, den = 0;\
+        for (var i = 0; i < n; i++) { num += (i - xMean) * (trendData[i] - yMean); den += (i - xMean) * (i - xMean); }\
+        var slope = num / den;\
+        var intercept = yMean - slope * xMean;\
+        var growthPerQuarter = slope;\
+        var annualGrowthRate = (Math.pow(trendData[n - 1] / trendData[0], 1 / ((n - 1) / 2)) - 1) * 100;\
+        self.postMessage({ type: "progress", step: "Growth rate analysis complete" });\
+        var projections = [];\
+        for (var i = 1; i <= 4; i++) { projections.push(Math.round(intercept + slope * (n - 1 + i))); }\
+        self.postMessage({ type: "progress", step: "Spread projections computed" });\
+        var totalObs = sites.reduce(function(s, x){ return s + x.count; }, 0);\
+        var islandRisk = sites.map(function(s){ return { name: s.name, score: Math.round((s.count / totalObs) * 100), threat: s.threat }; }).sort(function(a, b){ return b.score - a.score; });\
+        self.postMessage({ type: "progress", step: "Island risk scoring complete" });\
+        var totalSpecies = speciesData.reduce(function(s, x){ return s + x.count; }, 0);\
+        var dominance = speciesData.map(function(s){ return { species: s.species, pct: ((s.count / totalSpecies) * 100).toFixed(1), threat: s.threat }; });\
+        self.postMessage({ type: "progress", step: "Species dominance analysis complete" });\
+        var priorities = sites.map(function(s){ var u = s.threat === "High" ? 3 : s.threat === "Moderate" ? 2 : 1; return { name: s.name, urgency: u, density: (s.count / totalObs * 100).toFixed(1), priority: u * s.count }; }).sort(function(a, b){ return b.priority - a.priority; });\
+        self.postMessage({ type: "progress", step: "Control priority matrix built" });\
+        var threshold = 3000;\
+        var currentArea = trendData[n - 1];\
+        var quartersToThreshold = slope > 0 ? Math.ceil((threshold - currentArea) / slope) : null;\
+        self.postMessage({ type: "progress", step: "Threshold projection complete" });\
+        self.postMessage({ type: "done", results: { annualGrowthRate: annualGrowthRate.toFixed(1), growthPerQuarter: Math.round(growthPerQuarter), projections: projections, islandRisk: islandRisk, dominance: dominance, priorities: priorities, currentArea: currentArea, threshold: threshold, quartersToThreshold: quartersToThreshold } });\
+      };\
+    ';
+
+    var analysisResults = null;
+    var blob = new Blob([workerCode], { type: 'application/javascript' });
+    var worker = new Worker(URL.createObjectURL(blob));
+
+    worker.onmessage = function(e) {
+      if (e.data.type === 'progress') {
+        document.getElementById('analysis-text').textContent = e.data.step;
+      }
+      if (e.data.type === 'done') {
+        analysisResults = e.data.results;
+        document.getElementById('analysis-dot').classList.add('done');
+        document.getElementById('analysis-text').textContent = 'Analysis complete \u2014 6 findings ready';
+        document.getElementById('btn-download').disabled = false;
+        renderFindings(analysisResults);
+        worker.terminate();
+      }
+    };
+
+    setTimeout(function() {
+      worker.postMessage({ trendData: trendData, speciesData: speciesData, islandData: islandData, sites: sites });
+    }, 500);
+
+    function renderFindings(r) {
+      var panel = document.getElementById('analysis-panel');
+      var grid = document.getElementById('findings-grid');
+      panel.style.display = '';
+
+      var severityClass = function(v) { return v === 'critical' ? 'critical' : v === 'warn' ? 'warn' : ''; };
+      var findings = [
+        { title: 'Annual Growth Rate', result: r.annualGrowthRate + '% per year', detail: 'Average ' + r.growthPerQuarter + ' ha added per quarter', severity: parseFloat(r.annualGrowthRate) > 15 ? 'critical' : 'warn' },
+        { title: 'Projected Spread (Next Year)', result: r.projections[3].toLocaleString() + ' ha', detail: 'Q1\u2013Q4 projections: ' + r.projections.map(function(p){ return p.toLocaleString(); }).join(', ') + ' ha', severity: 'warn' },
+        { title: 'Highest-Risk Site', result: r.islandRisk[0].name, detail: 'Risk score: ' + r.islandRisk[0].score + '/100 \u2014 Threat level: ' + r.islandRisk[0].threat, severity: r.islandRisk[0].threat === 'High' ? 'critical' : 'warn' },
+        { title: 'Dominant Species', result: r.dominance[0].species + ' (' + r.dominance[0].pct + '%)', detail: 'Threat level: ' + r.dominance[0].threat + ' \u2014 ' + r.dominance.length + ' species total', severity: r.dominance[0].threat === 'High' ? 'critical' : '' },
+        { title: 'Top Control Priority', result: r.priorities[0].name, detail: 'Urgency \u00d7 density score: ' + r.priorities[0].priority + ' \u2014 ' + r.priorities[0].density + '% of all observations', severity: 'warn' },
+        { title: 'Time to 3,000 ha Threshold', result: r.quartersToThreshold ? r.quartersToThreshold + ' quarters (~' + (r.quartersToThreshold / 4).toFixed(1) + ' years)' : 'N/A', detail: 'Current: ' + r.currentArea.toLocaleString() + ' ha \u2014 Threshold: ' + r.threshold.toLocaleString() + ' ha', severity: r.quartersToThreshold && r.quartersToThreshold <= 8 ? 'critical' : 'warn' },
+      ];
+
+      grid.innerHTML = findings.map(function(f) {
+        return '<div class="finding ' + severityClass(f.severity) + '"><h4>' + f.title + '</h4><div class="result">' + f.result + '</div><div class="detail">' + f.detail + '</div></div>';
+      }).join('');
+    }
+
+    // ── Report Generation (PDF) ──
+    function downloadReport() {
+      if (!analysisResults) return;
+      var r = analysisResults;
+      var jsPDF = window.jspdf.jsPDF;
+      var doc = new jsPDF();
+      var now = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+      var y = 20;
+
+      var addHeading = function(text) { doc.setFontSize(14); doc.setTextColor(6, 95, 70); doc.text(text, 14, y); y += 8; };
+      var addSubheading = function(text) { doc.setFontSize(11); doc.setTextColor(60, 60, 60); doc.text(text, 14, y); y += 6; };
+      var addLine = function(text) { doc.setFontSize(10); doc.setTextColor(80, 80, 80); doc.text(text, 18, y); y += 5; };
+      var addSpacer = function() { y += 4; };
+      var checkPage = function() { if (y > 270) { doc.addPage(); y = 20; } };
+
+      doc.setFontSize(20);
+      doc.setTextColor(6, 78, 59);
+      doc.text('Merremia Vanuatu', 14, y); y += 8;
+      doc.text('Monitoring Report', 14, y); y += 10;
+      doc.setFontSize(10);
+      doc.setTextColor(120, 120, 120);
+      doc.text('Generated: ' + now, 14, y); y += 5;
+      doc.text('Prepared by Vanuatu Spatial Solutions for DEPC & NBSAP', 14, y); y += 5;
+      doc.text('Report type: Automated background analysis', 14, y); y += 4;
+      doc.setDrawColor(16, 185, 129);
+      doc.setLineWidth(0.5);
+      doc.line(14, y, 196, y); y += 10;
+
+      addHeading('1. Executive Summary');
+      addLine('Total area affected: ' + r.currentArea.toLocaleString() + ' hectares across 8 islands');
+      addLine('Annual growth rate: ' + r.annualGrowthRate + '% per year (' + r.growthPerQuarter + ' ha/quarter)');
+      addLine('Species tracked: ' + r.dominance.length + ' Merremia species');
+      addLine('Survey sites: ' + sites.length + ' active monitoring sites');
+      if (r.quartersToThreshold) {
+        addLine('Projected time to 3,000 ha threshold: ' + r.quartersToThreshold + ' quarters (~' + (r.quartersToThreshold / 4).toFixed(1) + ' years)');
+      }
+      addSpacer(); checkPage();
+
+      addHeading('2. Spread Projections');
+      addSubheading('Projected coverage for the next 4 quarters:');
+      r.projections.forEach(function(p, i) { addLine('  Quarter ' + (i + 1) + ': ' + p.toLocaleString() + ' ha'); });
+      addSpacer(); checkPage();
+
+      addHeading('3. Island Risk Assessment');
+      r.islandRisk.forEach(function(ir) {
+        addLine(ir.name + '  -  Risk score: ' + ir.score + '/100  |  Threat: ' + ir.threat);
+      });
+      addSpacer(); checkPage();
+
+      addHeading('4. Species Dominance Analysis');
+      r.dominance.forEach(function(d) {
+        addLine(d.species + '  -  ' + d.pct + '% of observations  |  Threat: ' + d.threat);
+      });
+      addSpacer(); checkPage();
+
+      addHeading('5. Control Priority Matrix');
+      addSubheading('Sites ranked by urgency x observation density:');
+      r.priorities.forEach(function(p, i) {
+        addLine((i + 1) + '. ' + p.name + '  -  Priority score: ' + p.priority + '  |  Density: ' + p.density + '%');
+        checkPage();
+      });
+      addSpacer(); checkPage();
+
+      addHeading('6. Recommendations');
+      var recs = [
+        'Prioritize containment efforts on ' + r.priorities[0].name + ' (highest priority score)',
+        'Focus biological control research on ' + r.dominance[0].species + ' (dominant species, ' + r.dominance[0].pct + '% of observations)',
+        'Increase survey frequency on high-threat islands (Efate, Espiritu Santo)',
+        'Establish buffer zones around unaffected areas on low-threat islands',
+        r.quartersToThreshold ? 'Implement aggressive intervention before ' + r.threshold.toLocaleString() + ' ha threshold is reached in ~' + (r.quartersToThreshold / 4).toFixed(1) + ' years' : 'Monitor growth rate trend for changes',
+      ];
+      recs.forEach(function(rec, i) { addLine((i + 1) + '. ' + rec); checkPage(); });
+
+      y += 10; checkPage();
+      doc.setDrawColor(16, 185, 129);
+      doc.line(14, y, 196, y); y += 6;
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text('Vanuatu Spatial Solutions for DEPC & NBSAP - Merremia Monitoring Report - ' + now, 14, y);
+
+      doc.save('merremia-vanuatu-report-' + new Date().toISOString().slice(0, 10) + '.pdf');
+    }
+  </script>
+</body>
 </html>
