@@ -36,11 +36,21 @@ class MerremiaConnector {
     this.owner = config.owner || 'welinrj';
     this.repo = config.repo || 'merremia-field-data';
     this.branch = config.branch || 'main';
+    this.token = config.token || '';
     this.cacheKey = `merremia_dashboard_cache_${this.owner}_${this.repo}`;
     this.cacheTTL = config.cacheTTL || 5 * 60 * 1000; // 5 min default
     this.refreshInterval = null;
     this.lastFetch = null;
     this.onError = config.onError || console.error;
+  }
+
+  /**
+   * Build headers with optional auth token
+   */
+  get authHeaders() {
+    const h = { 'Accept': 'application/vnd.github.v3+json' };
+    if (this.token) h['Authorization'] = `Bearer ${this.token}`;
+    return h;
   }
 
   /**
@@ -70,22 +80,32 @@ class MerremiaConnector {
       const cached = this.getCache();
       if (cached) return cached;
 
-      // Try master data file first
-      const response = await fetch(`${this.baseURL}/data/all-records.json?t=${Date.now()}`);
+      // Fetch from both sources and merge for completeness
+      let allRecords = [];
 
-      if (response.ok) {
-        const records = await response.json();
-        const processed = this.processRecords(records);
-        this.setCache(processed);
-        this.lastFetch = new Date();
-        return processed;
-      }
+      // Source 1: aggregated all-records.json
+      try {
+        const response = await fetch(`${this.baseURL}/data/all-records.json?t=${Date.now()}`);
+        if (response.ok) {
+          const records = await response.json();
+          if (Array.isArray(records)) allRecords = records;
+        }
+      } catch (e) { /* ignore, try individual records */ }
 
-      // Fallback: read individual record files from records/ directory
-      console.info('[Connector] No all-records.json, reading individual records...');
-      const records = await this.fetchIndividualRecords();
-      if (records.length > 0) {
-        const processed = this.processRecords(records);
+      // Source 2: individual record files from records/ directory
+      try {
+        const individual = await this.fetchIndividualRecords();
+        if (individual.length > 0) {
+          // Merge: add any records not already in allRecords (by ID)
+          const existingIds = new Set(allRecords.map(r => r.id));
+          individual.forEach(r => {
+            if (!existingIds.has(r.id)) allRecords.push(r);
+          });
+        }
+      } catch (e) { /* ignore if API rate-limited */ }
+
+      if (allRecords.length > 0) {
+        const processed = this.processRecords(allRecords);
         this.setCache(processed);
         this.lastFetch = new Date();
         return processed;
@@ -108,9 +128,9 @@ class MerremiaConnector {
    */
   async fetchIndividualRecords() {
     try {
-      // List files in records/ via GitHub API
+      // List files in records/ via GitHub API (authenticated if token provided)
       const listResp = await fetch(`${this.apiURL}/records`, {
-        headers: { 'Accept': 'application/vnd.github.v3+json' }
+        headers: this.authHeaders
       });
       if (!listResp.ok) return [];
 
