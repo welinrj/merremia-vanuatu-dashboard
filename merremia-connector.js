@@ -83,11 +83,21 @@ class MerremiaConnector {
       // Fetch from both sources and merge for completeness
       let allRecords = [];
 
-      // Source 1: aggregated all-records.json
+      // Source 1: aggregated all-records.json via GitHub API (real-time, no CDN cache)
       try {
-        const response = await fetch(`${this.baseURL}/data/all-records.json?t=${Date.now()}`);
+        const response = await fetch(`${this.apiURL}/data/all-records.json`, {
+          headers: this.authHeaders
+        });
         if (response.ok) {
-          const records = await response.json();
+          const fileData = await response.json();
+          // Check if SHA changed (skip processing if unchanged)
+          if (this._lastSha && fileData.sha === this._lastSha) {
+            const stale = this.getCache(true);
+            if (stale) return stale;
+          }
+          this._lastSha = fileData.sha;
+          const decoded = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
+          const records = JSON.parse(decoded);
           if (Array.isArray(records)) allRecords = records;
         }
       } catch (e) { /* ignore, try individual records */ }
