@@ -60,6 +60,11 @@
     .offline-banner{background:#78350f;color:#fcd34d;text-align:center;padding:0.4rem;font-size:0.75rem;font-weight:600;display:none}
     .offline-banner.show{display:block}
     input[type="file"]{display:none}
+    .toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:0.75rem 1.25rem;border-radius:0.5rem;font-size:0.85rem;font-weight:600;z-index:9999;animation:slideDown 0.3s ease;max-width:90%}
+    .toast-info{background:#1e293b;color:#34d399;border:1px solid #10b981}
+    .toast-warn{background:#78350f;color:#fcd34d;border:1px solid #f59e0b}
+    .toast-error{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
+    @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
   </style>
 </head>
 <body>
@@ -188,7 +193,7 @@
       <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">GitHub Sync Settings</h3>
       <div class="settings-field">
         <label>GitHub Owner (username)</label>
-        <input id="s-owner" placeholder="your-username">
+        <input id="s-owner" placeholder="your-username" value="welinrj">
       </div>
       <div class="settings-field">
         <label>Data Repository</label>
@@ -222,6 +227,18 @@
     var SETTINGS_KEY = 'merremia_settings';
     var currentPhotos = [];
     var currentLat = null, currentLng = null, currentAcc = null;
+
+    // ── Toast Notifications ──
+    function showToast(msg, type) {
+      type = type || 'info';
+      var existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function() { el.remove(); }, 3500);
+    }
 
     // ── Views ──
     function showView(name) {
@@ -290,11 +307,11 @@
       var species = document.getElementById('f-species').value;
       var threat = document.getElementById('f-threat').value;
       if (!island || !species || !threat) {
-        alert('Please fill in Island, Species, and Threat Level.');
+        showToast('Please fill in Island, Species, and Threat Level.', 'warn');
         return;
       }
       if (currentLat === null) {
-        alert('Waiting for GPS fix. Please try again in a moment.');
+        showToast('Waiting for GPS fix. Try again in a moment.', 'warn');
         return;
       }
 
@@ -330,7 +347,7 @@
       document.getElementById('photo-input').value = '';
       updateRecordCount();
 
-      alert('Observation saved! (' + records.length + ' total)');
+      showToast('Observation saved! (' + records.length + ' total)', 'info');
     }
 
     // ── Records ──
@@ -376,7 +393,7 @@
       settings.repo = document.getElementById('s-repo').value.trim();
       settings.token = document.getElementById('s-token').value.trim();
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      alert('Settings saved!');
+      showToast('Settings saved!', 'info');
     }
 
     function saveDefaultObserver() {
@@ -384,7 +401,7 @@
       settings.defaultObserver = document.getElementById('s-observer').value.trim();
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       document.getElementById('f-observer').value = settings.defaultObserver;
-      alert('Default observer saved!');
+      showToast('Default observer saved!', 'info');
     }
 
     function loadSettings() {
@@ -402,14 +419,14 @@
     async function syncData() {
       var s = getSettings();
       if (!s.owner || !s.repo || !s.token) {
-        alert('Please configure GitHub settings first (Settings tab).');
+        showToast('Configure GitHub settings first (Settings tab)', 'warn');
         showView('settings');
         return;
       }
 
       var records = getRecords();
       var pending = records.filter(function(r) { return !r.synced; });
-      if (pending.length === 0) { alert('All records are synced!'); return; }
+      if (pending.length === 0) { showToast('All records are synced!', 'info'); return; }
 
       var btn = document.getElementById('btn-sync');
       btn.classList.add('active');
@@ -461,9 +478,9 @@
         localStorage.setItem(DB_KEY, JSON.stringify(records));
         updateRecordCount();
         if (document.getElementById('view-records').classList.contains('active')) renderRecords();
-        alert('Synced ' + pending.length + ' record(s) to GitHub!');
+        showToast('Synced ' + pending.length + ' record(s) to GitHub!', 'info');
       } catch(err) {
-        alert('Sync error: ' + err.message + '\nRecords saved locally. Try again later.');
+        showToast('Sync error — records saved locally. Try again later.', 'error');
       }
 
       btn.classList.remove('active');
@@ -475,7 +492,7 @@
         localStorage.removeItem(DB_KEY);
         updateRecordCount();
         renderRecords();
-        alert('All local data cleared.');
+        showToast('All local data cleared.', 'info');
       }
     }
 

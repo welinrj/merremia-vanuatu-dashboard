@@ -56,7 +56,7 @@
 
   <div class="config-bar">
     <label>GitHub Owner:</label>
-    <input id="cfg-owner" placeholder="username" style="width:120px">
+    <input id="cfg-owner" placeholder="username" value="welinrj" style="width:120px">
     <label>Data Repo:</label>
     <input id="cfg-repo" value="merremia-field-data" style="width:160px">
     <label>Token (optional):</label>
@@ -126,52 +126,58 @@
       status.textContent = 'Loading...';
       status.className = 'status-msg';
 
-      var connector = new MerremiaConnector(owner, repo, token || null);
-      var records = await connector.fetchRecords();
+      try {
+        var connector = new MerremiaConnector({ owner: owner, repo: repo });
+        var data = await connector.fetchAll();
 
-      if (!records || records.length === 0) {
-        status.textContent = 'No records found (or repo is empty)';
+        if (!data || !data.records || data.records.length === 0) {
+          status.textContent = 'No records found yet — click Load Data after field data is collected';
+          status.className = 'status-msg err';
+          return;
+        }
+
+        status.textContent = data.records.length + ' records loaded';
+        status.className = 'status-msg ok';
+
+        renderSummary(data);
+        renderMap(data);
+        renderTable(data.records);
+      } catch(err) {
+        status.textContent = 'Could not load data — repo may not exist yet';
         status.className = 'status-msg err';
-        return;
       }
-
-      status.textContent = records.length + ' records loaded';
-      status.className = 'status-msg ok';
-
-      var summary = connector.summarize(records);
-      renderSummary(summary);
-
-      var points = connector.getMapPoints(records);
-      renderMap(points);
-
-      renderTable(records);
     }
 
-    function renderSummary(s) {
-      document.getElementById('v-records').textContent = s.totalRecords;
+    function renderSummary(data) {
+      var s = data.stats;
+      document.getElementById('v-records').textContent = s.recordCount;
       document.getElementById('v-count').textContent = s.totalObservations.toLocaleString();
-      document.getElementById('v-area').textContent = s.totalArea.toLocaleString();
-      document.getElementById('v-islands').textContent = Object.keys(s.byIsland).length;
-      if (s.latestRecord) {
-        var d = new Date(s.latestRecord.timestamp);
+      document.getElementById('v-area').textContent = s.totalAreaHectares.toLocaleString();
+      document.getElementById('v-islands').textContent = s.islandCount;
+      if (data.lastUpdated) {
+        var d = new Date(data.lastUpdated);
         document.getElementById('v-latest').textContent = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
-        document.getElementById('v-latest-sub').textContent = s.latestRecord.species + ' at ' + s.latestRecord.island;
+        var latest = data.records[0];
+        if (latest) document.getElementById('v-latest-sub').textContent = (latest.species || []).join(', ') + ' at ' + (latest.island || '');
       }
     }
 
-    function renderMap(points) {
+    function renderMap(data) {
       markersLayer.clearLayers();
-      points.forEach(function(p) {
-        var color = threatColors[p.threat] || '#94a3b8';
-        L.circleMarker([p.lat, p.lng], {
-          radius: Math.max(5, Math.sqrt(p.count) * 2),
+      var features = data.geoJSON ? data.geoJSON.features : [];
+      features.forEach(function(f) {
+        var p = f.properties;
+        var coords = f.geometry.coordinates;
+        var color = threatColors[p.threatLevel === 'high' ? 'High' : p.threatLevel === 'moderate' ? 'Moderate' : 'Low'] || '#94a3b8';
+        L.circleMarker([coords[1], coords[0]], {
+          radius: Math.max(5, Math.sqrt(p.count || 1) * 2),
           color: color, fillColor: color, fillOpacity: 0.6, weight: 1
         }).addTo(markersLayer)
-          .bindPopup('<strong>' + p.species + '</strong><br>' + p.island + (p.site ? ' — ' + p.site : '') + '<br>Count: ' + p.count + ' | Threat: ' + p.threat + '<br><small>' + new Date(p.date).toLocaleDateString('en-GB') + ' by ' + (p.observer || 'Unknown') + '</small>');
+          .bindPopup('<strong>' + p.speciesLabel + '</strong><br>' + p.island + (p.siteName ? ' — ' + p.siteName : '') + '<br>Count: ' + (p.count || 1) + ' | Threat: ' + p.threatLevel + '<br><small>' + new Date(p.timestamp).toLocaleDateString('en-GB') + ' by ' + (p.observer || 'Unknown') + '</small>');
       });
 
-      if (points.length > 0) {
-        var bounds = L.latLngBounds(points.map(function(p) { return [p.lat, p.lng]; }));
+      if (features.length > 0) {
+        var bounds = L.latLngBounds(features.map(function(f) { return [f.geometry.coordinates[1], f.geometry.coordinates[0]]; }));
         liveMap.fitBounds(bounds, { padding: [30, 30] });
       }
     }
@@ -180,8 +186,10 @@
       var sorted = records.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
       var rows = sorted.slice(0, 50).map(function(r) {
         var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-        var badge = r.threatLevel === 'High' ? 'badge-high' : r.threatLevel === 'Moderate' ? 'badge-moderate' : 'badge-low';
-        return '<tr><td>' + d + '</td><td>' + r.island + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + r.species + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + r.threatLevel + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
+        var threat = r.threatLevel || 'low';
+        var badge = threat === 'high' ? 'badge-high' : threat === 'moderate' ? 'badge-moderate' : 'badge-low';
+        var speciesLabel = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
+        return '<tr><td>' + d + '</td><td>' + (r.island || '-') + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + speciesLabel + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + threat + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
       }).join('');
 
       document.getElementById('records-table').innerHTML = '<table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table>' + (sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '');
