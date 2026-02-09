@@ -35,7 +35,11 @@
     .btn{padding:0.75rem 1.5rem;border-radius:0.5rem;border:none;font-size:0.95rem;font-weight:700;cursor:pointer;width:100%;transition:all 0.2s}
     .btn-primary{background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:2px solid #10b981;box-shadow:0 0 10px rgba(16,185,129,0.3)}
     .btn-primary:active{transform:scale(0.98)}
-    .btn-primary:disabled{opacity:0.4}
+    .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+    .gps-hint{text-align:center;font-size:0.75rem;color:#f59e0b;margin-top:0.4rem}
+    .gps-hint.ready{color:#34d399}
+    .gps-accuracy-good{color:#34d399!important}
+    .gps-accuracy-bad{color:#ef4444!important}
     .btn-danger{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
     .btn-secondary{background:#334155;color:#e2e8f0;border:1px solid #475569}
     .photo-btn{display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:1.5rem;border:2px dashed #334155;border-radius:0.75rem;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:0.9rem}
@@ -183,7 +187,8 @@
       <textarea id="f-notes" placeholder="Additional observations, habitat type, nearby landmarks..."></textarea>
     </div>
 
-    <button class="btn btn-primary" onclick="saveRecord()" id="btn-save">Save Observation</button>
+    <button class="btn btn-primary" onclick="saveRecord()" id="btn-save" disabled>Save Observation</button>
+    <p class="gps-hint" id="gps-hint">Waiting for GPS accuracy &lt; 8m before saving...</p>
   </div>
 
   <!-- ═══ RECORDS VIEW ═══ -->
@@ -266,13 +271,28 @@
         document.getElementById('gps-coords').textContent = 'GPS not available';
         return;
       }
+      var GPS_ACC_THRESHOLD = 8;
       navigator.geolocation.watchPosition(
         function(pos) {
           currentLat = pos.coords.latitude;
           currentLng = pos.coords.longitude;
           currentAcc = Math.round(pos.coords.accuracy);
           document.getElementById('gps-coords').textContent = currentLat.toFixed(6) + ', ' + currentLng.toFixed(6);
-          document.getElementById('gps-accuracy').textContent = '\u00b1' + currentAcc + 'm';
+          var accEl = document.getElementById('gps-accuracy');
+          accEl.textContent = '\u00b1' + currentAcc + 'm';
+          var btn = document.getElementById('btn-save');
+          var hint = document.getElementById('gps-hint');
+          if (currentAcc <= GPS_ACC_THRESHOLD) {
+            accEl.className = 'accuracy gps-accuracy-good';
+            btn.disabled = false;
+            hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
+            hint.className = 'gps-hint ready';
+          } else {
+            accEl.className = 'accuracy gps-accuracy-bad';
+            btn.disabled = true;
+            hint.textContent = 'GPS accuracy ' + currentAcc + 'm — need < ' + GPS_ACC_THRESHOLD + 'm to save';
+            hint.className = 'gps-hint';
+          }
         },
         function(err) {
           document.getElementById('gps-coords').textContent = 'GPS error: ' + err.message;

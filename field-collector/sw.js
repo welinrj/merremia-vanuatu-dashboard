@@ -27,8 +27,8 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-  // Don't cache API calls
-  if (event.request.url.includes('api.github.com')) return;
+  // Don't cache GitHub API calls or raw content
+  if (event.request.url.includes('api.github.com') || event.request.url.includes('raw.githubusercontent.com')) return;
 
   // Network-first: always try to get fresh code, fall back to cache when offline
   event.respondWith(

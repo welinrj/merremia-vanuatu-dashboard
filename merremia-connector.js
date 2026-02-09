@@ -560,6 +560,8 @@ function initMerremiaLiveData(config) {
     owner: config.owner,
     repo: config.repo,
     branch: config.branch,
+    token: config.token,
+    cacheTTL: config.cacheTTL,
     onError: config.onError
   });
 
