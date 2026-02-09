@@ -121,7 +121,7 @@
   <div class="records-section">
     <div class="records-panel">
       <h2>Recent Records</h2>
-      <div class="filter-bar" id="filter-bar" style="display:none">
+      <div class="filter-bar" id="filter-bar">
         <select id="filter-threat" onchange="applyFilters()">
           <option value="">All Threats</option>
         </select>
@@ -274,7 +274,6 @@
     function renderTable(records) {
       allRecords = records;
       populateFilters(records);
-      document.getElementById('filter-bar').style.display = 'flex';
       applyFilters();
     }
 
