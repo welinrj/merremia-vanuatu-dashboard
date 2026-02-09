@@ -93,12 +93,9 @@
   </header>
 
   <div class="config-bar">
-    <label>GitHub Owner:</label>
-    <input id="cfg-owner" placeholder="username" value="welinrj" style="width:120px">
-    <label>Data Repo:</label>
-    <input id="cfg-repo" value="merremia-field-data" style="width:160px">
-    <label>Token (optional):</label>
-    <input id="cfg-token" type="password" placeholder="for private repos" style="width:160px">
+    <input id="cfg-owner" type="hidden" value="welinrj">
+    <input id="cfg-repo" type="hidden" value="merremia-field-data">
+    <input id="cfg-token" type="hidden" value="">
     <button onclick="loadFieldData()">Load Data</button>
     <span class="status-msg" id="status-msg"></span>
   </div>
