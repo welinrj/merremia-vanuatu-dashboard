@@ -43,6 +43,9 @@
     .badge-moderate{background:#78350f;color:#fcd34d}
     .badge-low{background:#064e3b;color:#6ee7b7}
     .empty{text-align:center;padding:3rem;color:#64748b;font-size:0.9rem}
+    .filter-bar{display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem}
+    .filter-bar select{padding:0.4rem 0.6rem;background:#0f172a;border:1px solid #334155;border-radius:0.35rem;color:#e2e8f0;font-size:0.8rem;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.5rem center;padding-right:1.5rem;min-width:140px}
+    .filter-bar select:focus{outline:none;border-color:#10b981}
     .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
     .download-section{padding:0 2rem 1.5rem}
     .download-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
@@ -118,8 +121,19 @@
   <div class="records-section">
     <div class="records-panel">
       <h2>Recent Records</h2>
+      <div class="filter-bar" id="filter-bar" style="display:none">
+        <select id="filter-threat" onchange="applyFilters()">
+          <option value="">All Threats</option>
+        </select>
+        <select id="filter-species" onchange="applyFilters()">
+          <option value="">All Species</option>
+        </select>
+        <select id="filter-island" onchange="applyFilters()">
+          <option value="">All Islands</option>
+        </select>
+      </div>
       <div id="records-table">
-        <div class="empty">Enter your GitHub details above and click "Load Data" to see field-collected records.</div>
+        <div class="empty">Click "Load Data" to see field-collected records.</div>
       </div>
     </div>
   </div>
@@ -255,8 +269,53 @@
       }
     }
 
+    var allRecords = [];
+
     function renderTable(records) {
-      var sorted = records.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
+      allRecords = records;
+      populateFilters(records);
+      document.getElementById('filter-bar').style.display = 'flex';
+      applyFilters();
+    }
+
+    function populateFilters(records) {
+      var threats = {}, species = {}, islands = {};
+      records.forEach(function(r) {
+        var t = r.threatLevel || 'low';
+        threats[t.charAt(0).toUpperCase() + t.slice(1)] = true;
+        var sp = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
+        sp.forEach(function(s) { if (s) species[s] = true; });
+        if (r.island) islands[r.island] = true;
+      });
+
+      fillSelect('filter-threat', 'All Threats', Object.keys(threats).sort());
+      fillSelect('filter-species', 'All Species', Object.keys(species).sort());
+      fillSelect('filter-island', 'All Islands', Object.keys(islands).sort());
+    }
+
+    function fillSelect(id, allLabel, values) {
+      var el = document.getElementById(id);
+      var current = el.value;
+      el.innerHTML = '<option value="">' + allLabel + '</option>' + values.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
+      if (current && values.indexOf(current) >= 0) el.value = current;
+    }
+
+    function applyFilters() {
+      var ft = document.getElementById('filter-threat').value.toLowerCase();
+      var fs = document.getElementById('filter-species').value;
+      var fi = document.getElementById('filter-island').value;
+
+      var filtered = allRecords.filter(function(r) {
+        if (ft && (r.threatLevel || 'low') !== ft) return false;
+        if (fs) {
+          var sp = Array.isArray(r.species) ? r.species : [r.species || ''];
+          if (sp.indexOf(fs) < 0) return false;
+        }
+        if (fi && r.island !== fi) return false;
+        return true;
+      });
+
+      var sorted = filtered.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
       var rows = sorted.slice(0, 50).map(function(r) {
         var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
         var threat = r.threatLevel || 'low';
@@ -266,7 +325,9 @@
         return '<tr><td>' + d + '</td><td>' + (r.island || '-') + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + speciesLabel + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + threatLabel + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
       }).join('');
 
-      document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + (sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '');
+      var countNote = sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '';
+      var filterNote = (ft || fs || fi) ? '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:0.5rem">Showing ' + sorted.length + ' of ' + allRecords.length + ' records</p>' : '';
+      document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + countNote + filterNote;
     }
 
     // ── Download functionality ──
