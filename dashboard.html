@@ -418,25 +418,25 @@
 
   /* ── FOOTER ── */
   .dash-footer {
-    padding: 2rem 2rem 1.5rem;
+    padding: 2.5rem 2rem 1.5rem;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
     font-size: 0.78rem;
     color: #64748b;
+    text-align: center;
   }
-  .footer-inner { max-width: 900px; margin: 0 auto; }
-  .footer-header { display: flex; align-items: center; gap: 1.5rem; justify-content: center; margin-bottom: 1.5rem; }
-  .footer-header img { height: 80px; opacity: 0.6; flex-shrink: 0; }
-  .footer-dept { text-align: left; }
-  .footer-dept h3 { color: #1e293b; font-size: 0.85rem; font-weight: 700; margin: 0 0 0.25rem; letter-spacing: 0.02em; }
-  .footer-dept p { color: #64748b; font-size: 0.72rem; line-height: 1.5; margin: 0; }
-  .footer-divider { border: none; border-top: 1px solid #e2e8f0; margin: 0 0 1.25rem; }
-  .footer-contacts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 1.25rem; }
-  .footer-contact-col h4 { color: #334155; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.4rem; font-weight: 700; }
-  .footer-contact-col p { color: #64748b; line-height: 1.7; font-size: 0.74rem; margin: 0; }
-  .footer-contact-col a { color: #065f46; text-decoration: none; transition: color 0.2s; }
+  .footer-inner { max-width: 720px; margin: 0 auto; }
+  .footer-coa { margin-bottom: 0.75rem; }
+  .footer-coa img { height: 56px; opacity: 0.5; }
+  .footer-dept-name { color: #1e293b; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.2rem; }
+  .footer-ministry { color: #64748b; font-size: 0.7rem; line-height: 1.5; margin-bottom: 1.25rem; }
+  .footer-divider { border: none; border-top: 1px solid #e2e8f0; margin: 0 auto 1.25rem; max-width: 480px; }
+  .footer-contacts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem 2rem; text-align: left; margin-bottom: 1.25rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .footer-contact-col h4 { color: #334155; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.35rem; font-weight: 700; }
+  .footer-contact-col p { color: #64748b; line-height: 1.65; font-size: 0.72rem; margin: 0; }
+  .footer-contact-col a { color: #065f46; text-decoration: none; }
   .footer-contact-col a:hover { color: #10b981; }
-  .footer-bottom { text-align: center; padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 0.68rem; }
+  .footer-bottom { padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 0.66rem; max-width: 480px; margin: 0 auto; }
   .footer-bottom strong { color: #64748b; }
 
   /* ── RESPONSIVE ── */
@@ -450,9 +450,7 @@
     .dash-main { grid-template-columns: 1fr; }
     .stat-card { grid-column: 1; }
     .dash-header h1 { font-size: 28px; }
-    .footer-header { flex-direction: column; text-align: center; }
-    .footer-dept { text-align: center; }
-    .footer-contacts { grid-template-columns: 1fr; }
+    .footer-contacts { grid-template-columns: 1fr; text-align: center; }
   }
 </style>
 </head>
@@ -501,13 +499,11 @@
 <!-- FOOTER -->
 <div class="dash-footer">
   <div class="footer-inner">
-    <div class="footer-header">
+    <div class="footer-coa">
       <img src="assets/vanuatu-coat-of-arms.png" alt="Coat of Arms of Vanuatu">
-      <div class="footer-dept">
-        <h3>Department of Environmental Protection &amp; Conservation</h3>
-        <p>Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>Environment, Energy and Disaster Management</p>
-      </div>
     </div>
+    <div class="footer-dept-name">Department of Environmental Protection &amp; Conservation</div>
+    <div class="footer-ministry">Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>Environment, Energy and Disaster Management</div>
     <hr class="footer-divider">
     <div class="footer-contacts">
       <div class="footer-contact-col">
