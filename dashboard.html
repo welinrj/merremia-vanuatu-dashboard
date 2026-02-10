@@ -205,6 +205,14 @@
     color: var(--text-dim);
   }
 
+  /* ── BASEMAP TOGGLE ── */
+  .map-wrap { position: relative; }
+  .basemap-toggle { position: absolute; top: 10px; left: 10px; z-index: 800; display: flex; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }
+  .basemap-btn { padding: 6px 12px; background: var(--bg-card); color: var(--text-dim); border: none; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border-right: 1px solid var(--border); }
+  .basemap-btn:last-child { border-right: none; }
+  .basemap-btn.active { background: var(--green-dim); color: #ecfdf5; }
+  .basemap-btn:hover:not(.active) { background: var(--bg-card-hover); color: var(--text); }
+
   /* ── MAP ── */
   .map-card {
     grid-column: 1 / -1;
@@ -584,7 +592,14 @@ function buildDashboardHTML() {
           <div class="card-subtitle">GPS-tagged field observations</div>
         </div>
       </div>
-      <div id="dashMap"></div>
+      <div class="map-wrap">
+        <div class="basemap-toggle">
+          <button class="basemap-btn active" id="bm-dark" onclick="switchBasemap('dark')">Dark</button>
+          <button class="basemap-btn" id="bm-streets" onclick="switchBasemap('streets')">Streets</button>
+          <button class="basemap-btn" id="bm-satellite" onclick="switchBasemap('satellite')">Satellite</button>
+        </div>
+        <div id="dashMap"></div>
+      </div>
     </div>
 
     <!-- Charts -->
@@ -655,17 +670,31 @@ function updateStats(stats) {
 // ══════════════════════════════════════════
 // MAP
 // ══════════════════════════════════════════
+var baseLayers = {};
+var activeBasemap = 'dark';
+
 function initMap() {
   map = L.map('dashMap', {
     zoomControl: true,
     attributionControl: false
   }).setView([-17.7, 168.3], 7);
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    maxZoom: 19
-  }).addTo(map);
+  baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+  baseLayers.streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+  baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
 
+  baseLayers.dark.addTo(map);
   mapLayer = L.layerGroup().addTo(map);
+}
+
+function switchBasemap(type) {
+  if (activeBasemap === type) return;
+  map.removeLayer(baseLayers[activeBasemap]);
+  baseLayers[type].addTo(map);
+  baseLayers[type].bringToBack();
+  activeBasemap = type;
+  document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('bm-' + type).classList.add('active');
 }
 
 function updateMap(data) {
