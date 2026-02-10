@@ -7,66 +7,60 @@
   <meta name="description" content="Invasive vine species monitoring dashboard for Vanuatu — Vanuatu Spatial Solutions for DEPC & NBSAP">
   <title>Merremia Vanuatu Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: #0f172a;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0f1e;
       color: #e2e8f0;
       min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
     }
 
-    /* ── Header & Attribution ── */
+    /* ── Header ── */
     header {
-      background: linear-gradient(135deg, #065f46, #064e3b);
-      padding: 1.25rem 2rem 1rem;
-      border-bottom: 2px solid #10b981;
+      background: linear-gradient(135deg, #052e23 0%, #064e3b 50%, #065f46 100%);
+      padding: 1.5rem 2rem 1.25rem;
+      border-bottom: 1px solid rgba(16,185,129,0.3);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
     }
-    header h1 { font-size: 1.5rem; color: #ecfdf5; }
-    header p { color: #6ee7b7; font-size: 0.875rem; margin-top: 0.25rem; }
-    .header-row { display: flex; align-items: center; gap: 1rem; }
-    .header-logo { height: 56px; width: auto; border-radius: 0.4rem; background: rgba(255,255,255,0.9); padding: 4px; flex-shrink: 0; }
+    header h1 { font-size: 1.4rem; font-weight: 800; color: #ecfdf5; letter-spacing: -0.02em; }
+    header p { color: rgba(110,231,183,0.8); font-size: 0.82rem; margin-top: 0.2rem; font-weight: 500; }
+    .header-row { display: flex; align-items: center; gap: 1.25rem; }
+    .header-logo { height: 52px; width: auto; border-radius: 0.5rem; background: rgba(255,255,255,0.95); padding: 4px; flex-shrink: 0; box-shadow: 0 2px 12px rgba(0,0,0,0.2); }
     .logo-group { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
-    .logo-dept-name { font-size: 0.85rem; font-weight: 700; color: #ecfdf5; line-height: 1.25; letter-spacing: 0.02em; max-width: 200px; }
-    .attribution {
-      margin-top: 0.6rem;
-      padding: 0.5rem 0.85rem;
-      background: rgba(0,0,0,0.25);
-      border-radius: 0.4rem;
-      display: inline-block;
-      font-size: 0.78rem;
-      color: #a7f3d0;
-      border: 1px solid rgba(167,243,208,0.2);
-    }
-    .attribution strong { color: #ecfdf5; }
+    .logo-dept-name { font-size: 0.72rem; font-weight: 700; color: rgba(236,253,245,0.9); line-height: 1.3; letter-spacing: 0.04em; max-width: 200px; text-transform: uppercase; }
 
     /* ── Tab Navigation ── */
     .tab-nav {
       display: flex;
-      background: #1e293b;
-      border-bottom: 2px solid #334155;
+      background: #111827;
+      border-bottom: 1px solid rgba(51,65,85,0.6);
       padding: 0 2rem;
       gap: 0;
       overflow-x: auto;
     }
     .tab-btn {
-      padding: 1rem 1.5rem;
+      padding: 0.9rem 1.5rem;
       background: none;
       border: none;
-      border-bottom: 3px solid transparent;
-      color: #94a3b8;
-      font-size: 0.95rem;
+      border-bottom: 2px solid transparent;
+      color: #64748b;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.25s ease;
       white-space: nowrap;
       position: relative;
+      letter-spacing: 0.01em;
     }
-    .tab-btn:hover { color: #e2e8f0; background: rgba(255,255,255,0.03); }
+    .tab-btn:hover { color: #cbd5e1; background: rgba(255,255,255,0.02); }
     .tab-btn.active {
       color: #34d399;
       border-bottom-color: #10b981;
-      background: rgba(16,185,129,0.05);
+      background: linear-gradient(180deg, transparent 0%, rgba(16,185,129,0.04) 100%);
     }
     .tab-btn .tab-icon { margin-right: 0.5rem; }
     #tab-btn-live .tab-icon { color: #10b981; animation: pulse-dot 2s infinite; }
@@ -209,8 +203,8 @@
       flex-wrap: wrap;
       gap: 0.75rem;
       padding: 1rem 2rem;
-      background: #1e293b;
-      border-bottom: 1px solid #334155;
+      background: #111827;
+      border-bottom: 1px solid rgba(51,65,85,0.4);
     }
     .analysis-status {
       display: flex;
@@ -254,24 +248,42 @@
       padding: 1.5rem 2rem;
     }
     .card {
-      background: #1e293b;
+      background: linear-gradient(145deg, #151d2e, #1a2438);
       border-radius: 0.75rem;
       padding: 1.25rem;
-      border: 1px solid #334155;
+      border: 1px solid rgba(51,65,85,0.5);
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
     }
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #10b981, #34d399);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .card:hover { border-color: rgba(16,185,129,0.2); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+    .card:hover::before { opacity: 1; }
     .card h3 {
-      font-size: 0.75rem;
+      font-size: 0.68rem;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: #94a3b8;
+      letter-spacing: 0.08em;
+      color: #64748b;
       margin-bottom: 0.5rem;
+      font-weight: 700;
     }
     .card .value {
       font-size: 2rem;
-      font-weight: 700;
-      color: #34d399;
+      font-weight: 800;
+      background: linear-gradient(135deg, #34d399, #6ee7b7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
-    .card .sub { font-size: 0.8rem; color: #64748b; margin-top: 0.25rem; }
+    .card .sub { font-size: 0.78rem; color: #475569; margin-top: 0.25rem; font-weight: 500; }
     .main-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -289,17 +301,22 @@
       #map { height: 250px; }
     }
     .panel {
-      background: #1e293b;
+      background: linear-gradient(145deg, #151d2e, #1a2438);
       border-radius: 0.75rem;
       padding: 1.25rem;
-      border: 1px solid #334155;
+      border: 1px solid rgba(51,65,85,0.5);
+      transition: border-color 0.3s ease;
     }
+    .panel:hover { border-color: rgba(51,65,85,0.8); }
     .panel h2 {
-      font-size: 1rem;
-      color: #cbd5e1;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #94a3b8;
       margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #334155;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(51,65,85,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     #map { height: 320px; border-radius: 0.5rem; }
     .map-wrap { position: relative; }
@@ -324,18 +341,21 @@
 
     /* ── Analysis Panel ── */
     .analysis-panel {
-      background: #1e293b;
+      background: linear-gradient(145deg, #151d2e, #1a2438);
       border-radius: 0.75rem;
       padding: 1.25rem;
-      border: 1px solid #334155;
+      border: 1px solid rgba(51,65,85,0.5);
       grid-column: 1 / -1;
     }
     .analysis-panel h2 {
-      font-size: 1rem;
-      color: #cbd5e1;
+      font-size: 0.9rem;
+      font-weight: 700;
+      color: #94a3b8;
       margin-bottom: 1rem;
-      padding-bottom: 0.5rem;
-      border-bottom: 1px solid #334155;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid rgba(51,65,85,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     .findings-grid {
       display: grid;
@@ -343,31 +363,33 @@
       gap: 1rem;
     }
     .finding {
-      background: #0f172a;
-      border-radius: 0.5rem;
-      padding: 1rem;
+      background: rgba(10,15,30,0.6);
+      border-radius: 0.6rem;
+      padding: 1.1rem;
       border-left: 3px solid #10b981;
+      transition: transform 0.2s ease;
     }
+    .finding:hover { transform: translateX(4px); }
     .finding.warn { border-left-color: #f59e0b; }
     .finding.critical { border-left-color: #ef4444; }
-    .finding h4 { font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.35rem; }
-    .finding .result { font-size: 1.1rem; font-weight: 600; color: #e2e8f0; }
-    .finding .detail { font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; }
+    .finding h4 { font-size: 0.7rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.35rem; font-weight: 700; }
+    .finding .result { font-size: 1.1rem; font-weight: 700; color: #e2e8f0; }
+    .finding .detail { font-size: 0.75rem; color: #475569; margin-top: 0.3rem; font-weight: 500; }
 
     footer {
-      background: #0c1222;
-      padding: 2rem 2rem 1.5rem;
+      background: linear-gradient(180deg, #070b16 0%, #0a0f1e 100%);
+      padding: 2.5rem 2rem 2rem;
       color: #475569;
       font-size: 0.78rem;
-      border-top: 2px solid #10b981;
+      border-top: 1px solid rgba(16,185,129,0.2);
     }
-    .footer-grid { display: flex; flex-wrap: wrap; gap: 2rem; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
-    .footer-col h4 { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-    .footer-col p, .footer-col a { color: #64748b; line-height: 1.7; }
-    .footer-col a { color: #6ee7b7; text-decoration: none; }
-    .footer-col a:hover { text-decoration: underline; }
-    .footer-bottom { text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #1e293b; color: #475569; font-size: 0.72rem; }
-    .footer-bottom strong { color: #94a3b8; }
+    .footer-grid { display: flex; flex-wrap: wrap; gap: 2.5rem; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
+    .footer-col h4 { color: #64748b; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 0.6rem; font-weight: 700; }
+    .footer-col p, .footer-col a { color: #475569; line-height: 1.8; font-size: 0.76rem; }
+    .footer-col a { color: rgba(110,231,183,0.7); text-decoration: none; transition: color 0.2s; }
+    .footer-col a:hover { color: #6ee7b7; }
+    .footer-bottom { text-align: center; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid rgba(30,41,59,0.5); color: #334155; font-size: 0.7rem; }
+    .footer-bottom strong { color: #475569; }
   </style>
 </head>
 <body>
