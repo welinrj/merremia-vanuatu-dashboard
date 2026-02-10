@@ -296,7 +296,25 @@
             showToast('No features found in KML', 'error');
           }
         } else if (ext === 'zip') {
-          showToast('Shapefile .zip support coming soon. Please convert to GeoJSON first.', 'info');
+          setStatus('Processing Shapefile .zip...');
+          const buffer = await readFileArrayBuffer(file);
+          const result = await shp(buffer);
+          // shp() returns a FeatureCollection or array of FeatureCollections
+          if (Array.isArray(result)) {
+            result.forEach(function(fc, i) {
+              if (fc && fc.features && fc.features.length > 0) {
+                var layerName = fc.fileName || (file.name.replace(/\.zip$/i, '') + (result.length > 1 ? '-' + i : ''));
+                addDataset(layerName, fc);
+                showToast('Loaded ' + layerName + ' (' + fc.features.length + ' features)', 'success');
+              }
+            });
+          } else if (result && result.features) {
+            addDataset(file.name.replace(/\.zip$/i, ''), result);
+            showToast('Loaded ' + file.name + ' (' + result.features.length + ' features)', 'success');
+          } else {
+            showToast('No features found in Shapefile', 'error');
+          }
+          setStatus('Ready');
         } else {
           showToast('Unsupported format: .' + ext, 'error');
         }
@@ -312,6 +330,15 @@
       reader.onload = function() { resolve(reader.result); };
       reader.onerror = function() { reject(reader.error); };
       reader.readAsText(file);
+    });
+  }
+
+  function readFileArrayBuffer(file) {
+    return new Promise(function(resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function() { resolve(reader.result); };
+      reader.onerror = function() { reject(reader.error); };
+      reader.readAsArrayBuffer(file);
     });
   }
 
