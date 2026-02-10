@@ -416,6 +416,46 @@
 
   .empty-dash .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
 
+  /* ── ANALYSIS CARDS ── */
+  .analysis-card {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .analysis-card .card-header { padding: 14px 20px 0; }
+  .analysis-card-body { padding: 16px 20px 20px; }
+  .alert-banner {
+    grid-column: 1 / -1;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #991b1b;
+  }
+  .alert-banner .alert-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; animation: pulse 1.5s infinite; flex-shrink: 0; }
+  .risk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .risk-table th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .risk-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .risk-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; min-width: 80px; }
+  .risk-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .trend-up { color: #dc2626; } .trend-down { color: #059669; } .trend-flat { color: #64748b; }
+  .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .insight-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+  .insight-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
+  .insight-item .value { font-size: 20px; font-weight: 700; color: var(--green); font-family: 'Instrument Serif', serif; }
+  .insight-item .detail { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .cooccurrence-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cooccurrence-item { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; font-size: 12px; }
+  .cooccurrence-item .pair { font-weight: 700; color: #065f46; margin-bottom: 2px; }
+  .cooccurrence-item .sites { color: #64748b; }
+
   /* ── FOOTER ── */
   .dash-footer {
     padding: 2.5rem 2rem 1.5rem;
@@ -635,6 +675,7 @@ function renderDashboard(data) {
   updateSpeciesTable(data.bySpecies);
   updateRecentRecords(data.records);
   populateFilters(data.stats);
+  updateAnalysis(data);
 }
 
 function buildDashboardHTML() {
@@ -695,6 +736,56 @@ function buildDashboardHTML() {
       <div class="chart-body">
         <canvas id="chartTimeline"></canvas>
       </div>
+    </div>
+
+    <!-- Threat Alert Banner -->
+    <div class="alert-banner" id="alertBanner">
+      <div class="alert-dot"></div>
+      <span id="alertText"></span>
+    </div>
+
+    <!-- Trend Analysis -->
+    <div class="analysis-card">
+      <div class="card-header">
+        <div class="card-title">Trend Analysis &amp; Projections</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Growth rates, spread velocity, and forward projections</div>
+      </div>
+      <div class="analysis-card-body">
+        <div class="insight-grid" id="trendInsights"></div>
+      </div>
+    </div>
+
+    <!-- Island Risk Ranking -->
+    <div class="analysis-card">
+      <div class="card-header">
+        <div class="card-title">Island Risk Assessment</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Priority ranking based on observation density, threat levels, and spread rate</div>
+      </div>
+      <div class="analysis-card-body">
+        <table class="risk-table" id="riskTable">
+          <thead><tr><th>Rank</th><th>Island</th><th>Records</th><th>High Threat %</th><th>Area (ha)</th><th>Risk Score</th><th></th></tr></thead>
+          <tbody id="riskTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Year-over-Year Comparison -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Year-over-Year Comparison</div>
+      </div>
+      <div class="chart-body">
+        <canvas id="chartYoY"></canvas>
+      </div>
+    </div>
+
+    <!-- Species Co-occurrence -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Species Co-occurrence</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Species frequently found together at same sites</div>
+      </div>
+      <div class="analysis-card-body" id="cooccurrenceList" style="padding:16px 20px"></div>
     </div>
 
     <!-- Species Table -->
@@ -948,6 +1039,222 @@ function updateRecentRecords(records) {
 }
 
 // ══════════════════════════════════════════
+// ANALYSIS — TREND, RISK, ALERTS, CO-OCCURRENCE
+// ══════════════════════════════════════════
+let yoyChart = null;
+
+function updateAnalysis(data) {
+  updateTrendInsights(data);
+  updateRiskTable(data);
+  updateAlerts(data);
+  updateYoYChart(data);
+  updateCooccurrence(data);
+}
+
+function updateTrendInsights(data) {
+  const el = document.getElementById('trendInsights');
+  if (!el || !data.timeline || data.timeline.length < 2) {
+    if (el) el.innerHTML = '<p style="color:var(--text-muted);font-size:12px">Not enough data for trend analysis. Collect data over multiple months.</p>';
+    return;
+  }
+  const tl = data.timeline;
+  const recent3 = tl.slice(-3);
+  const prev3 = tl.slice(-6, -3);
+  const recentAvg = recent3.reduce((s, t) => s + t.count, 0) / (recent3.length || 1);
+  const prevAvg = prev3.length ? prev3.reduce((s, t) => s + t.count, 0) / prev3.length : recentAvg;
+  const growthRate = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg * 100).toFixed(1) : 0;
+  const growthClass = growthRate > 5 ? 'trend-up' : growthRate < -5 ? 'trend-down' : 'trend-flat';
+  const growthArrow = growthRate > 5 ? '&#9650;' : growthRate < -5 ? '&#9660;' : '&#9644;';
+
+  const totalObs = tl.reduce((s, t) => s + t.count, 0);
+  const monthSpan = tl.length;
+  const avgPerMonth = (totalObs / monthSpan).toFixed(0);
+
+  // Projection: if growth continues at current rate, estimate next quarter
+  const projNext = Math.round(recentAvg * (1 + parseFloat(growthRate) / 100) * 3);
+
+  // Threat breakdown
+  const tb = data.stats.threatBreakdown || {};
+  const total = (tb.high || 0) + (tb.moderate || 0) + (tb.low || 0);
+  const highPct = total > 0 ? ((tb.high || 0) / total * 100).toFixed(0) : 0;
+
+  // Area trend
+  const totalArea = data.stats.totalAreaHectares || 0;
+  const areaPerRecord = data.stats.recordCount > 0 ? (totalArea / data.stats.recordCount).toFixed(2) : 0;
+
+  el.innerHTML = `
+    <div class="insight-item">
+      <div class="label">Growth Rate (3-month)</div>
+      <div class="value ${growthClass}">${growthArrow} ${Math.abs(growthRate)}%</div>
+      <div class="detail">${growthRate > 0 ? 'Increasing' : growthRate < 0 ? 'Declining' : 'Stable'} spread</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Avg. Observations / Month</div>
+      <div class="value">${avgPerMonth}</div>
+      <div class="detail">Over ${monthSpan} months of data</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Next Quarter Projection</div>
+      <div class="value">${projNext.toLocaleString()}</div>
+      <div class="detail">Estimated new observations</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">High Threat Records</div>
+      <div class="value" style="color:#dc2626">${highPct}%</div>
+      <div class="detail">${tb.high || 0} of ${total} records</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Avg. Area per Record</div>
+      <div class="value">${areaPerRecord} ha</div>
+      <div class="detail">${totalArea.toLocaleString()} ha total surveyed</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Data Collection Span</div>
+      <div class="value">${monthSpan} mo</div>
+      <div class="detail">${tl[0]?.month || ''} to ${tl[tl.length-1]?.month || ''}</div>
+    </div>
+  `;
+}
+
+function updateRiskTable(data) {
+  const tbody = document.getElementById('riskTableBody');
+  if (!tbody) return;
+  const records = data.records || [];
+  const islandData = {};
+  records.forEach(r => {
+    const isl = r.island || 'Unknown';
+    if (!islandData[isl]) islandData[isl] = { count: 0, high: 0, area: 0 };
+    islandData[isl].count++;
+    if (r.threatLevel === 'high') islandData[isl].high++;
+    islandData[isl].area += (r.coverageArea || 0);
+  });
+  // Score: weighted combination of count, high-threat %, and area
+  const ranked = Object.entries(islandData).map(([name, d]) => {
+    const highPct = d.count > 0 ? d.high / d.count : 0;
+    const score = Math.round(d.count * 0.4 + highPct * 60 + d.area * 0.3);
+    return { name, ...d, highPct, score };
+  }).sort((a, b) => b.score - a.score);
+  const maxScore = ranked[0]?.score || 1;
+
+  tbody.innerHTML = ranked.map((r, i) => {
+    const pct = (r.score / maxScore * 100).toFixed(0);
+    const color = r.highPct > 0.5 ? '#ef4444' : r.highPct > 0.2 ? '#f59e0b' : '#10b981';
+    return `<tr>
+      <td style="font-weight:700;color:var(--text-dim)">#${i + 1}</td>
+      <td style="font-weight:600">${r.name}</td>
+      <td>${r.count}</td>
+      <td>${(r.highPct * 100).toFixed(0)}%</td>
+      <td>${r.area.toFixed(1)}</td>
+      <td style="font-weight:700">${r.score}</td>
+      <td><div class="risk-bar"><div class="risk-bar-fill" style="width:${pct}%;background:${color}"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateAlerts(data) {
+  const banner = document.getElementById('alertBanner');
+  const text = document.getElementById('alertText');
+  if (!banner || !text) return;
+  const records = data.records || [];
+  // Check for recent high-threat records (last 7 days)
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const recentHigh = records.filter(r => r.threatLevel === 'high' && new Date(r.timestamp) > weekAgo);
+  if (recentHigh.length > 0) {
+    const islands = [...new Set(recentHigh.map(r => r.island))].join(', ');
+    text.textContent = `${recentHigh.length} high-threat observation${recentHigh.length > 1 ? 's' : ''} in the last 7 days — ${islands}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateYoYChart(data) {
+  const canvas = document.getElementById('chartYoY');
+  if (!canvas) return;
+  const records = data.records || [];
+  // Group by year-month
+  const byYearMonth = {};
+  records.forEach(r => {
+    if (!r.timestamp) return;
+    const d = new Date(r.timestamp);
+    const year = d.getFullYear();
+    const month = d.getMonth(); // 0-11
+    if (!byYearMonth[year]) byYearMonth[year] = Array(12).fill(0);
+    byYearMonth[year][month] += (r.count || 1);
+  });
+  const years = Object.keys(byYearMonth).sort();
+  if (years.length < 1) return;
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const colors = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444'];
+  const datasets = years.map((yr, i) => ({
+    label: yr,
+    data: byYearMonth[yr],
+    borderColor: colors[i % colors.length],
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    tension: 0.3,
+    pointRadius: 3
+  }));
+
+  if (yoyChart) {
+    yoyChart.data.labels = monthLabels;
+    yoyChart.data.datasets = datasets;
+    yoyChart.update('none');
+  } else {
+    yoyChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels: monthLabels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, color: '#64748b' } } },
+        scales: {
+          x: { grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { size: 11 } } },
+          y: { grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
+function updateCooccurrence(data) {
+  const el = document.getElementById('cooccurrenceList');
+  if (!el) return;
+  const records = data.records || [];
+  // Find species pairs at same sites
+  const sitePairs = {};
+  const siteSpecies = {};
+  records.forEach(r => {
+    const site = (r.island || '') + '|' + (r.siteName || '');
+    const species = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
+    if (!siteSpecies[site]) siteSpecies[site] = new Set();
+    species.forEach(sp => siteSpecies[site].add(sp));
+  });
+  // Generate pairs
+  Object.entries(siteSpecies).forEach(([site, spp]) => {
+    const arr = [...spp].sort();
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const key = arr[i] + ' + ' + arr[j];
+        if (!sitePairs[key]) sitePairs[key] = new Set();
+        sitePairs[key].add(site);
+      }
+    }
+  });
+  const sorted = Object.entries(sitePairs)
+    .map(([pair, sites]) => ({ pair, count: sites.size }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  if (sorted.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:12px">Not enough multi-species observations to show co-occurrence patterns.</p>';
+    return;
+  }
+  el.innerHTML = '<div class="cooccurrence-list">' + sorted.map(s =>
+    `<div class="cooccurrence-item"><div class="pair">${s.pair}</div><div class="sites">${s.count} shared site${s.count > 1 ? 's' : ''}</div></div>`
+  ).join('') + '</div>';
+}
+
+// ══════════════════════════════════════════
 // FILTERS
 // ══════════════════════════════════════════
 function populateFilters(stats) {
@@ -994,11 +1301,13 @@ function applyFilters() {
 
   // Reprocess filtered data manually
   const filteredData = reprocessForDisplay(filtered);
+  filteredData.records = filtered;
   updateStats(filteredData.stats);
   updateMap(dashData); // Map uses its own filter
   updateCharts(filteredData);
   updateSpeciesTable(filteredData.bySpecies);
   updateRecentRecords(filtered);
+  updateAnalysis(filteredData);
 }
 
 function reprocessForDisplay(records) {
