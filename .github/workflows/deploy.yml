@@ -43,6 +43,7 @@ jobs:
           cp merremia-connector.js dist/
           cp -r assets dist/
           cp -r field-collector dist/
+          cp -r gis-portal dist/
 
       - uses: actions/upload-pages-artifact@v3
         with:
