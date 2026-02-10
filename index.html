@@ -300,6 +300,11 @@
       border-bottom: 1px solid #334155;
     }
     #map { height: 320px; border-radius: 0.5rem; }
+    .map-wrap { position: relative; }
+    .basemap-toggle { position: absolute; top: 10px; left: 10px; z-index: 1000; display: flex; border-radius: 0.4rem; overflow: hidden; border: 1px solid #334155; }
+    .basemap-btn { padding: 0.3rem 0.7rem; font-size: 0.75rem; background: #1e293b; color: #94a3b8; border: none; cursor: pointer; }
+    .basemap-btn:hover { background: #334155; }
+    .basemap-btn.active { background: #065f46; color: #ecfdf5; }
     canvas { width: 100% !important; max-height: 300px; }
     table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     th { text-align: left; color: #94a3b8; padding: 0.5rem; border-bottom: 1px solid #334155; }
@@ -432,7 +437,14 @@
     <div class="main-grid">
       <div class="panel">
         <h2>Distribution Map</h2>
-        <div id="map"></div>
+        <div class="map-wrap">
+          <div class="basemap-toggle">
+            <button class="basemap-btn active" id="bm-dark" onclick="switchBasemap('dark')">Dark</button>
+            <button class="basemap-btn" id="bm-streets" onclick="switchBasemap('streets')">Streets</button>
+            <button class="basemap-btn" id="bm-satellite" onclick="switchBasemap('satellite')">Satellite</button>
+          </div>
+          <div id="map"></div>
+        </div>
       </div>
       <div class="panel">
         <h2>Coverage by Island</h2>
@@ -800,11 +812,23 @@
     document.getElementById('last-updated').textContent = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
     // ── Map ──
+    const baseLayers = {};
+    let activeBasemap = 'dark';
     const map = L.map('map').setView([-16.5, 167.8], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-      maxZoom: 18
-    }).addTo(map);
+    baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+    baseLayers.streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+    baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+    baseLayers.dark.addTo(map);
+
+    function switchBasemap(type) {
+      if (activeBasemap === type) return;
+      map.removeLayer(baseLayers[activeBasemap]);
+      baseLayers[type].addTo(map);
+      baseLayers[type].bringToBack();
+      activeBasemap = type;
+      document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('bm-' + type).classList.add('active');
+    }
 
     const sites = [
       { name: 'Efate \u2013 Port Vila', lat: -17.7334, lng: 168.3273, count: 128, threat: 'High' },
