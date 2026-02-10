@@ -1,0 +1,106 @@
+{
+  "type": "FeatureCollection",
+  "name": "Vanuatu Marine Conservation Areas",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Hideaway Island Marine Reserve",
+        "province": "Shefa",
+        "island": "Efate",
+        "area_ha": 45.2,
+        "status": "Active",
+        "established": "2018",
+        "type": "Marine Reserve",
+        "biodiversity_index": 8.5,
+        "coral_cover_pct": 62,
+        "species_count": 147,
+        "description": "Protected coral reef and seagrass habitat adjacent to Hideaway Island, supporting diverse marine life including reef sharks and sea turtles."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.245, -17.685], [168.255, -17.685], [168.255, -17.695], [168.245, -17.695], [168.245, -17.685]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nguna-Pele Marine Protected Area",
+        "province": "Shefa",
+        "island": "Nguna",
+        "area_ha": 320.8,
+        "status": "Active",
+        "established": "2016",
+        "type": "Marine Protected Area",
+        "biodiversity_index": 9.1,
+        "coral_cover_pct": 71,
+        "species_count": 213,
+        "description": "Community-managed MPA covering the reef systems between Nguna and Pele islands, a VCAP2 priority site."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.36, -17.52], [168.42, -17.52], [168.42, -17.56], [168.36, -17.56], [168.36, -17.52]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Tranquility Island Conservation Zone",
+        "province": "Shefa",
+        "island": "Efate",
+        "area_ha": 28.5,
+        "status": "Active",
+        "established": "2020",
+        "type": "Conservation Zone",
+        "biodiversity_index": 7.8,
+        "coral_cover_pct": 55,
+        "species_count": 98,
+        "description": "Small but ecologically significant conservation zone protecting mangrove and reef habitats on Efate's northwest coast."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.18, -17.64], [168.20, -17.64], [168.20, -17.66], [168.18, -17.66], [168.18, -17.64]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Lelepa Island Marine Sanctuary",
+        "province": "Shefa",
+        "island": "Lelepa",
+        "area_ha": 156.3,
+        "status": "Proposed",
+        "established": "2023",
+        "type": "Marine Sanctuary",
+        "biodiversity_index": 8.9,
+        "coral_cover_pct": 68,
+        "species_count": 176,
+        "description": "Proposed sanctuary encompassing the reef systems around Lelepa Island, including important turtle nesting beaches."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.15, -17.61], [168.19, -17.61], [168.19, -17.64], [168.15, -17.64], [168.15, -17.61]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Erakor Lagoon Marine Area",
+        "province": "Shefa",
+        "island": "Efate",
+        "area_ha": 89.7,
+        "status": "Active",
+        "established": "2019",
+        "type": "Managed Marine Area",
+        "biodiversity_index": 6.4,
+        "coral_cover_pct": 38,
+        "species_count": 82,
+        "description": "Urban lagoon conservation area near Port Vila, balancing recreational use with habitat protection for mangroves and juvenile fish nurseries."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.30, -17.755], [168.32, -17.755], [168.32, -17.77], [168.30, -17.77], [168.30, -17.755]]]
+      }
+    }
+  ]
+}

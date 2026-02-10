@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCAP2 Portal Overview</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+  .header { background: linear-gradient(135deg, #052e23 0%, #064e3b 50%, #065f46 100%); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid rgba(16,185,129,0.3); }
+  .header h1 { font-size: 1.2rem; font-weight: 700; color: #ecfdf5; }
+  .header .subtitle { font-size: 0.72rem; color: rgba(110,231,183,0.7); }
+  .header-nav { margin-left: auto; display: flex; gap: 0.5rem; }
+  .header-nav a { color: #a7f3d0; text-decoration: none; font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 0.35rem; transition: all 0.2s; border: 1px solid transparent; }
+  .header-nav a:hover, .header-nav a.active { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: #ecfdf5; }
+
+  .content { max-width: 900px; margin: 0 auto; padding: 2rem; }
+  h2 { font-size: 1.6rem; font-weight: 800; color: #065f46; margin-bottom: 0.5rem; }
+  .lead { font-size: 1rem; color: #64748b; margin-bottom: 2rem; line-height: 1.6; }
+
+  .feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; margin-bottom: 2.5rem; }
+  .feature-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.5rem; transition: all 0.3s; }
+  .feature-card:hover { border-color: #10b981; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.06); }
+  .feature-card h3 { font-size: 1rem; color: #1e293b; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem; }
+  .feature-card .icon { font-size: 1.3rem; }
+  .feature-card p { font-size: 0.85rem; color: #64748b; line-height: 1.5; }
+
+  .quick-start { background: #065f46; color: #ecfdf5; border-radius: 0.75rem; padding: 2rem; margin-bottom: 2rem; }
+  .quick-start h3 { font-size: 1.1rem; margin-bottom: 1rem; }
+  .quick-start ol { padding-left: 1.5rem; }
+  .quick-start li { margin-bottom: 0.5rem; font-size: 0.88rem; line-height: 1.5; color: #a7f3d0; }
+
+  .links { display: flex; gap: 1rem; flex-wrap: wrap; }
+  .links a { display: inline-block; padding: 0.6rem 1.25rem; background: #065f46; color: #ecfdf5; text-decoration: none; border-radius: 0.5rem; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
+  .links a:hover { background: #047857; }
+  .links a.outline { background: transparent; border: 2px solid #065f46; color: #065f46; }
+  .links a.outline:hover { background: #065f46; color: #ecfdf5; }
+
+  @media (max-width: 768px) { .feature-grid { grid-template-columns: 1fr; } .content { padding: 1.5rem; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>VCAP2 GIS Data Portal</h1>
+    <div class="subtitle">Portal Overview &amp; Guide</div>
+  </div>
+  <nav class="header-nav">
+    <a href="index.html">Map Portal</a>
+    <a href="dashboard.html">Dashboard</a>
+    <a href="dashboard-overview.html" class="active">Overview</a>
+  </nav>
+</div>
+
+<div class="content">
+  <h2>VCAP2 GIS Data Portal</h2>
+  <p class="lead">
+    A web-based geographic information system for the Vanuatu Climate Adaptation Project 2 (VCAP2).
+    Upload, visualize, and manage marine conservation data across Vanuatu's provinces. Powered by
+    GitHub for secure, version-controlled data storage.
+  </p>
+
+  <div class="feature-grid">
+    <div class="feature-card">
+      <h3><span class="icon">&#127757;</span> Interactive Map</h3>
+      <p>Explore conservation sites on an interactive Leaflet map with dark, satellite, and street basemaps. Click features to view detailed attributes and photos.</p>
+    </div>
+    <div class="feature-card">
+      <h3><span class="icon">&#128194;</span> File Upload</h3>
+      <p>Upload GeoJSON, KML, and Shapefile (.zip) files directly in your browser. Data is parsed client-side and displayed instantly on the map.</p>
+    </div>
+    <div class="feature-card">
+      <h3><span class="icon">&#128200;</span> Analytics Dashboard</h3>
+      <p>Real-time charts and statistics showing dataset coverage, biodiversity indices, area distribution, and conservation status breakdown.</p>
+    </div>
+    <div class="feature-card">
+      <h3><span class="icon">&#128196;</span> Attribute Tables</h3>
+      <p>View and explore feature attributes in sortable tables. Download datasets as GeoJSON for use in QGIS, ArcGIS, or other GIS software.</p>
+    </div>
+    <div class="feature-card">
+      <h3><span class="icon">&#128274;</span> GitHub Storage</h3>
+      <p>All datasets stored in your GitHub repository with full version control. Share data with team members via repository access.</p>
+    </div>
+    <div class="feature-card">
+      <h3><span class="icon">&#127758;</span> Vanuatu Focused</h3>
+      <p>Pre-configured for Vanuatu's marine conservation areas with sample data from Shefa Province including MPAs, sanctuaries, and conservation zones.</p>
+    </div>
+  </div>
+
+  <div class="quick-start">
+    <h3>Quick Start Guide</h3>
+    <ol>
+      <li>Open the <strong>Map Portal</strong> to view pre-loaded marine conservation areas</li>
+      <li>Click on any feature polygon to see its attributes (area, status, biodiversity index)</li>
+      <li>Use the <strong>Upload</strong> zone in the sidebar to add your own GeoJSON or KML data</li>
+      <li>Click <strong>Table</strong> on any dataset to view its attribute table</li>
+      <li>Visit the <strong>Dashboard</strong> for charts, statistics, and the coverage overview map</li>
+      <li>Use <strong>Download</strong> to export any dataset as GeoJSON for desktop GIS tools</li>
+    </ol>
+  </div>
+
+  <div class="links">
+    <a href="index.html">Open Map Portal</a>
+    <a href="dashboard.html">View Dashboard</a>
+    <a href="https://github.com/welinrj/merremia-vanuatu-dashboard" class="outline">GitHub Repository</a>
+  </div>
+</div>
+
+</body>
+</html>
