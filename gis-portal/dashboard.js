@@ -17,6 +17,19 @@
 
   let coverageMap = null;
   let charts = {};
+  let activeBasemap = 'light';
+
+  const coverageBasemaps = {
+    light: L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 20
+    }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '&copy; Esri', maxZoom: 19
+    }),
+    dark: L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 20
+    })
+  };
 
   // ── Initialize ──
   async function init() {
@@ -30,9 +43,23 @@
       zoom: 7,
       zoomControl: true
     });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-      attribution: '&copy; OSM &copy; CARTO', subdomains: 'abcd', maxZoom: 20
-    }).addTo(coverageMap);
+    coverageBasemaps.light.addTo(coverageMap);
+
+    // Basemap toggle buttons
+    var toggle = document.getElementById('basemap-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', function(e) {
+        var btn = e.target.closest('.basemap-btn');
+        if (!btn) return;
+        var name = btn.getAttribute('data-basemap');
+        if (name === activeBasemap) return;
+        coverageMap.removeLayer(coverageBasemaps[activeBasemap]);
+        coverageBasemaps[name].addTo(coverageMap);
+        activeBasemap = name;
+        toggle.querySelectorAll('.basemap-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    }
   }
 
   // ── Load Data ──
