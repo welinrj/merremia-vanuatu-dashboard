@@ -559,9 +559,17 @@ let timelineChart = null;
 // INIT
 // ══════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  connector = new MerremiaConnector(CONNECTOR_CONFIG);
+  connector = new MerremiaConnector({
+    ...CONNECTOR_CONFIG,
+    onError: (msg, err) => {
+      console.error(msg, err);
+      const el = document.getElementById('liveText');
+      if (el) el.textContent = 'Connection error — retrying...';
+    }
+  });
 
   connector.startAutoRefresh(300000, (data) => {
+    if (!data || !data.records) return;
     dashData = data;
     renderDashboard(data);
     updateLiveStatus(data);
@@ -786,20 +794,20 @@ function updateMap(data) {
     onEachFeature: (feature, layer) => {
       const p = feature.properties;
       const photoBase = 'https://raw.githubusercontent.com/' + CONNECTOR_CONFIG.owner + '/' + CONNECTOR_CONFIG.repo + '/main/photos/';
+      const photoCount = p.photoCount || 3;
       let photoHtml = '<div class="popup-photos">';
-      for (let i = 0; i < 5; i++) {
-        photoHtml += '<img src="' + photoBase + p.id + '-' + i + '.jpg" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)">';
+      for (let i = 0; i < photoCount; i++) {
+        photoHtml += '<img src="' + photoBase + p.id + '-' + i + '.jpg" alt="Field photo ' + (i+1) + '" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)" loading="lazy">';
       }
       photoHtml += '</div>';
-      layer.bindPopup(photoHtml, { autoClose: false, closeOnClick: false });
+      layer.bindPopup(photoHtml, { maxWidth: 300 });
     }
   }).addTo(mapLayer);
 
-  // Fit map to data bounds and auto-open all popups
+  // Fit map to data bounds
   if (filteredFeatures.length > 0) {
     const coords = filteredFeatures.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
     map.fitBounds(coords, { padding: [40, 40], maxZoom: 12 });
-    mapLayer.eachLayer(l => { if (l.getPopup) l.openPopup(); });
   }
 }
 

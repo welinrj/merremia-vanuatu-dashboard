@@ -40,6 +40,10 @@
     .gps-display{display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:0.4rem;font-size:0.85rem;border:1px solid #e2e8f0}
     .gps-display .coord{color:#065f46;font-family:monospace;font-weight:600}
     .gps-display .accuracy{color:#f59e0b;font-size:0.75rem}
+    .gps-manual-toggle{display:inline-block;font-size:0.72rem;color:#065f46;margin-top:0.3rem;cursor:pointer;text-decoration:underline}
+    .gps-manual-inputs{display:none;gap:0.5rem;margin-top:0.4rem}
+    .gps-manual-inputs.active{display:grid;grid-template-columns:1fr 1fr}
+    .gps-manual-inputs input{padding:0.4rem 0.5rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.8rem;background:#f8fafc;color:#1e293b;font-family:monospace}
     .btn{padding:0.8rem 1.5rem;border-radius:0.6rem;border:none;font-size:0.92rem;font-weight:700;cursor:pointer;width:100%;transition:all 0.25s;font-family:inherit}
     .btn-primary{background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:1px solid rgba(16,185,129,0.4);box-shadow:0 4px 16px rgba(16,185,129,0.2)}
     .btn-primary:active{transform:scale(0.98)}
@@ -148,6 +152,11 @@
         <span>&#128205;</span>
         <span class="coord" id="gps-coords">Acquiring...</span>
         <span class="accuracy" id="gps-accuracy"></span>
+      </div>
+      <span class="gps-manual-toggle" onclick="toggleManualGPS()">Enter coordinates manually</span>
+      <div class="gps-manual-inputs" id="gps-manual">
+        <input type="number" id="manual-lat" placeholder="Latitude (e.g. -17.7)" step="any">
+        <input type="number" id="manual-lng" placeholder="Longitude (e.g. 168.3)" step="any">
       </div>
     </div>
 
@@ -549,14 +558,17 @@
     }
 
     // ── GPS ──
+    var manualGPSMode = false;
     function startGPS() {
       if (!navigator.geolocation) {
         document.getElementById('gps-coords').textContent = 'GPS not available';
+        document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
         return;
       }
       var GPS_ACC_THRESHOLD = 8;
       navigator.geolocation.watchPosition(
         function(pos) {
+          if (manualGPSMode) return;
           currentLat = pos.coords.latitude;
           currentLng = pos.coords.longitude;
           currentAcc = Math.round(pos.coords.accuracy);
@@ -579,11 +591,51 @@
         },
         function(err) {
           document.getElementById('gps-coords').textContent = 'GPS error: ' + err.message;
+          document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
         },
         { enableHighAccuracy: true, maximumAge: 10000 }
       );
     }
     startGPS();
+
+    function toggleManualGPS() {
+      var panel = document.getElementById('gps-manual');
+      var toggle = document.querySelector('.gps-manual-toggle');
+      manualGPSMode = !manualGPSMode;
+      if (manualGPSMode) {
+        panel.classList.add('active');
+        toggle.textContent = 'Use automatic GPS';
+        document.getElementById('manual-lat').oninput = applyManualGPS;
+        document.getElementById('manual-lng').oninput = applyManualGPS;
+      } else {
+        panel.classList.remove('active');
+        toggle.textContent = 'Enter coordinates manually';
+        currentLat = null; currentLng = null; currentAcc = null;
+        document.getElementById('gps-coords').textContent = 'Acquiring...';
+        document.getElementById('gps-accuracy').textContent = '';
+        document.getElementById('btn-save').disabled = true;
+        document.getElementById('gps-hint').textContent = 'Waiting for GPS accuracy < 8m before saving...';
+        document.getElementById('gps-hint').className = 'gps-hint';
+      }
+    }
+
+    function applyManualGPS() {
+      var lat = parseFloat(document.getElementById('manual-lat').value);
+      var lng = parseFloat(document.getElementById('manual-lng').value);
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        currentLat = lat; currentLng = lng; currentAcc = 0;
+        document.getElementById('gps-coords').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+        document.getElementById('gps-accuracy').textContent = 'manual';
+        document.getElementById('gps-accuracy').className = 'accuracy gps-accuracy-good';
+        document.getElementById('btn-save').disabled = false;
+        document.getElementById('gps-hint').textContent = 'Manual coordinates set — ready to save';
+        document.getElementById('gps-hint').className = 'gps-hint ready';
+      } else {
+        document.getElementById('btn-save').disabled = true;
+        document.getElementById('gps-hint').textContent = 'Enter valid lat (-90 to 90) and lng (-180 to 180)';
+        document.getElementById('gps-hint').className = 'gps-hint';
+      }
+    }
 
     // ── Photos ──
     function handlePhotos(e) {
