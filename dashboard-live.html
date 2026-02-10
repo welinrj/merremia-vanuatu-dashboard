@@ -618,9 +618,9 @@
       var notes = '';
       if (sorted.length > TABLE_PAGE_SIZE) {
         notes += '<div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-top:0.75rem">';
-        notes += '<button onclick="changeTablePage(-1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;cursor:pointer;font-size:0.75rem;color:#334155"' + (tablePage === 0 ? ' disabled style="opacity:0.4;cursor:default"' : '') + '>&laquo; Prev</button>';
+        notes += '<button onclick="changeTablePage(-1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;font-size:0.75rem;color:#334155' + (tablePage === 0 ? ';opacity:0.4;cursor:default' : ';cursor:pointer') + '"' + (tablePage === 0 ? ' disabled' : '') + '>&laquo; Prev</button>';
         notes += '<span style="font-size:0.75rem;color:#64748b">Page ' + (tablePage + 1) + ' of ' + totalPages + ' (' + sorted.length + ' records)</span>';
-        notes += '<button onclick="changeTablePage(1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;cursor:pointer;font-size:0.75rem;color:#334155"' + (tablePage >= totalPages - 1 ? ' disabled style="opacity:0.4;cursor:default"' : '') + '>Next &raquo;</button>';
+        notes += '<button onclick="changeTablePage(1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;font-size:0.75rem;color:#334155' + (tablePage >= totalPages - 1 ? ';opacity:0.4;cursor:default' : ';cursor:pointer') + '"' + (tablePage >= totalPages - 1 ? ' disabled' : '') + '>Next &raquo;</button>';
         notes += '</div>';
       }
       if (v1 || v2 || vi) notes += '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:0.25rem">' + filtered.length + ' of ' + tabRecords.length + ' records</p>';

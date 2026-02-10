@@ -790,11 +790,9 @@
       if (!island) { showToast('Please select an island.', 'warn'); return; }
       if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
       // Validate GPS within Vanuatu bounds (-25 to -10 lat, 165 to 172 lng)
-      if (!manualGPSMode || true) {
-        if (currentLat < -25 || currentLat > -10 || currentLng < 165 || currentLng > 172) {
-          showToast('GPS coordinates outside Vanuatu range. Check your location.', 'warn');
-          return;
-        }
+      if (currentLat < -25 || currentLat > -10 || currentLng < 165 || currentLng > 172) {
+        showToast('GPS coordinates outside Vanuatu range. Check your location.', 'warn');
+        return;
       }
 
       var isEditing = !!editingRecordId;
@@ -1396,7 +1394,7 @@
             newSW.addEventListener('statechange', function() {
               if (newSW.state === 'activated' && 'caches' in window) {
                 caches.keys().then(function(names) {
-                  names.forEach(function(n) { if (n !== 'merremia-collector-v7') caches.delete(n); });
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v9') caches.delete(n); });
                 });
               }
             });
