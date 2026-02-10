@@ -423,15 +423,7 @@
     }
 
     function getPopupHTML(r) {
-      var cat = r.category || 'merremia';
-      var date = new Date(r.timestamp).toLocaleDateString('en-GB');
-      var loc = r.island + (r.siteName ? ' — ' + r.siteName : '');
-      var photos = getPhotoHTML(r.id);
-      if (cat === 'merremia') return '<strong>' + (Array.isArray(r.species) ? r.species.join(', ') : r.species) + '</strong><br>' + loc + '<br>Count: ' + (r.count||1) + ' | Threat: ' + (r.threatLevel||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
-      if (cat === 'degraded') return '<strong>' + (r.degradationType||'Degraded') + '</strong><br>' + loc + '<br>Severity: ' + (r.severity||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
-      if (cat === 'restoration') return '<strong>' + (r.restorationType||'Restoration') + '</strong><br>' + loc + '<br>Stage: ' + (r.restorationStage||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha' + (r.projectName ? '<br>Project: ' + r.projectName : '') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
-      if (cat === 'threatened') return '<strong>' + (r.speciesName||'Unknown') + '</strong> (' + (r.speciesType||'') + ')<br>' + loc + '<br>IUCN: ' + (r.iucnStatus||'-') + ' | Pop: ' + (r.populationEstimate||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
-      return '<strong>Record</strong><br>' + loc + photos;
+      return getPhotoHTML(r.id);
     }
 
     function renderMap(records) {
