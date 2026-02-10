@@ -49,6 +49,8 @@
     setStatus('Ready');
   }
 
+  let activeBasemap = 'dark';
+
   function initMap() {
     map = L.map('map', {
       center: CONFIG.map.center,
@@ -59,20 +61,32 @@
     });
     basemaps.dark.addTo(map);
 
-    // Basemap control
-    L.control.layers({
-      'Dark': basemaps.dark,
-      'Satellite': basemaps.satellite,
-      'Streets': basemaps.streets
-    }, null, { position: 'topright' }).addTo(map);
-
     // Scale bar
     L.control.scale({ imperial: false, position: 'bottomleft' }).addTo(map);
+
+    // Custom basemap toggle buttons
+    initBasemapToggle();
 
     // Mouse position
     map.on('mousemove', function(e) {
       document.getElementById('status-coords').textContent =
         'Lat: ' + e.latlng.lat.toFixed(5) + ' Lng: ' + e.latlng.lng.toFixed(5);
+    });
+  }
+
+  function initBasemapToggle() {
+    var toggle = document.getElementById('basemap-toggle');
+    if (!toggle) return;
+    toggle.addEventListener('click', function(e) {
+      var btn = e.target.closest('.basemap-btn');
+      if (!btn) return;
+      var name = btn.getAttribute('data-basemap');
+      if (name === activeBasemap) return;
+      map.removeLayer(basemaps[activeBasemap]);
+      basemaps[name].addTo(map);
+      activeBasemap = name;
+      toggle.querySelectorAll('.basemap-btn').forEach(function(b) { b.classList.remove('active'); });
+      btn.classList.add('active');
     });
   }
 
@@ -158,18 +172,18 @@
         if (feature.properties) {
           const props = feature.properties;
           let html = '<div style="font-family:sans-serif;max-width:280px">';
-          html += '<h4 style="margin:0 0 6px;color:#065f46;font-size:14px">' + (props.name || 'Feature') + '</h4>';
+          html += '<h4 style="margin:0 0 6px;color:#065f46;font-size:14px">' + escapeHtml(props.name || 'Feature') + '</h4>';
           const keys = Object.keys(props).filter(k => k !== 'name' && k !== 'description');
           if (keys.length > 0) {
             html += '<table style="font-size:12px;border-collapse:collapse;width:100%">';
             keys.forEach(k => {
               html += '<tr><td style="padding:2px 8px 2px 0;color:#64748b;font-weight:600;white-space:nowrap">' +
-                formatKey(k) + '</td><td style="padding:2px 0;color:#1e293b">' + props[k] + '</td></tr>';
+                escapeHtml(formatKey(k)) + '</td><td style="padding:2px 0;color:#1e293b">' + escapeHtml(String(props[k])) + '</td></tr>';
             });
             html += '</table>';
           }
           if (props.description) {
-            html += '<p style="margin:6px 0 0;font-size:11px;color:#64748b;line-height:1.4">' + props.description + '</p>';
+            html += '<p style="margin:6px 0 0;font-size:11px;color:#64748b;line-height:1.4">' + escapeHtml(props.description) + '</p>';
           }
           html += '</div>';
           layer.bindPopup(html, { maxWidth: 300 });

@@ -48,9 +48,13 @@
   .badge-amber { background: #fef3c7; color: #92400e; }
 
   /* Map panel */
-  .map-panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; margin-bottom: 1.5rem; }
+  .map-panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; margin-bottom: 1.5rem; position: relative; }
   .map-panel h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; padding: 1rem 1.25rem 0.75rem; }
   #coverage-map { height: 350px; }
+  .basemap-toggle { position: absolute; bottom: 12px; right: 12px; z-index: 500; display: flex; gap: 4px; background: rgba(255,255,255,0.92); border-radius: 0.4rem; padding: 3px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .basemap-btn { font-size: 0.68rem; font-weight: 600; padding: 0.3rem 0.6rem; border: 1px solid transparent; border-radius: 0.3rem; background: none; color: #64748b; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .basemap-btn:hover { color: #1e293b; }
+  .basemap-btn.active { background: #065f46; color: #fff; border-color: #065f46; }
 
   /* Activity feed */
   .activity-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; }
@@ -136,6 +140,11 @@
   <div class="map-panel">
     <h3>Coverage Map</h3>
     <div id="coverage-map"></div>
+    <div class="basemap-toggle" id="basemap-toggle">
+      <button class="basemap-btn active" data-basemap="light">Light</button>
+      <button class="basemap-btn" data-basemap="satellite">Satellite</button>
+      <button class="basemap-btn" data-basemap="dark">Dark</button>
+    </div>
   </div>
 
   <!-- Dataset Table -->

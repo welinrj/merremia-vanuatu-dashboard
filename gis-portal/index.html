@@ -81,6 +81,12 @@
   .empty-state .icon { font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; }
   .empty-state p { font-size: 0.78rem; }
 
+  /* Basemap toggle */
+  .basemap-toggle { position: absolute; bottom: 12px; right: 12px; z-index: 500; display: flex; gap: 4px; background: rgba(15,23,42,0.85); border-radius: 0.4rem; padding: 3px; border: 1px solid #334155; }
+  .basemap-btn { font-size: 0.68rem; font-weight: 600; padding: 0.3rem 0.6rem; border: 1px solid transparent; border-radius: 0.3rem; background: none; color: #94a3b8; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .basemap-btn:hover { color: #e2e8f0; }
+  .basemap-btn.active { background: #10b981; color: #fff; border-color: #10b981; }
+
   /* Responsive */
   @media (max-width: 768px) {
     .main { flex-direction: column; }
@@ -126,6 +132,11 @@
 
   <div class="map-container">
     <div id="map"></div>
+    <div class="basemap-toggle" id="basemap-toggle">
+      <button class="basemap-btn active" data-basemap="dark">Dark</button>
+      <button class="basemap-btn" data-basemap="satellite">Satellite</button>
+      <button class="basemap-btn" data-basemap="streets">Streets</button>
+    </div>
     <div class="attr-panel" id="attr-panel">
       <div class="attr-panel-header">
         <h3 id="attr-title">Attribute Table</h3>
