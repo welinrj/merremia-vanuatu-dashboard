@@ -138,6 +138,9 @@
     .footer-bottom{padding-top:1rem;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:0.66rem;max-width:480px;margin:0 auto}
     .footer-bottom strong{color:#64748b}
     @media(max-width:600px){.footer-contacts{grid-template-columns:1fr;text-align:center}}
+    .live-alert-banner{display:none;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:linear-gradient(90deg,#fef2f2,#fff1f2);border-bottom:2px solid #fca5a5;font-size:0.82rem;color:#991b1b;font-weight:600}
+    .live-alert-banner .alert-icon{font-size:1.1rem;flex-shrink:0}
+    .live-alert-banner .alert-dismiss{margin-left:auto;background:none;border:none;color:#dc2626;font-size:1rem;cursor:pointer;padding:0 0.25rem}
   </style>
 </head>
 <body>
@@ -167,6 +170,12 @@
     <button class="cat-tab t-degraded" onclick="switchTab('degraded')">Degraded Areas</button>
     <button class="cat-tab t-restoration" onclick="switchTab('restoration')">Restoration</button>
     <button class="cat-tab t-threatened" onclick="switchTab('threatened')">Threatened Species</button>
+  </div>
+
+  <div class="live-alert-banner" id="liveAlertBanner">
+    <span class="alert-icon">&#9888;</span>
+    <span id="liveAlertText"></span>
+    <button class="alert-dismiss" onclick="document.getElementById('liveAlertBanner').style.display='none'">&times;</button>
   </div>
 
   <div class="grid" id="summary-cards">
@@ -379,6 +388,32 @@
       renderMap(records);
       renderCharts(records);
       renderTable(records);
+      updateLiveAlerts(records);
+    }
+
+    // ── Threat alerts ──
+    function updateLiveAlerts(records) {
+      var banner = document.getElementById('liveAlertBanner');
+      var text = document.getElementById('liveAlertText');
+      if (!banner || !text) return;
+      var weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+      var urgent = [];
+      if (activeTab === 'merremia') {
+        urgent = records.filter(function(r) { return r.threatLevel === 'high' && new Date(r.timestamp) > weekAgo; });
+      } else if (activeTab === 'degraded') {
+        urgent = records.filter(function(r) { return (r.severity || '').toLowerCase() === 'severe' && new Date(r.timestamp) > weekAgo; });
+      } else if (activeTab === 'threatened') {
+        urgent = records.filter(function(r) { return (r.iucnStatus || '').indexOf('Critically') >= 0 && new Date(r.timestamp) > weekAgo; });
+      }
+      if (urgent.length > 0) {
+        var islands = [];
+        urgent.forEach(function(r) { if (r.island && islands.indexOf(r.island) < 0) islands.push(r.island); });
+        var label = activeTab === 'merremia' ? 'high-threat' : activeTab === 'degraded' ? 'severe degradation' : 'critically endangered';
+        text.textContent = urgent.length + ' ' + label + ' record' + (urgent.length > 1 ? 's' : '') + ' in the last 7 days \u2014 ' + islands.join(', ');
+        banner.style.display = 'flex';
+      } else {
+        banner.style.display = 'none';
+      }
     }
 
     // ── Stats per category ──
