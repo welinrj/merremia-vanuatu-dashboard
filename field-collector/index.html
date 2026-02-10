@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#065f46">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Vanuatu Field Collector</title>
+  <title>DEPC Field Collector</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
@@ -17,6 +17,7 @@
     header .subtitle{font-size:0.7rem;color:#6ee7b7}
     .header-left{display:flex;align-items:center;gap:0.6rem}
     .header-logo{height:40px;width:auto;border-radius:0.3rem;background:rgba(255,255,255,0.9);padding:3px;flex-shrink:0}
+    .logo-dept-name{font-size:0.55rem;font-weight:700;color:#ecfdf5;line-height:1.25;letter-spacing:0.02em;max-width:140px}
     .header-btns{display:flex;gap:0.5rem}
     .icon-btn{background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#ecfdf5;width:36px;height:36px;border-radius:0.4rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem}
     .icon-btn.active{background:#10b981;border-color:#34d399}
@@ -47,7 +48,13 @@
     .photo-btn{display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:1.5rem;border:2px dashed #334155;border-radius:0.75rem;background:#0f172a;color:#94a3b8;cursor:pointer;font-size:0.9rem}
     .photo-btn:active{border-color:#10b981;color:#10b981}
     .photo-preview{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem}
-    .photo-preview img{width:60px;height:60px;object-fit:cover;border-radius:0.4rem;border:1px solid #334155}
+    .photo-preview img{width:60px;height:60px;object-fit:cover;border-radius:0.4rem;border:1px solid #334155;cursor:pointer}
+    .photo-preview img:hover{border-color:#10b981}
+    .record-photos{display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem}
+    .record-photos img{width:56px;height:42px;object-fit:cover;border-radius:0.3rem;border:1px solid #334155;cursor:pointer}
+    .record-photos img:hover{border-color:#10b981}
+    .photo-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .photo-overlay img{max-width:95%;max-height:90%;border-radius:0.5rem}
     .record-card{background:#1e293b;border-radius:0.75rem;padding:1rem;border:1px solid #334155;margin-bottom:0.75rem}
     .record-card h4{color:#34d399;font-size:0.9rem;margin-bottom:0.25rem}
     .btn-delete-record{display:block;width:100%;margin-top:0.75rem;background:#7f1d1d;color:#fca5a5;border:2px solid #ef4444;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em}
@@ -88,6 +95,14 @@
     .cat-restoration{background:#1e3a5f;color:#93c5fd}
     .cat-threatened{background:#581c87;color:#d8b4fe}
     .category-select select{font-size:1rem;font-weight:600;padding:0.75rem}
+    footer{background:#0c1222;padding:1.5rem 1.25rem 1rem;color:#475569;font-size:0.72rem;border-top:2px solid #10b981;margin-top:auto}
+    .footer-grid{display:flex;flex-wrap:wrap;gap:1.5rem;justify-content:space-between}
+    .footer-col h4{color:#94a3b8;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:0.4rem}
+    .footer-col p,.footer-col a{color:#64748b;line-height:1.6}
+    .footer-col a{color:#6ee7b7;text-decoration:none}
+    .footer-col a:hover{text-decoration:underline}
+    .footer-bottom{text-align:center;margin-top:1rem;padding-top:0.75rem;border-top:1px solid #1e293b;color:#475569;font-size:0.65rem}
+    .footer-bottom strong{color:#94a3b8}
   </style>
 </head>
 <body>
@@ -95,9 +110,10 @@
   <header>
     <div class="header-left">
       <img src="assets/depc-logo.png" alt="DEPC" class="header-logo">
+      <span class="logo-dept-name">DEPARTMENT OF ENVIRONMENTAL PROTECTION AND CONSERVATION</span>
       <div>
-        <h1>Vanuatu Field Collector</h1>
-        <div class="subtitle">DEPC &mdash; Vanuatu Spatial Solutions</div>
+        <h1>DEPC Field Collector</h1>
+        <div class="subtitle">DEPC &mdash; Spatial Solutions</div>
       </div>
     </div>
     <div class="header-btns">
@@ -582,7 +598,15 @@
 
     function renderPhotoPreview() {
       var el = document.getElementById('photo-preview');
-      el.innerHTML = currentPhotos.map(function(p) { return '<img src="' + p + '">'; }).join('');
+      el.innerHTML = currentPhotos.map(function(p) { return '<img src="' + p + '" onclick="showFullPhoto(this.src)">'; }).join('');
+    }
+
+    function showFullPhoto(src) {
+      var overlay = document.createElement('div');
+      overlay.className = 'photo-overlay';
+      overlay.innerHTML = '<img src="' + src + '">';
+      overlay.onclick = function() { overlay.remove(); };
+      document.body.appendChild(overlay);
     }
 
     // ── Save Record ──
@@ -727,10 +751,17 @@
         var syncBadge = r.synced ? '<span class="badge-sm badge-synced">Synced</span>' : '<span class="badge-sm badge-pending">Pending</span>';
         var cat = r.category || 'merremia';
         var catBadge = '<span class="cat-badge cat-' + cat + '">' + (CAT_LABELS[cat] || cat) + '</span>';
+        var photoHtml = '';
+        if (r.photos && r.photos.length) {
+          photoHtml = '<div class="record-photos">' + r.photos.map(function(p) {
+            return '<img src="' + p + '" onclick="showFullPhoto(this.src)">';
+          }).join('') + '</div>';
+        }
         return '<div class="record-card">' +
           '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + '</h4>' +
           '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
           '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
+          photoHtml +
           '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete Record</button>' +
           '</div>';
       }).join('');
@@ -1079,5 +1110,23 @@
     loadSettings();
     updateRecordCount();
   </script>
+
+  <footer>
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Department of Environmental Protection &amp; Conservation</h4>
+        <p>Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>Environment, Energy and Disaster Management</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <p>PMB 9063, Port Vila, Shefa Province<br>Phone: <a href="tel:+67825302">+678 25302</a> / <a href="tel:+67833430">+678 33430</a><br>Email: <a href="mailto:depc@vanuatu.gov.vu">depc@vanuatu.gov.vu</a><br>Web: <a href="https://environment.gov.vu" target="_blank" rel="noopener">environment.gov.vu</a></p>
+      </div>
+      <div class="footer-col">
+        <h4>Branch Office</h4>
+        <p>Sanma Provincial Government Council<br>PMB 239, Luganville, Sanma Province</p>
+      </div>
+    </div>
+    <div class="footer-bottom">Prototype created by <strong>Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong></div>
+  </footer>
 </body>
 </html>

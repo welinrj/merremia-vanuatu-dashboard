@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#065f46">
-  <meta name="description" content="Real-time environmental field data from Vanuatu">
-  <title>Vanuatu Live Dashboard</title>
+  <meta name="description" content="DEPC real-time environmental field data monitoring">
+  <title>DEPC Live Dashboard</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
@@ -48,11 +48,16 @@
     .basemap-btn:last-child{border-right:none}
     .basemap-btn.active{background:#065f46;color:#ecfdf5}
     .basemap-btn:hover:not(.active){background:#334155;color:#e2e8f0}
-    .map-marker{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 0 6px rgba(0,0,0,0.4)}
+    .map-marker{width:22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,0.9);cursor:pointer;box-shadow:0 0 8px rgba(0,0,0,0.5)}
     .maplibregl-popup-content{background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:0.5rem;padding:0.75rem;font-size:0.8rem;max-width:250px}
     .maplibregl-popup-content strong{color:#34d399}
     .maplibregl-popup-close-button{color:#94a3b8;font-size:1.2rem}
     .maplibregl-popup-tip{border-top-color:#1e293b}
+    .popup-photos{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+    .popup-photos img{width:60px;height:45px;object-fit:cover;border-radius:3px;cursor:pointer;border:1px solid #334155}
+    .popup-photos img:hover{border-color:#10b981}
+    .photo-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .photo-overlay img{max-width:90%;max-height:90%;border-radius:0.5rem}
     .records-section{padding:0 2rem 1.5rem}
     .records-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
     .records-panel h2{font-size:1rem;color:#cbd5e1;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #334155}
@@ -129,12 +134,12 @@
         <span class="logo-dept-name">DEPARTMENT OF ENVIRONMENTAL PROTECTION AND CONSERVATION</span>
       </div>
       <div>
-        <h1>Vanuatu Environmental Dashboard</h1>
-        <p>Real-time field data across Vanuatu</p>
+        <h1>DEPC Environmental Dashboard</h1>
+        <p>Real-time field data monitoring</p>
       </div>
     </div>
     <div class="attribution">
-      Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
+      Prototype dashboard created by <strong>Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
     </div>
   </header>
 
@@ -243,7 +248,7 @@
         <p>Sanma Provincial Government Council<br>PMB 239, Luganville, Sanma Province, Vanuatu</p>
       </div>
     </div>
-    <div class="footer-bottom">Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Live Field Data View</div>
+    <div class="footer-bottom">Prototype dashboard created by <strong>Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Live Field Data View</div>
   </footer>
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
@@ -398,15 +403,35 @@
       return '#94a3b8';
     }
 
+    function getPhotoHTML(recordId) {
+      var owner = document.getElementById('cfg-owner').value.trim();
+      var repo = document.getElementById('cfg-repo').value.trim();
+      var base = 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/main/photos/';
+      var html = '<div class="popup-photos">';
+      for (var i = 0; i < 5; i++) {
+        html += '<img src="' + base + recordId + '-' + i + '.jpg" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)">';
+      }
+      return html + '</div>';
+    }
+
+    function showFullPhoto(src) {
+      var overlay = document.createElement('div');
+      overlay.className = 'photo-overlay';
+      overlay.innerHTML = '<img src="' + src + '">';
+      overlay.onclick = function() { overlay.remove(); };
+      document.body.appendChild(overlay);
+    }
+
     function getPopupHTML(r) {
       var cat = r.category || 'merremia';
       var date = new Date(r.timestamp).toLocaleDateString('en-GB');
       var loc = r.island + (r.siteName ? ' — ' + r.siteName : '');
-      if (cat === 'merremia') return '<strong>' + (Array.isArray(r.species) ? r.species.join(', ') : r.species) + '</strong><br>' + loc + '<br>Count: ' + (r.count||1) + ' | Threat: ' + (r.threatLevel||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
-      if (cat === 'degraded') return '<strong>' + (r.degradationType||'Degraded') + '</strong><br>' + loc + '<br>Severity: ' + (r.severity||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
-      if (cat === 'restoration') return '<strong>' + (r.restorationType||'Restoration') + '</strong><br>' + loc + '<br>Stage: ' + (r.restorationStage||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha' + (r.projectName ? '<br>Project: ' + r.projectName : '') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
-      if (cat === 'threatened') return '<strong>' + (r.speciesName||'Unknown') + '</strong> (' + (r.speciesType||'') + ')<br>' + loc + '<br>IUCN: ' + (r.iucnStatus||'-') + ' | Pop: ' + (r.populationEstimate||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
-      return '<strong>Record</strong><br>' + loc;
+      var photos = getPhotoHTML(r.id);
+      if (cat === 'merremia') return '<strong>' + (Array.isArray(r.species) ? r.species.join(', ') : r.species) + '</strong><br>' + loc + '<br>Count: ' + (r.count||1) + ' | Threat: ' + (r.threatLevel||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
+      if (cat === 'degraded') return '<strong>' + (r.degradationType||'Degraded') + '</strong><br>' + loc + '<br>Severity: ' + (r.severity||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
+      if (cat === 'restoration') return '<strong>' + (r.restorationType||'Restoration') + '</strong><br>' + loc + '<br>Stage: ' + (r.restorationStage||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha' + (r.projectName ? '<br>Project: ' + r.projectName : '') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
+      if (cat === 'threatened') return '<strong>' + (r.speciesName||'Unknown') + '</strong> (' + (r.speciesType||'') + ')<br>' + loc + '<br>IUCN: ' + (r.iucnStatus||'-') + ' | Pop: ' + (r.populationEstimate||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>' + photos;
+      return '<strong>Record</strong><br>' + loc + photos;
     }
 
     function renderMap(records) {
@@ -422,7 +447,7 @@
         var el = document.createElement('div');
         el.className = 'map-marker';
         el.style.backgroundColor = getMarkerColor(r);
-        var popup = new maplibregl.Popup({ offset: 12, maxWidth: '260px' }).setHTML(getPopupHTML(r));
+        var popup = new maplibregl.Popup({ offset: 12, maxWidth: '320px' }).setHTML(getPopupHTML(r));
         var marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).setPopup(popup).addTo(liveMap);
         mapMarkers.push(marker);
         bounds.extend([lng, lat]);
