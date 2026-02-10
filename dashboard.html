@@ -824,16 +824,25 @@ function updateRecentRecords(records) {
   if (!list) return;
 
   const recent = records.slice(0, 15);
-  list.innerHTML = recent.map(r => `
+  list.innerHTML = recent.map(r => {
+    const cat = r.category || 'merremia';
+    let title = '';
+    if (cat === 'merremia') title = Array.isArray(r.species) ? r.species.join(', ') : (r.species || 'Merremia');
+    else if (cat === 'degraded') title = r.degradationType || 'Degraded Area';
+    else if (cat === 'restoration') title = r.restorationType || 'Restoration';
+    else if (cat === 'threatened') title = r.speciesName || 'Threatened Species';
+    else title = 'Record';
+    const dotClass = r.threatLevel || (cat === 'degraded' ? (r.severity || '').toLowerCase() : 'low');
+    return `
     <div class="recent-item">
-      <div class="recent-dot ${r.threatLevel}"></div>
+      <div class="recent-dot ${dotClass}"></div>
       <div class="recent-info">
-        <div class="recent-species">${r.species.join(', ')}</div>
+        <div class="recent-species">${title}</div>
         <div class="recent-meta">${r.island || 'Unknown'} · ${r.siteName || '—'} · ${r.observer || 'Unknown observer'}</div>
       </div>
       <div class="recent-time">${timeAgo(new Date(r.timestamp))}</div>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 // ══════════════════════════════════════════
@@ -876,11 +885,6 @@ function applyFilters() {
     threat: threat || undefined
   });
 
-  // Reprocess filtered records for display
-  const processedFiltered = connector.processRecords
-    ? { ...dashData, ...connector.processRecords(filtered) }
-    : dashData;
-
   // Reprocess filtered data manually
   const filteredData = reprocessForDisplay(filtered);
   updateStats(filteredData.stats);
@@ -893,8 +897,8 @@ function applyFilters() {
 function reprocessForDisplay(records) {
   // Quick reprocess for filtered view
   const stats = {
-    speciesCount: new Set(records.flatMap(r => r.species)).size,
-    speciesList: [...new Set(records.flatMap(r => r.species))].sort(),
+    speciesCount: new Set(records.flatMap(r => Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []))).size,
+    speciesList: [...new Set(records.flatMap(r => Array.isArray(r.species) ? r.species : (r.species ? [r.species] : [])))].sort(),
     islandCount: new Set(records.map(r => r.island).filter(Boolean)).size,
     islandList: [...new Set(records.map(r => r.island).filter(Boolean))].sort(),
     siteCount: new Set(records.map(r => r.siteName).filter(Boolean)).size,

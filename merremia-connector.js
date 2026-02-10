@@ -403,27 +403,41 @@ class MerremiaConnector {
   toGeoJSON(records) {
     const features = records
       .filter(r => r.gps?.lat && r.gps?.lng)
-      .map(r => ({
-        type: 'Feature',
-        geometry: {
-          type: 'Point',
-          coordinates: [r.gps.lng, r.gps.lat]
-        },
-        properties: {
-          id: r.id,
-          species: r.species,
-          speciesLabel: r.species.join(', '),
-          count: r.count,
-          threatLevel: r.threatLevel,
-          island: r.island,
-          siteName: r.siteName,
-          observer: r.observer,
-          timestamp: r.timestamp,
-          coverageArea: r.coverageArea,
-          notes: r.notes,
-          accuracy: r.gps.accuracy
-        }
-      }));
+      .map(r => {
+        const cat = r.category || 'merremia';
+        const speciesArr = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
+        // Build a display label based on category
+        let label = '';
+        if (cat === 'merremia') label = speciesArr.join(', ') || 'Merremia';
+        else if (cat === 'degraded') label = r.degradationType || 'Degraded Area';
+        else if (cat === 'restoration') label = r.restorationType || 'Restoration';
+        else if (cat === 'threatened') label = r.speciesName || 'Threatened Species';
+        else label = 'Record';
+
+        return {
+          type: 'Feature',
+          geometry: {
+            type: 'Point',
+            coordinates: [r.gps.lng, r.gps.lat]
+          },
+          properties: {
+            id: r.id,
+            category: cat,
+            label: label,
+            species: speciesArr,
+            speciesLabel: speciesArr.join(', '),
+            count: r.count,
+            threatLevel: r.threatLevel,
+            island: r.island,
+            siteName: r.siteName,
+            observer: r.observer,
+            timestamp: r.timestamp,
+            coverageArea: r.coverageArea,
+            notes: r.notes,
+            accuracy: r.gps.accuracy
+          }
+        };
+      });
 
     return {
       type: 'FeatureCollection',
@@ -455,7 +469,7 @@ class MerremiaConnector {
   filterRecords(records, filters = {}) {
     return records.filter(r => {
       if (filters.island && r.island !== filters.island) return false;
-      if (filters.species && !r.species.includes(filters.species)) return false;
+      if (filters.species && !(Array.isArray(r.species) && r.species.includes(filters.species))) return false;
       if (filters.threat && r.threatLevel !== filters.threat) return false;
       if (filters.observer && r.observer !== filters.observer) return false;
       if (filters.dateFrom && new Date(r.timestamp) < new Date(filters.dateFrom)) return false;
