@@ -1,8 +1,9 @@
-var CACHE_NAME = 'merremia-collector-v5';
+var CACHE_NAME = 'merremia-collector-v6';
 var URLS_TO_CACHE = [
   './',
   './index.html',
-  './manifest.json'
+  './manifest.json',
+  './assets/depc-logo.png'
 ];
 
 self.addEventListener('install', function(event) {
