@@ -656,7 +656,6 @@
       document.getElementById('f-area').value = '';
       document.querySelectorAll('.cat-fields select').forEach(function(s) { s.selectedIndex = 0; });
       document.querySelectorAll('.cat-fields input').forEach(function(i) { if (i.type !== 'file') i.value = ''; });
-      document.getElementById('f-count').value = '1';
       updateRecordCount();
 
       showToast('Data saved', 'info');
@@ -815,11 +814,12 @@
             return val;
           }, 2))));
 
-          await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
+          var resp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
             method: 'PUT',
             headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Add record: ' + getCommitLabel(r), content: recordContent })
           });
+          if (!resp.ok) { showToast('Sync failed for record — will retry later.', 'warn'); continue; }
 
           if (r.photos) {
             for (var j = 0; j < r.photos.length; j++) {
@@ -1050,19 +1050,22 @@
 
     // ── Service Worker ──
     if ('serviceWorker' in navigator) {
+      var swReloading = false;
       navigator.serviceWorker.addEventListener('controllerchange', function() {
-        location.reload();
+        if (!swReloading) { swReloading = true; location.reload(); }
       });
-      navigator.serviceWorker.getRegistrations().then(function(regs) {
-        var needsClean = regs.length > 0;
-        var p = Promise.all(regs.map(function(r) { return r.unregister(); }));
-        p.then(function() {
-          if (needsClean && 'caches' in window) {
-            caches.keys().then(function(names) {
-              names.forEach(function(n) { caches.delete(n); });
+      navigator.serviceWorker.register('sw.js').then(function(reg) {
+        reg.addEventListener('updatefound', function() {
+          var newSW = reg.installing;
+          if (newSW) {
+            newSW.addEventListener('statechange', function() {
+              if (newSW.state === 'activated' && 'caches' in window) {
+                caches.keys().then(function(names) {
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v5') caches.delete(n); });
+                });
+              }
             });
           }
-          navigator.serviceWorker.register('sw.js');
         });
       });
     }
