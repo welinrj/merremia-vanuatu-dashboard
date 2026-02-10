@@ -885,7 +885,7 @@
         fillColor: threatColors[s.threat],
         fillOpacity: 0.5,
         weight: 1
-      }).addTo(map).bindPopup('<strong>' + s.name + '</strong><br>' + s.count + ' observations<br>Threat: ' + s.threat);
+      }).addTo(map).bindPopup('<strong>' + s.name + '</strong><br>' + s.count + ' observations<br>Threat: ' + s.threat, { autoClose: false, closeOnClick: false }).openPopup();
     });
 
     // ── Chart colors ──

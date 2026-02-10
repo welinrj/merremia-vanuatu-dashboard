@@ -755,14 +755,15 @@ function updateMap(data) {
           </div>
           ${photoHtml}
         </div>
-      `);
+      `, { autoClose: false, closeOnClick: false });
     }
   }).addTo(mapLayer);
 
-  // Fit map to data bounds
+  // Fit map to data bounds and auto-open all popups
   if (filteredFeatures.length > 0) {
     const coords = filteredFeatures.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
     map.fitBounds(coords, { padding: [40, 40], maxZoom: 12 });
+    mapLayer.eachLayer(l => { if (l.getPopup) l.openPopup(); });
   }
 }
 
