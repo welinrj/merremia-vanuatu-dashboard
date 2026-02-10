@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#065f46">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Merremia Field Collector</title>
+  <title>Vanuatu Field Collector</title>
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.png">
   <style>
@@ -58,7 +58,7 @@
     .delete-modal-btns{display:flex;gap:0.5rem}
     .delete-modal-btns button{flex:1;padding:0.6rem;border-radius:0.4rem;font-weight:600;cursor:pointer;border:none;font-size:0.85rem}
     .record-card p{color:#94a3b8;font-size:0.8rem;line-height:1.5}
-    .record-card .meta{display:flex;gap:0.75rem;margin-top:0.5rem;font-size:0.7rem;color:#64748b}
+    .record-card .meta{display:flex;gap:0.75rem;margin-top:0.5rem;font-size:0.7rem;color:#64748b;flex-wrap:wrap}
     .badge-sm{display:inline-block;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.65rem;font-weight:600}
     .badge-pending{background:#78350f;color:#fcd34d}
     .badge-synced{background:#064e3b;color:#6ee7b7}
@@ -78,13 +78,21 @@
     .toast-warn{background:#78350f;color:#fcd34d;border:1px solid #f59e0b}
     .toast-error{background:#7f1d1d;color:#fca5a5;border:1px solid #ef4444}
     @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .cat-fields{display:none;flex-direction:column;gap:1rem}
+    .cat-fields.active{display:flex}
+    .cat-badge{display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;margin-left:0.3rem}
+    .cat-merremia{background:#064e3b;color:#6ee7b7}
+    .cat-degraded{background:#7f1d1d;color:#fca5a5}
+    .cat-restoration{background:#1e3a5f;color:#93c5fd}
+    .cat-threatened{background:#581c87;color:#d8b4fe}
+    .category-select select{font-size:1rem;font-weight:600;padding:0.75rem}
   </style>
 </head>
 <body>
   <div class="offline-banner" id="offline-banner">OFFLINE MODE — data saved locally</div>
   <header>
     <div>
-      <h1>Merremia Field Collector</h1>
+      <h1>Vanuatu Field Collector</h1>
       <div class="subtitle">Vanuatu Spatial Solutions — DEPC &amp; NBSAP</div>
     </div>
     <div class="header-btns">
@@ -109,6 +117,16 @@
       </div>
     </div>
 
+    <div class="field-group category-select">
+      <label>Survey Category</label>
+      <select id="f-category" onchange="switchCategory()">
+        <option value="merremia">Merremia Vine Monitoring</option>
+        <option value="degraded">Degraded Areas</option>
+        <option value="restoration">Areas Under Restoration</option>
+        <option value="threatened">Threatened Species</option>
+      </select>
+    </div>
+
     <div class="row">
       <div class="field-group">
         <label>Island</label>
@@ -131,40 +149,260 @@
       </div>
     </div>
 
-    <div class="row">
-      <div class="field-group">
-        <label>Species</label>
-        <select id="f-species">
-          <option value="">Select species</option>
-          <option>M. peltata</option>
-          <option>M. vitifolia</option>
-          <option>M. tridentata</option>
-          <option>M. gemella</option>
-          <option>M. umbellata</option>
-          <option>M. tuberosa</option>
-          <option>M. dissecta</option>
-          <option>Unknown Merremia</option>
-        </select>
+    <!-- ── MERREMIA FIELDS ── -->
+    <div class="cat-fields active" id="fields-merremia">
+      <div class="row">
+        <div class="field-group">
+          <label>Species</label>
+          <select id="f-species">
+            <option value="">Select species</option>
+            <option>M. peltata</option>
+            <option>M. vitifolia</option>
+            <option>M. tridentata</option>
+            <option>M. gemella</option>
+            <option>M. umbellata</option>
+            <option>M. tuberosa</option>
+            <option>M. dissecta</option>
+            <option>Unknown Merremia</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Observation Count</label>
+          <input id="f-count" type="number" min="1" value="1">
+        </div>
       </div>
-      <div class="field-group">
-        <label>Observation Count</label>
-        <input id="f-count" type="number" min="1" value="1">
+      <div class="row">
+        <div class="field-group">
+          <label>Threat Level</label>
+          <select id="f-threat">
+            <option value="">Select level</option>
+            <option>High</option>
+            <option>Moderate</option>
+            <option>Low</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Coverage Area (ha)</label>
+          <input id="f-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
       </div>
     </div>
 
-    <div class="row">
-      <div class="field-group">
-        <label>Threat Level</label>
-        <select id="f-threat">
-          <option value="">Select level</option>
-          <option>High</option>
-          <option>Moderate</option>
-          <option>Low</option>
-        </select>
+    <!-- ── DEGRADED AREAS FIELDS ── -->
+    <div class="cat-fields" id="fields-degraded">
+      <div class="row">
+        <div class="field-group">
+          <label>Degradation Type</label>
+          <select id="f-deg-type">
+            <option value="">Select type</option>
+            <option>Deforestation</option>
+            <option>Soil Erosion</option>
+            <option>Overgrazing</option>
+            <option>Mining / Quarrying</option>
+            <option>Fire Damage</option>
+            <option>Invasive Species</option>
+            <option>Pollution</option>
+            <option>Coastal Erosion</option>
+            <option>Cyclone Damage</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Severity</label>
+          <select id="f-deg-severity">
+            <option value="">Select severity</option>
+            <option>Severe</option>
+            <option>Moderate</option>
+            <option>Mild</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Estimated Area (ha)</label>
+          <input id="f-deg-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
+        <div class="field-group">
+          <label>Land Use Type</label>
+          <select id="f-deg-landuse">
+            <option value="">Select type</option>
+            <option>Forest</option>
+            <option>Agricultural</option>
+            <option>Coastal</option>
+            <option>Wetland</option>
+            <option>Grassland</option>
+            <option>Urban Fringe</option>
+            <option>Mangrove</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Vegetation Cover (%)</label>
+          <input id="f-deg-vegcover" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+        <div class="field-group">
+          <label>Evidence of Erosion</label>
+          <select id="f-deg-erosion">
+            <option value="">Select</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
       </div>
       <div class="field-group">
-        <label>Coverage Area (ha)</label>
-        <input id="f-area" type="number" min="0" step="0.1" placeholder="0.0">
+        <label>Cause of Degradation</label>
+        <input id="f-deg-cause" placeholder="Describe the main cause">
+      </div>
+      <div class="field-group">
+        <label>Water Source Nearby</label>
+        <select id="f-deg-water">
+          <option value="">Select</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── RESTORATION FIELDS ── -->
+    <div class="cat-fields" id="fields-restoration">
+      <div class="row">
+        <div class="field-group">
+          <label>Restoration Type</label>
+          <select id="f-rest-type">
+            <option value="">Select type</option>
+            <option>Reforestation</option>
+            <option>Mangrove Replanting</option>
+            <option>Coral Reef Restoration</option>
+            <option>Soil Rehabilitation</option>
+            <option>Wetland Restoration</option>
+            <option>Invasive Species Removal</option>
+            <option>Agroforestry</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Restoration Stage</label>
+          <select id="f-rest-stage">
+            <option value="">Select stage</option>
+            <option>Planning</option>
+            <option>Early Stage (0-2 yr)</option>
+            <option>Mid Stage (2-5 yr)</option>
+            <option>Established (5-10 yr)</option>
+            <option>Mature (10+ yr)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Years Since Started</label>
+          <input id="f-rest-years" type="number" min="0" placeholder="0">
+        </div>
+        <div class="field-group">
+          <label>Estimated Area (ha)</label>
+          <input id="f-rest-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Species Planted / Restored</label>
+        <input id="f-rest-species" placeholder="e.g. Rhizophora, Casuarina">
+      </div>
+      <div class="field-group">
+        <label>Project / Programme Name</label>
+        <input id="f-rest-project" placeholder="e.g. NBSAP Mangrove Project">
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Survival Rate (%)</label>
+          <input id="f-rest-survival" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+        <div class="field-group">
+          <label>Vegetation Cover (%)</label>
+          <input id="f-rest-vegcover" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── THREATENED SPECIES FIELDS ── -->
+    <div class="cat-fields" id="fields-threatened">
+      <div class="row">
+        <div class="field-group">
+          <label>Species Name</label>
+          <input id="f-ts-species" placeholder="e.g. Dugong dugon">
+        </div>
+        <div class="field-group">
+          <label>Species Type</label>
+          <select id="f-ts-type">
+            <option value="">Select type</option>
+            <option>Plant</option>
+            <option>Bird</option>
+            <option>Reptile</option>
+            <option>Mammal</option>
+            <option>Amphibian</option>
+            <option>Fish</option>
+            <option>Invertebrate</option>
+            <option>Coral</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>IUCN Status</label>
+          <select id="f-ts-iucn">
+            <option value="">Select status</option>
+            <option>Critically Endangered</option>
+            <option>Endangered</option>
+            <option>Vulnerable</option>
+            <option>Near Threatened</option>
+            <option>Data Deficient</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Population Estimate</label>
+          <input id="f-ts-population" type="number" min="0" placeholder="Individuals seen">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Habitat Type</label>
+          <select id="f-ts-habitat">
+            <option value="">Select habitat</option>
+            <option>Forest</option>
+            <option>Coastal</option>
+            <option>Mangrove</option>
+            <option>Freshwater</option>
+            <option>Grassland</option>
+            <option>Cave</option>
+            <option>Marine</option>
+            <option>Coral Reef</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Breeding Evidence</label>
+          <select id="f-ts-breeding">
+            <option value="">Select</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Primary Threat</label>
+        <select id="f-ts-threats">
+          <option value="">Select threat</option>
+          <option>Habitat Loss</option>
+          <option>Invasive Species</option>
+          <option>Hunting / Harvesting</option>
+          <option>Pollution</option>
+          <option>Climate Change</option>
+          <option>Disease</option>
+          <option>Human Disturbance</option>
+          <option>Other</option>
+        </select>
       </div>
     </div>
 
@@ -244,6 +482,9 @@
     var currentPhotos = [];
     var currentLat = null, currentLng = null, currentAcc = null;
 
+    // ── Category labels ──
+    var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
+
     // ── Toast Notifications ──
     function showToast(msg, type) {
       type = type || 'info';
@@ -263,6 +504,14 @@
       document.getElementById('view-' + name).classList.add('active');
       document.getElementById('nav-' + name).classList.add('active');
       if (name === 'records') renderRecords();
+    }
+
+    // ── Category Switching ──
+    function switchCategory() {
+      var cat = document.getElementById('f-category').value;
+      document.querySelectorAll('.cat-fields').forEach(function(el) { el.classList.remove('active'); });
+      var target = document.getElementById('fields-' + cat);
+      if (target) target.classList.add('active');
     }
 
     // ── GPS ──
@@ -308,7 +557,6 @@
       files.forEach(function(file) {
         var reader = new FileReader();
         reader.onload = function(ev) {
-          // Compress to max 800px wide JPEG
           var img = new Image();
           img.onload = function() {
             var canvas = document.createElement('canvas');
@@ -334,56 +582,116 @@
 
     // ── Save Record ──
     function saveRecord() {
+      var category = document.getElementById('f-category').value;
       var island = document.getElementById('f-island').value;
-      var species = document.getElementById('f-species').value;
-      var threat = document.getElementById('f-threat').value;
-      if (!island || !species || !threat) {
-        showToast('Please fill in Island, Species, and Threat Level.', 'warn');
-        return;
-      }
-      if (currentLat === null) {
-        showToast('Waiting for GPS fix. Try again in a moment.', 'warn');
-        return;
-      }
+
+      if (!island) { showToast('Please select an island.', 'warn'); return; }
+      if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
 
       var record = {
         id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
         timestamp: new Date().toISOString(),
+        category: category,
         latitude: currentLat,
         longitude: currentLng,
         accuracy: currentAcc,
         island: island,
         siteName: document.getElementById('f-site').value || '',
-        species: species,
-        count: parseInt(document.getElementById('f-count').value) || 1,
-        threatLevel: threat,
-        coverageArea: parseFloat(document.getElementById('f-area').value) || 0,
         observer: document.getElementById('f-observer').value || getSettings().defaultObserver || '',
         notes: document.getElementById('f-notes').value || '',
         photos: currentPhotos,
         synced: false
       };
 
+      // Category-specific fields and validation
+      if (category === 'merremia') {
+        record.species = document.getElementById('f-species').value;
+        record.count = parseInt(document.getElementById('f-count').value) || 1;
+        record.threatLevel = document.getElementById('f-threat').value;
+        record.coverageArea = parseFloat(document.getElementById('f-area').value) || 0;
+        if (!record.species || !record.threatLevel) { showToast('Please fill in Species and Threat Level.', 'warn'); return; }
+      } else if (category === 'degraded') {
+        record.degradationType = document.getElementById('f-deg-type').value;
+        record.severity = document.getElementById('f-deg-severity').value;
+        record.estimatedArea = parseFloat(document.getElementById('f-deg-area').value) || 0;
+        record.landUseType = document.getElementById('f-deg-landuse').value;
+        record.vegetationCover = document.getElementById('f-deg-vegcover').value ? parseInt(document.getElementById('f-deg-vegcover').value) : null;
+        record.erosionEvidence = document.getElementById('f-deg-erosion').value;
+        record.cause = document.getElementById('f-deg-cause').value || '';
+        record.waterNearby = document.getElementById('f-deg-water').value;
+        if (!record.degradationType || !record.severity) { showToast('Please fill in Degradation Type and Severity.', 'warn'); return; }
+      } else if (category === 'restoration') {
+        record.restorationType = document.getElementById('f-rest-type').value;
+        record.restorationStage = document.getElementById('f-rest-stage').value;
+        record.yearsSinceStarted = parseInt(document.getElementById('f-rest-years').value) || 0;
+        record.estimatedArea = parseFloat(document.getElementById('f-rest-area').value) || 0;
+        record.speciesPlanted = document.getElementById('f-rest-species').value || '';
+        record.projectName = document.getElementById('f-rest-project').value || '';
+        record.survivalRate = document.getElementById('f-rest-survival').value ? parseInt(document.getElementById('f-rest-survival').value) : null;
+        record.vegetationCover = document.getElementById('f-rest-vegcover').value ? parseInt(document.getElementById('f-rest-vegcover').value) : null;
+        if (!record.restorationType || !record.restorationStage) { showToast('Please fill in Restoration Type and Stage.', 'warn'); return; }
+      } else if (category === 'threatened') {
+        record.speciesName = document.getElementById('f-ts-species').value;
+        record.speciesType = document.getElementById('f-ts-type').value;
+        record.iucnStatus = document.getElementById('f-ts-iucn').value;
+        record.populationEstimate = parseInt(document.getElementById('f-ts-population').value) || 0;
+        record.habitatType = document.getElementById('f-ts-habitat').value;
+        record.breedingEvidence = document.getElementById('f-ts-breeding').value;
+        record.threatsObserved = document.getElementById('f-ts-threats').value;
+        if (!record.speciesName || !record.speciesType) { showToast('Please fill in Species Name and Type.', 'warn'); return; }
+      }
+
       var records = getRecords();
       records.push(record);
       localStorage.setItem(DB_KEY, JSON.stringify(records));
 
-      // Reset form
+      // Reset form (keep category, island, observer)
       document.getElementById('f-site').value = '';
-      document.getElementById('f-count').value = '1';
-      document.getElementById('f-area').value = '';
       document.getElementById('f-notes').value = '';
       currentPhotos = [];
       renderPhotoPreview();
       document.getElementById('photo-input').value = '';
+      // Reset category-specific fields
+      document.getElementById('f-count').value = '1';
+      document.getElementById('f-area').value = '';
+      document.querySelectorAll('.cat-fields select').forEach(function(s) { s.selectedIndex = 0; });
+      document.querySelectorAll('.cat-fields input').forEach(function(i) { if (i.type !== 'file') i.value = ''; });
+      document.getElementById('f-count').value = '1';
       updateRecordCount();
 
       showToast('Data saved', 'info');
 
-      // Auto-sync to GitHub immediately if online
       if (navigator.onLine) {
         setTimeout(function() { syncData(); }, 500);
       }
+    }
+
+    // ── Record helpers ──
+    function getRecordTitle(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return r.species || 'Merremia';
+      if (cat === 'degraded') return (r.degradationType || 'Degraded Area');
+      if (cat === 'restoration') return (r.restorationType || 'Restoration');
+      if (cat === 'threatened') return (r.speciesName || 'Threatened Species');
+      return 'Record';
+    }
+
+    function getRecordMeta(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return 'Count: ' + (r.count || 1) + ' | Threat: ' + (r.threatLevel || '-');
+      if (cat === 'degraded') return 'Severity: ' + (r.severity || '-') + ' | Area: ' + (r.estimatedArea || 0) + ' ha';
+      if (cat === 'restoration') return 'Stage: ' + (r.restorationStage || '-') + ' | Area: ' + (r.estimatedArea || 0) + ' ha';
+      if (cat === 'threatened') return 'IUCN: ' + (r.iucnStatus || '-') + ' | Pop: ' + (r.populationEstimate || '-');
+      return '';
+    }
+
+    function getCommitLabel(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return (r.species || 'Merremia') + ' at ' + r.island;
+      if (cat === 'degraded') return 'Degraded area at ' + r.island;
+      if (cat === 'restoration') return 'Restoration site at ' + r.island;
+      if (cat === 'threatened') return (r.speciesName || 'Threatened species') + ' at ' + r.island;
+      return 'Record at ' + r.island;
     }
 
     // ── Records ──
@@ -412,11 +720,13 @@
       }
       list.innerHTML = records.map(function(r) {
         var date = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
-        var badge = r.synced ? '<span class="badge-sm badge-synced">Synced</span>' : '<span class="badge-sm badge-pending">Pending</span>';
+        var syncBadge = r.synced ? '<span class="badge-sm badge-synced">Synced</span>' : '<span class="badge-sm badge-pending">Pending</span>';
+        var cat = r.category || 'merremia';
+        var catBadge = '<span class="cat-badge cat-' + cat + '">' + (CAT_LABELS[cat] || cat) + '</span>';
         return '<div class="record-card">' +
-          '<h4>' + r.species + ' ' + badge + '</h4>' +
+          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + '</h4>' +
           '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
-          '<div class="meta"><span>' + date + '</span><span>Count: ' + r.count + '</span><span>Threat: ' + r.threatLevel + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
+          '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
           '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete Record</button>' +
           '</div>';
       }).join('');
@@ -451,7 +761,6 @@
 
     function loadSettings() {
       var s = getSettings();
-      // Seed all defaults on first load so sync works without manual config
       if (!s.owner || !s.token) {
         s.owner = s.owner || DEFAULTS.owner;
         s.repo = s.repo || DEFAULTS.repo;
@@ -482,7 +791,6 @@
       var records = getRecords();
       var pending = records.filter(function(r) { return !r.synced; });
 
-      // Even with 0 pending, rebuild all-records.json so dashboard has all records
       if (pending.length === 0) {
         if (records.length > 0) {
           showToast('Updating dashboard...', 'info');
@@ -502,38 +810,24 @@
           if (records[i].synced) continue;
           var r = records[i];
 
-          // Upload record JSON
           var recordContent = btoa(unescape(encodeURIComponent(JSON.stringify(r, function(key, val) {
-            if (key === 'photos') return undefined; // strip photos from record JSON
+            if (key === 'photos') return undefined;
             return val;
           }, 2))));
 
           await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
             method: 'PUT',
-            headers: {
-              'Authorization': 'Bearer ' + s.token,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              message: 'Add record: ' + r.species + ' at ' + r.island,
-              content: recordContent
-            })
+            headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Add record: ' + getCommitLabel(r), content: recordContent })
           });
 
-          // Upload photos
           if (r.photos) {
             for (var j = 0; j < r.photos.length; j++) {
               var photoData = r.photos[j].split(',')[1];
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + r.id + '-' + j + '.jpg', {
                 method: 'PUT',
-                headers: {
-                  'Authorization': 'Bearer ' + s.token,
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  message: 'Add photo for ' + r.id,
-                  content: photoData
-                })
+                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Add photo for ' + r.id, content: photoData })
               });
             }
           }
@@ -545,7 +839,6 @@
         updateRecordCount();
         if (document.getElementById('view-records').classList.contains('active')) renderRecords();
 
-        // Update aggregated all-records.json for the live dashboard
         await updateAllRecords(s, records);
 
         showToast('Data synced to database', 'info');
@@ -556,10 +849,8 @@
       btn.classList.remove('active');
     }
 
-    // ── Update aggregated data file for live dashboard ──
     async function updateAllRecords(s, localRecords) {
       try {
-        // Fetch existing all-records.json (may not exist yet)
         var allRecords = [];
         var existingSha = null;
         var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
@@ -571,7 +862,6 @@
           allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
         }
 
-        // Merge: add/update records by ID
         var syncedLocal = localRecords.filter(function(r) { return r.synced; });
         syncedLocal.forEach(function(r) {
           var clean = Object.assign({}, r);
@@ -581,7 +871,6 @@
           else allRecords.push(clean);
         });
 
-        // Upload aggregated file
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(allRecords, null, 2))));
         var body = { message: 'Update all-records.json (' + allRecords.length + ' records)', content: content };
         if (existingSha) body.sha = existingSha;
@@ -602,13 +891,13 @@
       if (records.length === 0) { showToast('No records to download', 'warn'); return; }
       var clean = records.map(function(r) {
         var copy = Object.assign({}, r);
-        delete copy.photos; // strip base64 photo data for smaller file
+        delete copy.photos;
         return copy;
       });
       var blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'merremia-records-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.download = 'vanuatu-field-records-' + new Date().toISOString().slice(0, 10) + '.json';
       a.click();
       URL.revokeObjectURL(a.href);
       showToast('Downloaded ' + records.length + ' record(s)', 'info');
@@ -617,7 +906,7 @@
     function downloadCSV() {
       var records = getRecords();
       if (records.length === 0) { showToast('No records to download', 'warn'); return; }
-      var headers = ['id','timestamp','latitude','longitude','accuracy','island','siteName','species','count','threatLevel','coverageArea','observer','notes','synced'];
+      var headers = ['id','timestamp','category','latitude','longitude','accuracy','island','siteName','observer','notes','synced','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','speciesPlanted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved'];
       var rows = records.map(function(r) {
         return headers.map(function(h) {
           var v = r[h] != null ? String(r[h]) : '';
@@ -628,7 +917,7 @@
       var blob = new Blob([csv], { type: 'text/csv' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = 'merremia-records-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.download = 'vanuatu-field-records-' + new Date().toISOString().slice(0, 10) + '.csv';
       a.click();
       URL.revokeObjectURL(a.href);
       showToast('Downloaded ' + records.length + ' record(s) as CSV', 'info');
@@ -667,7 +956,6 @@
         return;
       }
 
-      // Save ID before closeDeleteModal clears it
       var deleteId = pendingDeleteId;
       closeDeleteModal();
 
@@ -675,12 +963,10 @@
       var record = records.find(function(r) { return r.id === deleteId; });
       if (!record) { showToast('Record not found', 'error'); return; }
 
-      // Remove from GitHub if synced
       if (record.synced) {
         var s = getSettings();
         s.token = s.token || DEFAULTS.token;
         try {
-          // Delete the record file
           var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
             headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
           });
@@ -689,11 +975,10 @@
             await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
               method: 'DELETE',
               headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
-              body: JSON.stringify({ message: 'Delete record: ' + record.species + ' at ' + record.island, sha: fileData.sha })
+              body: JSON.stringify({ message: 'Delete record: ' + getCommitLabel(record), sha: fileData.sha })
             });
           }
 
-          // Delete any photos
           for (var j = 0; j < 5; j++) {
             var photoResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
               headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
@@ -708,14 +993,12 @@
             } else break;
           }
 
-          // Update all-records.json: fetch from GitHub, remove by ID, re-upload
           await removeRecordFromAllRecords(s, deleteId);
         } catch(e) {
           showToast('Error deleting from GitHub — removed locally only', 'warn');
         }
       }
 
-      // Remove locally
       records = records.filter(function(r) { return r.id !== deleteId; });
       localStorage.setItem(DB_KEY, JSON.stringify(records));
       updateRecordCount();
@@ -732,7 +1015,7 @@
         var existing = await getResp.json();
         var allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
         var filtered = allRecords.filter(function(r) { return r.id !== deleteId; });
-        if (filtered.length === allRecords.length) return; // record not found, nothing to update
+        if (filtered.length === allRecords.length) return;
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
         await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
           method: 'PUT',
@@ -767,11 +1050,9 @@
 
     // ── Service Worker ──
     if ('serviceWorker' in navigator) {
-      // Auto-reload when a new service worker takes over
       navigator.serviceWorker.addEventListener('controllerchange', function() {
         location.reload();
       });
-      // Unregister all existing SWs first, then register fresh
       navigator.serviceWorker.getRegistrations().then(function(regs) {
         var needsClean = regs.length > 0;
         var p = Promise.all(regs.map(function(r) { return r.unregister(); }));

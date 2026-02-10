@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="theme-color" content="#065f46">
-  <meta name="description" content="Real-time field data from Merremia monitoring across Vanuatu">
-  <title>Merremia Live Dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <meta name="description" content="Real-time environmental field data from Vanuatu">
+  <title>Vanuatu Live Dashboard</title>
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
@@ -16,14 +16,20 @@
     .attribution{margin-top:0.6rem;padding:0.5rem 0.85rem;background:rgba(0,0,0,0.25);border-radius:0.4rem;display:inline-block;font-size:0.78rem;color:#a7f3d0;border:1px solid rgba(167,243,208,0.2)}
     .attribution strong{color:#ecfdf5}
     .config-bar{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:#1e293b;border-bottom:1px solid #334155;flex-wrap:wrap}
-    .config-bar label{font-size:0.8rem;color:#94a3b8}
-    .config-bar input{padding:0.4rem 0.6rem;background:#0f172a;border:1px solid #334155;border-radius:0.35rem;color:#e2e8f0;font-size:0.8rem}
     .config-bar button{padding:0.4rem 1rem;background:#065f46;color:#ecfdf5;border:1px solid #10b981;border-radius:0.35rem;font-size:0.8rem;font-weight:600;cursor:pointer}
     .config-bar button:hover{background:#047857}
     .status-msg{font-size:0.8rem;color:#94a3b8;margin-left:auto}
     .status-msg.ok{color:#34d399}
     .status-msg.err{color:#ef4444}
-    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;padding:1.5rem 2rem}
+    .cat-tabs{display:flex;background:#1e293b;border-bottom:1px solid #334155;padding:0 2rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .cat-tab{padding:0.75rem 1.25rem;background:none;border:none;border-bottom:3px solid transparent;color:#94a3b8;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.2s}
+    .cat-tab:hover{color:#e2e8f0;background:rgba(255,255,255,0.03)}
+    .cat-tab.active{border-bottom-color:#10b981;color:#34d399;background:rgba(16,185,129,0.05)}
+    .cat-tab.t-merremia.active{border-bottom-color:#10b981;color:#6ee7b7}
+    .cat-tab.t-degraded.active{border-bottom-color:#ef4444;color:#fca5a5}
+    .cat-tab.t-restoration.active{border-bottom-color:#3b82f6;color:#93c5fd}
+    .cat-tab.t-threatened.active{border-bottom-color:#a855f7;color:#d8b4fe}
+    .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;padding:1.5rem 2rem}
     .card{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
     .card h3{font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:#94a3b8;margin-bottom:0.4rem}
     .card .value{font-size:1.8rem;font-weight:700;color:#34d399}
@@ -32,6 +38,11 @@
     .map-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
     .map-panel h2{font-size:1rem;color:#cbd5e1;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #334155}
     #live-map{height:450px;border-radius:0.5rem}
+    .map-marker{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,255,0.8);cursor:pointer;box-shadow:0 0 6px rgba(0,0,0,0.4)}
+    .maplibregl-popup-content{background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:0.5rem;padding:0.75rem;font-size:0.8rem;max-width:250px}
+    .maplibregl-popup-content strong{color:#34d399}
+    .maplibregl-popup-close-button{color:#94a3b8;font-size:1.2rem}
+    .maplibregl-popup-tip{border-top-color:#1e293b}
     .records-section{padding:0 2rem 1.5rem}
     .records-panel{background:#1e293b;border-radius:0.75rem;padding:1.25rem;border:1px solid #334155}
     .records-panel h2{font-size:1rem;color:#cbd5e1;margin-bottom:1rem;padding-bottom:0.5rem;border-bottom:1px solid #334155}
@@ -39,12 +50,17 @@
     th{text-align:left;color:#94a3b8;padding:0.5rem;border-bottom:1px solid #334155;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em}
     td{padding:0.5rem;border-bottom:1px solid #0f172a;color:#cbd5e1}
     .badge{display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.65rem;font-weight:600}
-    .badge-high{background:#7f1d1d;color:#fca5a5}
-    .badge-moderate{background:#78350f;color:#fcd34d}
-    .badge-low{background:#064e3b;color:#6ee7b7}
+    .badge-high,.badge-severe,.badge-cr{background:#7f1d1d;color:#fca5a5}
+    .badge-moderate,.badge-en{background:#78350f;color:#fcd34d}
+    .badge-low,.badge-mild,.badge-vu{background:#064e3b;color:#6ee7b7}
+    .badge-nt{background:#1e3a5f;color:#93c5fd}
+    .badge-dd{background:#334155;color:#94a3b8}
+    .badge-planning,.badge-early{background:#312e81;color:#a5b4fc}
+    .badge-mid{background:#1e3a5f;color:#93c5fd}
+    .badge-established,.badge-mature{background:#064e3b;color:#6ee7b7}
     .empty{text-align:center;padding:3rem;color:#64748b;font-size:0.9rem}
     .filter-bar{display:flex;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem}
-    .filter-bar select{padding:0.4rem 0.6rem;background:#0f172a;border:1px solid #334155;border-radius:0.35rem;color:#e2e8f0;font-size:0.8rem;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.5rem center;padding-right:1.5rem;min-width:140px}
+    .filter-bar select{padding:0.4rem 0.6rem;background:#0f172a;border:1px solid #334155;border-radius:0.35rem;color:#e2e8f0;font-size:0.8rem;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.5rem center;padding-right:1.5rem;min-width:130px}
     .filter-bar select:focus{outline:none;border-color:#10b981}
     .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
     .download-section{padding:0 2rem 1.5rem}
@@ -56,11 +72,8 @@
     .dl-btn:hover{transform:translateY(-1px)}
     .dl-btn:disabled{opacity:0.4;cursor:not-allowed;transform:none}
     .dl-btn-json{background:#064e3b;color:#6ee7b7;border:1px solid #10b981}
-    .dl-btn-json:hover:not(:disabled){background:#065f46;box-shadow:0 2px 8px rgba(16,185,129,0.3)}
     .dl-btn-csv{background:#1e3a5f;color:#93c5fd;border:1px solid #3b82f6}
-    .dl-btn-csv:hover:not(:disabled){background:#1e40af;box-shadow:0 2px 8px rgba(59,130,246,0.3)}
     .dl-btn-geojson{background:#312e81;color:#a5b4fc;border:1px solid #6366f1}
-    .dl-btn-geojson:hover:not(:disabled){background:#3730a3;box-shadow:0 2px 8px rgba(99,102,241,0.3)}
     .modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center}
     .modal-overlay.active{display:flex}
     .modal-box{background:#1e293b;border:1px solid #334155;border-radius:0.75rem;padding:1.5rem;width:90%;max-width:360px;text-align:center}
@@ -72,12 +85,10 @@
     .modal-actions{display:flex;gap:0.5rem;justify-content:center}
     .modal-actions button{padding:0.5rem 1.25rem;border-radius:0.4rem;font-size:0.82rem;font-weight:600;cursor:pointer;border:none}
     .modal-cancel{background:#334155;color:#94a3b8}
-    .modal-cancel:hover{background:#475569}
     .modal-confirm{background:#065f46;color:#ecfdf5;border:1px solid #10b981}
-    .modal-confirm:hover{background:#047857}
     @media(max-width:768px){
       .config-bar{padding:0.75rem 1rem}
-      .config-bar input{width:100%!important}
+      .cat-tabs{padding:0 1rem}
       .grid{padding:1rem}
       .map-section,.records-section,.download-section{padding:0 1rem 1rem}
       #live-map{height:300px}
@@ -88,8 +99,8 @@
 </head>
 <body>
   <header>
-    <h1>Merremia Live Dashboard</h1>
-    <p>Real-time field data from Merremia monitoring across Vanuatu</p>
+    <h1>Vanuatu Environmental Dashboard</h1>
+    <p>Real-time field data across Vanuatu</p>
     <div class="attribution">
       Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong>
     </div>
@@ -103,31 +114,34 @@
     <span class="status-msg" id="status-msg"></span>
   </div>
 
+  <div class="cat-tabs" id="cat-tabs">
+    <button class="cat-tab t-merremia active" onclick="switchTab('merremia')">Merremia</button>
+    <button class="cat-tab t-degraded" onclick="switchTab('degraded')">Degraded Areas</button>
+    <button class="cat-tab t-restoration" onclick="switchTab('restoration')">Restoration</button>
+    <button class="cat-tab t-threatened" onclick="switchTab('threatened')">Threatened Species</button>
+  </div>
+
   <div class="grid" id="summary-cards">
-    <div class="card"><h3>Field Records</h3><div class="value" id="v-records">--</div><div class="sub">observations collected</div></div>
-    <div class="card"><h3>Total Count</h3><div class="value" id="v-count">--</div><div class="sub">individual sightings</div></div>
-    <div class="card"><h3>Area Surveyed</h3><div class="value" id="v-area">--</div><div class="sub">hectares reported</div></div>
-    <div class="card"><h3>Islands Covered</h3><div class="value" id="v-islands">--</div><div class="sub">with field data</div></div>
-    <div class="card"><h3>Latest Record</h3><div class="value" id="v-latest" style="font-size:1.1rem">--</div><div class="sub" id="v-latest-sub">waiting for data</div></div>
+    <div class="card"><h3 id="s1-label">Field Records</h3><div class="value" id="s1-val">--</div><div class="sub" id="s1-sub">observations collected</div></div>
+    <div class="card"><h3 id="s2-label">Total Count</h3><div class="value" id="s2-val">--</div><div class="sub" id="s2-sub">individual sightings</div></div>
+    <div class="card"><h3 id="s3-label">Area Surveyed</h3><div class="value" id="s3-val">--</div><div class="sub" id="s3-sub">hectares reported</div></div>
+    <div class="card"><h3 id="s4-label">Islands Covered</h3><div class="value" id="s4-val">--</div><div class="sub" id="s4-sub">with field data</div></div>
+    <div class="card"><h3 id="s5-label">Latest Record</h3><div class="value" id="s5-val" style="font-size:1.1rem">--</div><div class="sub" id="s5-sub">waiting for data</div></div>
   </div>
 
   <div class="map-section">
     <div class="map-panel">
-      <h2>Field Observation Map</h2>
+      <h2 id="map-title">Field Observation Map</h2>
       <div id="live-map"></div>
     </div>
   </div>
 
   <div class="records-section">
     <div class="records-panel">
-      <h2>Recent Records</h2>
+      <h2 id="table-title">Recent Records</h2>
       <div class="filter-bar" id="filter-bar">
-        <select id="filter-threat" onchange="applyFilters()">
-          <option value="">All Threats</option>
-        </select>
-        <select id="filter-species" onchange="applyFilters()">
-          <option value="">All Species</option>
-        </select>
+        <select id="filter-1" onchange="applyFilters()"></select>
+        <select id="filter-2" onchange="applyFilters()"></select>
         <select id="filter-island" onchange="applyFilters()">
           <option value="">All Islands</option>
         </select>
@@ -150,7 +164,6 @@
     </div>
   </div>
 
-  <!-- Password Modal -->
   <div class="modal-overlay" id="dl-modal">
     <div class="modal-box">
       <h3>Enter Password</h3>
@@ -168,16 +181,25 @@
     Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Live Field Data View
   </footer>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="merremia-connector.js"></script>
   <script>
-    var liveMap = L.map('live-map').setView([-16.5, 167.8], 6);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors', maxZoom: 18
-    }).addTo(liveMap);
+    // ── Map ──
+    var liveMap = new maplibregl.Map({
+      container: 'live-map',
+      style: { version: 8, sources: { 'carto': { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: '&copy; OpenStreetMap &copy; CARTO' } }, layers: [{ id: 'carto', type: 'raster', source: 'carto' }] },
+      center: [167.8, -16.5],
+      zoom: 6
+    });
+    liveMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+    var mapMarkers = [];
 
-    var markersLayer = L.layerGroup().addTo(liveMap);
-    var threatColors = { High: '#ef4444', Moderate: '#f59e0b', Low: '#10b981' };
+    // ── State ──
+    var activeTab = 'merremia';
+    var allRecordsData = [];
+    var liveConnector = null;
+    var REFRESH_INTERVAL = 5000;
+    var lastDataSha = null;
 
     // Load saved config
     try {
@@ -187,46 +209,37 @@
       if (saved.token) document.getElementById('cfg-token').value = saved.token;
     } catch(e) {}
 
-    var liveConnector = null;
-    var REFRESH_INTERVAL = 5000; // 5 seconds — real-time feel
-    var lastDataSha = null;
+    // ── Tab Switching ──
+    function switchTab(cat) {
+      activeTab = cat;
+      document.querySelectorAll('.cat-tab').forEach(function(b) { b.classList.remove('active'); });
+      document.querySelector('.cat-tab.t-' + cat).classList.add('active');
+      renderForTab();
+    }
 
+    // ── Data Loading ──
     async function loadFieldData() {
       var owner = document.getElementById('cfg-owner').value.trim();
       var repo = document.getElementById('cfg-repo').value.trim();
       var token = document.getElementById('cfg-token').value.trim();
       var status = document.getElementById('status-msg');
-
-      if (!owner) { status.textContent = 'Enter a GitHub owner'; status.className = 'status-msg err'; return; }
-
-      // Save config
+      if (!owner) { status.textContent = 'Error loading'; status.className = 'status-msg err'; return; }
       localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo, token: token }));
-
-      status.textContent = 'Loading...';
-      status.className = 'status-msg';
-
-      // Stop any existing auto-refresh
+      status.textContent = 'Loading...'; status.className = 'status-msg';
       if (liveConnector) liveConnector.stopAutoRefresh();
       lastDataSha = null;
-
       liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 3000 });
-
-      // Start auto-refreshing every 5 seconds for near-instant updates
       liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
         if (!data || !data.records || data.records.length === 0) {
           status.textContent = 'No records found yet — checking every 5s...';
           status.className = 'status-msg err';
           return;
         }
-
         var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        // Re-render when SHA changes (detects adds, deletes, and edits)
         var currentSha = liveConnector._lastSha || '';
         if (currentSha !== lastDataSha) {
-          renderSummary(data);
-          renderMap(data);
-          renderTable(data.records);
+          allRecordsData = data.records;
+          renderForTab();
           lastDataSha = currentSha;
         }
         enableDownloadButtons(data);
@@ -235,108 +248,223 @@
       });
     }
 
-    function renderSummary(data) {
-      var s = data.stats;
-      document.getElementById('v-records').textContent = s.recordCount;
-      document.getElementById('v-count').textContent = s.totalObservations.toLocaleString();
-      document.getElementById('v-area').textContent = s.totalAreaHectares.toLocaleString();
-      document.getElementById('v-islands').textContent = s.islandCount;
-      if (data.lastUpdated) {
-        var d = new Date(data.lastUpdated);
-        document.getElementById('v-latest').textContent = d.toLocaleDateString('en-GB', { day:'numeric', month:'short' });
-        var latest = data.records[0];
-        if (latest) document.getElementById('v-latest-sub').textContent = (latest.species || []).join(', ') + ' at ' + (latest.island || '');
+    // ── Filter records by active tab ──
+    function getTabRecords() {
+      return allRecordsData.filter(function(r) { return (r.category || 'merremia') === activeTab; });
+    }
+
+    // ── Master render ──
+    function renderForTab() {
+      var records = getTabRecords();
+      renderStats(records);
+      renderMap(records);
+      renderTable(records);
+    }
+
+    // ── Stats per category ──
+    function renderStats(records) {
+      var islands = {};
+      records.forEach(function(r) { if (r.island) islands[r.island] = true; });
+      var islandCount = Object.keys(islands).length;
+      var latest = records.length > 0 ? records[0] : null;
+      var latestDate = latest ? new Date(latest.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '--';
+
+      if (activeTab === 'merremia') {
+        var totalCount = 0, totalArea = 0;
+        records.forEach(function(r) { totalCount += (r.count || 1); totalArea += (r.coverageArea || 0); });
+        setStats('Field Records', records.length, 'observations', 'Total Count', totalCount.toLocaleString(), 'individual sightings', 'Area Surveyed', totalArea.toLocaleString(), 'hectares', 'Islands', islandCount, 'with data', latestDate, latest ? ((latest.species||[]).join(', ') + ' at ' + (latest.island||'')) : '');
+      } else if (activeTab === 'degraded') {
+        var totalArea = 0, severe = 0;
+        records.forEach(function(r) { totalArea += (r.estimatedArea || 0); if ((r.severity||'').toLowerCase() === 'severe') severe++; });
+        setStats('Sites Assessed', records.length, 'locations', 'Total Area', totalArea.toLocaleString(), 'hectares degraded', 'Severe Sites', severe, 'need urgent action', 'Islands', islandCount, 'surveyed', latestDate, latest ? ((latest.degradationType||'') + ' at ' + (latest.island||'')) : '');
+      } else if (activeTab === 'restoration') {
+        var totalArea = 0, projects = {};
+        records.forEach(function(r) { totalArea += (r.estimatedArea || 0); if (r.projectName) projects[r.projectName] = true; });
+        setStats('Sites Monitored', records.length, 'locations', 'Total Area', totalArea.toLocaleString(), 'hectares restored', 'Projects', Object.keys(projects).length, 'active programmes', 'Islands', islandCount, 'covered', latestDate, latest ? ((latest.restorationType||'') + ' at ' + (latest.island||'')) : '');
+      } else if (activeTab === 'threatened') {
+        var speciesMap = {}, cr = 0;
+        records.forEach(function(r) { if (r.speciesName) speciesMap[r.speciesName] = true; if ((r.iucnStatus||'') === 'Critically Endangered') cr++; });
+        setStats('Species Found', Object.keys(speciesMap).length, 'unique species', 'Sightings', records.length, 'field records', 'Critical', cr, 'critically endangered', 'Islands', islandCount, 'surveyed', latestDate, latest ? ((latest.speciesName||'') + ' at ' + (latest.island||'')) : '');
       }
     }
 
-    function renderMap(data) {
-      markersLayer.clearLayers();
-      var features = data.geoJSON ? data.geoJSON.features : [];
-      features.forEach(function(f) {
-        var p = f.properties;
-        var coords = f.geometry.coordinates;
-        var color = threatColors[p.threatLevel === 'high' ? 'High' : p.threatLevel === 'moderate' ? 'Moderate' : 'Low'] || '#94a3b8';
-        L.circleMarker([coords[1], coords[0]], {
-          radius: Math.max(5, Math.sqrt(p.count || 1) * 2),
-          color: color, fillColor: color, fillOpacity: 0.6, weight: 1
-        }).addTo(markersLayer)
-          .bindPopup('<strong>' + p.speciesLabel + '</strong><br>' + p.island + (p.siteName ? ' — ' + p.siteName : '') + '<br>Count: ' + (p.count || 1) + ' | Threat: ' + p.threatLevel + '<br><small>' + new Date(p.timestamp).toLocaleDateString('en-GB') + ' by ' + (p.observer || 'Unknown') + '</small>');
+    function setStats(l1,v1,s1,l2,v2,s2,l3,v3,s3,l4,v4,s4,v5,s5) {
+      document.getElementById('s1-label').textContent = l1; document.getElementById('s1-val').textContent = v1; document.getElementById('s1-sub').textContent = s1;
+      document.getElementById('s2-label').textContent = l2; document.getElementById('s2-val').textContent = v2; document.getElementById('s2-sub').textContent = s2;
+      document.getElementById('s3-label').textContent = l3; document.getElementById('s3-val').textContent = v3; document.getElementById('s3-sub').textContent = s3;
+      document.getElementById('s4-label').textContent = l4; document.getElementById('s4-val').textContent = v4; document.getElementById('s4-sub').textContent = s4;
+      document.getElementById('s5-val').textContent = v5; document.getElementById('s5-sub').textContent = s5;
+    }
+
+    // ── Map rendering ──
+    function clearMarkers() { mapMarkers.forEach(function(m) { m.remove(); }); mapMarkers = []; }
+
+    function getMarkerColor(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') { var t = (r.threatLevel||'low').toLowerCase(); return t === 'high' ? '#ef4444' : t === 'moderate' ? '#f59e0b' : '#10b981'; }
+      if (cat === 'degraded') { var s = (r.severity||'').toLowerCase(); return s === 'severe' ? '#ef4444' : s === 'moderate' ? '#f59e0b' : '#fbbf24'; }
+      if (cat === 'restoration') { var st = (r.restorationStage||'').toLowerCase(); return st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? '#10b981' : st.indexOf('mid') >= 0 ? '#3b82f6' : '#818cf8'; }
+      if (cat === 'threatened') { var i = (r.iucnStatus||'').toLowerCase(); return i.indexOf('critical') >= 0 ? '#ef4444' : i.indexOf('endangered') >= 0 ? '#f59e0b' : i.indexOf('vulnerable') >= 0 ? '#a855f7' : '#818cf8'; }
+      return '#94a3b8';
+    }
+
+    function getPopupHTML(r) {
+      var cat = r.category || 'merremia';
+      var date = new Date(r.timestamp).toLocaleDateString('en-GB');
+      var loc = r.island + (r.siteName ? ' — ' + r.siteName : '');
+      if (cat === 'merremia') return '<strong>' + (Array.isArray(r.species) ? r.species.join(', ') : r.species) + '</strong><br>' + loc + '<br>Count: ' + (r.count||1) + ' | Threat: ' + (r.threatLevel||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
+      if (cat === 'degraded') return '<strong>' + (r.degradationType||'Degraded') + '</strong><br>' + loc + '<br>Severity: ' + (r.severity||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
+      if (cat === 'restoration') return '<strong>' + (r.restorationType||'Restoration') + '</strong><br>' + loc + '<br>Stage: ' + (r.restorationStage||'-') + ' | Area: ' + (r.estimatedArea||0) + ' ha' + (r.projectName ? '<br>Project: ' + r.projectName : '') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
+      if (cat === 'threatened') return '<strong>' + (r.speciesName||'Unknown') + '</strong> (' + (r.speciesType||'') + ')<br>' + loc + '<br>IUCN: ' + (r.iucnStatus||'-') + ' | Pop: ' + (r.populationEstimate||'-') + '<br><small>' + date + ' by ' + (r.observer||'Unknown') + '</small>';
+      return '<strong>Record</strong><br>' + loc;
+    }
+
+    function renderMap(records) {
+      clearMarkers();
+      var mapTitles = { merremia: 'Merremia Observation Map', degraded: 'Degraded Areas Map', restoration: 'Restoration Sites Map', threatened: 'Threatened Species Map' };
+      document.getElementById('map-title').textContent = mapTitles[activeTab] || 'Field Observation Map';
+      var bounds = new maplibregl.LngLatBounds();
+      var hasBounds = false;
+      records.forEach(function(r) {
+        var lat = r.gps ? r.gps.lat : r.latitude;
+        var lng = r.gps ? r.gps.lng : r.longitude;
+        if (!lat || !lng) return;
+        var el = document.createElement('div');
+        el.className = 'map-marker';
+        el.style.backgroundColor = getMarkerColor(r);
+        var popup = new maplibregl.Popup({ offset: 12, maxWidth: '260px' }).setHTML(getPopupHTML(r));
+        var marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).setPopup(popup).addTo(liveMap);
+        mapMarkers.push(marker);
+        bounds.extend([lng, lat]);
+        hasBounds = true;
       });
-
-      if (features.length > 0) {
-        var bounds = L.latLngBounds(features.map(function(f) { return [f.geometry.coordinates[1], f.geometry.coordinates[0]]; }));
-        liveMap.fitBounds(bounds, { padding: [30, 30] });
-      }
+      if (hasBounds) liveMap.fitBounds(bounds, { padding: 50, maxZoom: 14 });
     }
 
-    var allRecords = [];
+    // ── Table rendering ──
+    var tabRecords = [];
 
     function renderTable(records) {
-      allRecords = records;
-      populateFilters(records);
+      tabRecords = records;
+      setupFilters(records);
       applyFilters();
     }
 
-    function populateFilters(records) {
-      var threats = {}, species = {}, islands = {};
-      records.forEach(function(r) {
-        var t = r.threatLevel || 'low';
-        threats[t.charAt(0).toUpperCase() + t.slice(1)] = true;
-        var sp = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
-        sp.forEach(function(s) { if (s) species[s] = true; });
-        if (r.island) islands[r.island] = true;
-      });
+    function setupFilters(records) {
+      var f1 = document.getElementById('filter-1');
+      var f2 = document.getElementById('filter-2');
+      var fi = document.getElementById('filter-island');
+      var islands = {};
+      records.forEach(function(r) { if (r.island) islands[r.island] = true; });
 
-      fillSelect('filter-threat', 'All Threats', Object.keys(threats).sort());
-      fillSelect('filter-species', 'All Species', Object.keys(species).sort());
-      fillSelect('filter-island', 'All Islands', Object.keys(islands).sort());
+      if (activeTab === 'merremia') {
+        var threats = {}, species = {};
+        records.forEach(function(r) {
+          var t = (r.threatLevel||'low'); threats[t.charAt(0).toUpperCase()+t.slice(1)] = true;
+          var sp = Array.isArray(r.species) ? r.species : [r.species||'']; sp.forEach(function(s) { if (s) species[s] = true; });
+        });
+        fillSelect(f1, 'All Threats', Object.keys(threats).sort());
+        fillSelect(f2, 'All Species', Object.keys(species).sort());
+      } else if (activeTab === 'degraded') {
+        var types = {}, sevs = {};
+        records.forEach(function(r) { if (r.degradationType) types[r.degradationType] = true; if (r.severity) sevs[r.severity] = true; });
+        fillSelect(f1, 'All Severities', Object.keys(sevs).sort());
+        fillSelect(f2, 'All Types', Object.keys(types).sort());
+      } else if (activeTab === 'restoration') {
+        var types = {}, stages = {};
+        records.forEach(function(r) { if (r.restorationType) types[r.restorationType] = true; if (r.restorationStage) stages[r.restorationStage] = true; });
+        fillSelect(f1, 'All Stages', Object.keys(stages).sort());
+        fillSelect(f2, 'All Types', Object.keys(types).sort());
+      } else if (activeTab === 'threatened') {
+        var statuses = {}, types = {};
+        records.forEach(function(r) { if (r.iucnStatus) statuses[r.iucnStatus] = true; if (r.speciesType) types[r.speciesType] = true; });
+        fillSelect(f1, 'All IUCN Status', Object.keys(statuses).sort());
+        fillSelect(f2, 'All Types', Object.keys(types).sort());
+      }
+      fillSelect(fi, 'All Islands', Object.keys(islands).sort());
     }
 
-    function fillSelect(id, allLabel, values) {
-      var el = document.getElementById(id);
+    function fillSelect(el, allLabel, values) {
       var current = el.value;
       el.innerHTML = '<option value="">' + allLabel + '</option>' + values.map(function(v) { return '<option value="' + v + '">' + v + '</option>'; }).join('');
       if (current && values.indexOf(current) >= 0) el.value = current;
     }
 
     function applyFilters() {
-      var ft = document.getElementById('filter-threat').value.toLowerCase();
-      var fs = document.getElementById('filter-species').value;
-      var fi = document.getElementById('filter-island').value;
+      var v1 = document.getElementById('filter-1').value;
+      var v2 = document.getElementById('filter-2').value;
+      var vi = document.getElementById('filter-island').value;
 
-      var filtered = allRecords.filter(function(r) {
-        if (ft && (r.threatLevel || 'low') !== ft) return false;
-        if (fs) {
-          var sp = Array.isArray(r.species) ? r.species : [r.species || ''];
-          if (sp.indexOf(fs) < 0) return false;
+      var filtered = tabRecords.filter(function(r) {
+        if (vi && r.island !== vi) return false;
+        if (activeTab === 'merremia') {
+          if (v1 && (r.threatLevel||'low').toLowerCase() !== v1.toLowerCase()) return false;
+          if (v2) { var sp = Array.isArray(r.species) ? r.species : [r.species||'']; if (sp.indexOf(v2) < 0) return false; }
+        } else if (activeTab === 'degraded') {
+          if (v1 && r.severity !== v1) return false;
+          if (v2 && r.degradationType !== v2) return false;
+        } else if (activeTab === 'restoration') {
+          if (v1 && r.restorationStage !== v1) return false;
+          if (v2 && r.restorationType !== v2) return false;
+        } else if (activeTab === 'threatened') {
+          if (v1 && r.iucnStatus !== v1) return false;
+          if (v2 && r.speciesType !== v2) return false;
         }
-        if (fi && r.island !== fi) return false;
         return true;
       });
 
       var sorted = filtered.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
-      var rows = sorted.slice(0, 50).map(function(r) {
-        var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
-        var threat = r.threatLevel || 'low';
-        var badge = threat === 'high' ? 'badge-high' : threat === 'moderate' ? 'badge-moderate' : 'badge-low';
-        var threatLabel = threat.charAt(0).toUpperCase() + threat.slice(1);
-        var speciesLabel = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
-        return '<tr><td>' + d + '</td><td>' + (r.island || '-') + '</td><td>' + (r.siteName || '-') + '</td><td><em>' + speciesLabel + '</em></td><td>' + (r.count || 1) + '</td><td><span class="badge ' + badge + '">' + threatLabel + '</span></td><td>' + (r.coverageArea || '-') + '</td><td>' + (r.observer || '-') + '</td></tr>';
-      }).join('');
+      var shown = sorted.slice(0, 50);
+      var tableTitles = { merremia: 'Merremia Records', degraded: 'Degraded Area Records', restoration: 'Restoration Records', threatened: 'Threatened Species Records' };
+      document.getElementById('table-title').textContent = tableTitles[activeTab] || 'Records';
+      var rows = shown.map(function(r) { return buildRow(r); }).join('');
+      var headers = buildHeaders();
+      var notes = '';
+      if (sorted.length > 50) notes += '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.5rem">Showing 50 of ' + sorted.length + '</p>';
+      if (v1 || v2 || vi) notes += '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:0.25rem">' + filtered.length + ' of ' + tabRecords.length + ' records</p>';
+      document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr>' + headers + '</tr></thead><tbody>' + rows + '</tbody></table></div>' + notes;
+    }
 
-      var countNote = sorted.length > 50 ? '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.75rem">Showing 50 of ' + sorted.length + ' records</p>' : '';
-      var filterNote = (ft || fs || fi) ? '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:0.5rem">Showing ' + sorted.length + ' of ' + allRecords.length + ' records</p>' : '';
-      document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th></tr></thead><tbody>' + rows + '</tbody></table></div>' + countNote + filterNote;
+    function buildHeaders() {
+      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>';
+      if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>';
+      if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>';
+      if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>';
+      return '';
+    }
+
+    function buildRow(r) {
+      var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+      if (activeTab === 'merremia') {
+        var t = (r.threatLevel||'low').toLowerCase();
+        var bc = t === 'high' ? 'badge-high' : t === 'moderate' ? 'badge-moderate' : 'badge-low';
+        var sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+      }
+      if (activeTab === 'degraded') {
+        var sv = (r.severity||'').toLowerCase();
+        var bc = sv === 'severe' ? 'badge-severe' : sv === 'moderate' ? 'badge-moderate' : 'badge-mild';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.degradationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.severity||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.landUseType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+      }
+      if (activeTab === 'restoration') {
+        var st = (r.restorationStage||'').toLowerCase();
+        var bc = st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? 'badge-established' : st.indexOf('mid') >= 0 ? 'badge-mid' : 'badge-planning';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.restorationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.restorationStage||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.projectName||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+      }
+      if (activeTab === 'threatened') {
+        var iu = (r.iucnStatus||'').toLowerCase();
+        var bc = iu.indexOf('critical') >= 0 ? 'badge-cr' : iu.indexOf('endangered') >= 0 ? 'badge-en' : iu.indexOf('vulnerable') >= 0 ? 'badge-vu' : iu.indexOf('near') >= 0 ? 'badge-nt' : 'badge-dd';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + (r.speciesName||'-') + '</em></td><td><span class="badge ' + bc + '">' + (r.iucnStatus||'-') + '</span></td><td>' + (r.populationEstimate||'-') + '</td><td>' + (r.habitatType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+      }
+      return '';
     }
 
     // ── Download functionality ──
     var DOWNLOAD_PASSWORD = 'M3r3mia@2025';
     var pendingFormat = null;
-    var currentRecords = null;
     var currentGeoJSON = null;
 
     function enableDownloadButtons(data) {
-      currentRecords = data.records;
       currentGeoJSON = data.geoJSON;
       document.getElementById('btn-dl-json').disabled = false;
       document.getElementById('btn-dl-csv').disabled = false;
@@ -344,7 +472,7 @@
     }
 
     function requestDownload(format) {
-      if (!currentRecords || currentRecords.length === 0) return;
+      if (!allRecordsData || allRecordsData.length === 0) return;
       pendingFormat = format;
       document.getElementById('dl-password').value = '';
       document.getElementById('dl-error').style.display = 'none';
@@ -352,78 +480,47 @@
       document.getElementById('dl-password').focus();
     }
 
-    function closeDlModal() {
-      document.getElementById('dl-modal').classList.remove('active');
-      pendingFormat = null;
-    }
+    function closeDlModal() { document.getElementById('dl-modal').classList.remove('active'); pendingFormat = null; }
 
     function confirmDownload() {
       var pw = document.getElementById('dl-password').value;
-      if (pw !== DOWNLOAD_PASSWORD) {
-        document.getElementById('dl-error').style.display = 'block';
-        document.getElementById('dl-password').value = '';
-        document.getElementById('dl-password').focus();
-        return;
-      }
+      if (pw !== DOWNLOAD_PASSWORD) { document.getElementById('dl-error').style.display = 'block'; document.getElementById('dl-password').value = ''; document.getElementById('dl-password').focus(); return; }
       document.getElementById('dl-error').style.display = 'none';
       var format = pendingFormat || 'json';
       closeDlModal();
-      var blob, filename;
       var ts = new Date().toISOString().slice(0,10);
-
+      var blob, filename;
       if (format === 'json') {
-        blob = new Blob([JSON.stringify(currentRecords, null, 2)], { type: 'application/json' });
-        filename = 'merremia-field-data-' + ts + '.json';
+        blob = new Blob([JSON.stringify(allRecordsData, null, 2)], { type: 'application/json' });
+        filename = 'vanuatu-field-data-' + ts + '.json';
       } else if (format === 'csv') {
-        var csv = recordsToCSV(currentRecords);
-        blob = new Blob([csv], { type: 'text/csv' });
-        filename = 'merremia-field-data-' + ts + '.csv';
+        blob = new Blob([recordsToCSV(allRecordsData)], { type: 'text/csv' });
+        filename = 'vanuatu-field-data-' + ts + '.csv';
       } else if (format === 'geojson') {
         blob = new Blob([JSON.stringify(currentGeoJSON, null, 2)], { type: 'application/geo+json' });
-        filename = 'merremia-field-data-' + ts + '.geojson';
+        filename = 'vanuatu-field-data-' + ts + '.geojson';
       }
-
-      var url = URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      var url = URL.createObjectURL(blob); var a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     }
 
     function recordsToCSV(records) {
-      var headers = ['id','timestamp','island','siteName','species','count','threatLevel','coverageArea','observer','latitude','longitude','accuracy','notes'];
+      var headers = ['id','timestamp','category','island','siteName','observer','latitude','longitude','accuracy','notes','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','cause','restorationType','restorationStage','projectName','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','threatsObserved'];
       var rows = records.map(function(r) {
-        return [
-          r.id || '',
-          r.timestamp || '',
-          r.island || '',
-          r.siteName || '',
-          Array.isArray(r.species) ? r.species.join('; ') : (r.species || ''),
-          r.count || '',
-          r.threatLevel || '',
-          r.coverageArea || '',
-          r.observer || '',
-          r.gps && r.gps.lat ? r.gps.lat : '',
-          r.gps && r.gps.lng ? r.gps.lng : '',
-          r.gps && r.gps.accuracy ? r.gps.accuracy : '',
-          (r.notes || '').replace(/"/g, '""')
-        ].map(function(v) { return '"' + String(v) + '"'; }).join(',');
+        return headers.map(function(h) {
+          var v = r[h] != null ? String(r[h]) : '';
+          if (h === 'latitude') v = r.gps ? String(r.gps.lat||'') : v;
+          if (h === 'longitude') v = r.gps ? String(r.gps.lng||'') : v;
+          if (h === 'accuracy') v = r.gps ? String(r.gps.accuracy||'') : v;
+          if (h === 'species' && Array.isArray(r.species)) v = r.species.join('; ');
+          return '"' + v.replace(/"/g, '""') + '"';
+        }).join(',');
       });
       return headers.join(',') + '\n' + rows.join('\n');
     }
 
-    // Close modal on overlay click
-    document.getElementById('dl-modal').addEventListener('click', function(e) {
-      if (e.target === this) closeDlModal();
-    });
+    document.getElementById('dl-modal').addEventListener('click', function(e) { if (e.target === this) closeDlModal(); });
 
-    // Auto-load if config exists
-    if (document.getElementById('cfg-owner').value) {
-      setTimeout(loadFieldData, 300);
-    }
+    if (document.getElementById('cfg-owner').value) { setTimeout(loadFieldData, 300); }
   </script>
 </body>
 </html>
