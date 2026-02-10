@@ -212,6 +212,8 @@
         <select id="filter-island" onchange="applyFilters()">
           <option value="">All Islands</option>
         </select>
+        <input type="date" id="filter-date-from" onchange="applyFilters()" title="From date" style="padding:0.4rem 0.5rem;background:#fff;border:1px solid #cbd5e1;border-radius:0.35rem;color:#334155;font-size:0.78rem">
+        <input type="date" id="filter-date-to" onchange="applyFilters()" title="To date" style="padding:0.4rem 0.5rem;background:#fff;border:1px solid #cbd5e1;border-radius:0.35rem;color:#334155;font-size:0.78rem">
       </div>
       <div id="records-table">
         <div class="empty">Click "Load Data" to see field-collected records.</div>
@@ -529,9 +531,13 @@
       var v1 = document.getElementById('filter-1').value;
       var v2 = document.getElementById('filter-2').value;
       var vi = document.getElementById('filter-island').value;
+      var dateFrom = document.getElementById('filter-date-from').value;
+      var dateTo = document.getElementById('filter-date-to').value;
 
       var filtered = tabRecords.filter(function(r) {
         if (vi && r.island !== vi) return false;
+        if (dateFrom && r.timestamp && r.timestamp.slice(0,10) < dateFrom) return false;
+        if (dateTo && r.timestamp && r.timestamp.slice(0,10) > dateTo) return false;
         if (activeTab === 'merremia') {
           if (v1 && (r.threatLevel||'low').toLowerCase() !== v1.toLowerCase()) return false;
           if (v2) { var sp = Array.isArray(r.species) ? r.species : [r.species||'']; if (sp.indexOf(v2) < 0) return false; }
