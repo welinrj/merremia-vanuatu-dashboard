@@ -447,13 +447,16 @@
         var el = document.createElement('div');
         el.className = 'map-marker';
         el.style.backgroundColor = getMarkerColor(r);
-        var popup = new maplibregl.Popup({ offset: 12, maxWidth: '320px' }).setHTML(getPopupHTML(r));
+        var popup = new maplibregl.Popup({ offset: 12, maxWidth: '320px', closeOnClick: false }).setHTML(getPopupHTML(r));
         var marker = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).setPopup(popup).addTo(liveMap);
         mapMarkers.push(marker);
         bounds.extend([lng, lat]);
         hasBounds = true;
       });
-      if (hasBounds) liveMap.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+      if (hasBounds) {
+        liveMap.fitBounds(bounds, { padding: 50, maxZoom: 14 });
+        mapMarkers.forEach(function(m) { m.togglePopup(); });
+      }
     }
 
     // ── Table rendering ──
