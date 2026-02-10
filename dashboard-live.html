@@ -141,6 +141,17 @@
     .live-alert-banner{display:none;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:linear-gradient(90deg,#fef2f2,#fff1f2);border-bottom:2px solid #fca5a5;font-size:0.82rem;color:#991b1b;font-weight:600}
     .live-alert-banner .alert-icon{font-size:1.1rem;flex-shrink:0}
     .live-alert-banner .alert-dismiss{margin-left:auto;background:none;border:none;color:#dc2626;font-size:1rem;cursor:pointer;padding:0 0.25rem}
+    @media print{
+      body{background:#fff;color:#000;font-size:11pt}
+      header{background:#065f46!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .config-bar,.basemap-toggle,.download-section,.photo-overlay,.live-alert-banner .alert-dismiss{display:none!important}
+      .grid{display:grid;grid-template-columns:repeat(5,1fr)}
+      .card,.map-panel,.analysis-panel,.records-panel{break-inside:avoid;border:1px solid #ccc;box-shadow:none;margin-bottom:8px}
+      #live-map{max-height:400px;overflow:hidden}
+      table{border-collapse:collapse;width:100%;font-size:9pt}
+      table th,table td{border:1px solid #ccc;padding:4px 6px}
+      footer{font-size:9pt;border-top:1px solid #ccc}
+    }
   </style>
 </head>
 <body>
@@ -165,11 +176,11 @@
     <span class="status-msg" id="status-msg"></span>
   </div>
 
-  <div class="cat-tabs" id="cat-tabs">
-    <button class="cat-tab t-merremia active" onclick="switchTab('merremia')">Merremia</button>
-    <button class="cat-tab t-degraded" onclick="switchTab('degraded')">Degraded Areas</button>
-    <button class="cat-tab t-restoration" onclick="switchTab('restoration')">Restoration</button>
-    <button class="cat-tab t-threatened" onclick="switchTab('threatened')">Threatened Species</button>
+  <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Data categories">
+    <button class="cat-tab t-merremia active" onclick="switchTab('merremia')" role="tab" aria-selected="true">Merremia</button>
+    <button class="cat-tab t-degraded" onclick="switchTab('degraded')" role="tab" aria-selected="false">Degraded Areas</button>
+    <button class="cat-tab t-restoration" onclick="switchTab('restoration')" role="tab" aria-selected="false">Restoration</button>
+    <button class="cat-tab t-threatened" onclick="switchTab('threatened')" role="tab" aria-selected="false">Threatened Species</button>
   </div>
 
   <div class="live-alert-banner" id="liveAlertBanner">
@@ -335,8 +346,10 @@
     function switchTab(cat) {
       activeTab = cat;
       tablePage = 0;
-      document.querySelectorAll('.cat-tab').forEach(function(b) { b.classList.remove('active'); });
-      document.querySelector('.cat-tab.t-' + cat).classList.add('active');
+      document.querySelectorAll('.cat-tab').forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+      var active = document.querySelector('.cat-tab.t-' + cat);
+      active.classList.add('active');
+      active.setAttribute('aria-selected', 'true');
       renderForTab();
     }
 
@@ -478,8 +491,12 @@
     function showFullPhoto(src) {
       var overlay = document.createElement('div');
       overlay.className = 'photo-overlay';
-      overlay.innerHTML = '<img src="' + src + '">';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-label', 'Photo preview');
+      overlay.innerHTML = '<img src="' + src + '" alt="Field photo full view">';
       overlay.onclick = function() { overlay.remove(); };
+      var escHandler = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+      document.addEventListener('keydown', escHandler);
       document.body.appendChild(overlay);
     }
 

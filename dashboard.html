@@ -492,6 +492,19 @@
     .dash-header h1 { font-size: 28px; }
     .footer-contacts { grid-template-columns: 1fr; text-align: center; }
   }
+
+  @media print {
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .dash-header { padding: 16px; border-bottom: 1px solid #ccc; }
+    .live-indicator, .filters-bar, .basemap-toggle, .photo-overlay { display: none !important; }
+    .dash-main { display: block; padding: 8px; }
+    .stat-card, .map-card, .chart-card, .analysis-card { break-inside: avoid; border: 1px solid #ccc; margin-bottom: 8px; box-shadow: none; }
+    .map-card { max-height: 400px; overflow: hidden; }
+    table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+    table th, table td { border: 1px solid #ccc; padding: 4px 6px; }
+    .alert-banner { border: 2px solid #dc2626; }
+    footer { font-size: 9pt; border-top: 1px solid #ccc; }
+  }
 </style>
 </head>
 <body>
@@ -513,24 +526,24 @@
 <!-- FILTERS -->
 <div class="filters-bar">
   <span class="filter-label">Filter:</span>
-  <select class="filter-select" id="filterIsland" onchange="applyFilters()">
+  <select class="filter-select" id="filterIsland" onchange="applyFilters()" aria-label="Filter by island">
     <option value="">All Islands</option>
   </select>
-  <select class="filter-select" id="filterSpecies" onchange="applyFilters()">
+  <select class="filter-select" id="filterSpecies" onchange="applyFilters()" aria-label="Filter by species">
     <option value="">All Species</option>
   </select>
-  <select class="filter-select" id="filterThreat" onchange="applyFilters()">
+  <select class="filter-select" id="filterThreat" onchange="applyFilters()" aria-label="Filter by threat level">
     <option value="">All Threat Levels</option>
     <option value="high">🔴 High</option>
     <option value="moderate">🟡 Moderate</option>
     <option value="low">🟢 Low</option>
   </select>
-  <input type="date" class="filter-select" id="filterDateFrom" onchange="applyFilters()" title="From date" style="min-width:auto">
-  <input type="date" class="filter-select" id="filterDateTo" onchange="applyFilters()" title="To date" style="min-width:auto">
-  <button class="filter-reset" onclick="resetFilters()">✕ Reset</button>
+  <input type="date" class="filter-select" id="filterDateFrom" onchange="applyFilters()" title="From date" aria-label="Filter from date" style="min-width:auto">
+  <input type="date" class="filter-select" id="filterDateTo" onchange="applyFilters()" title="To date" aria-label="Filter to date" style="min-width:auto">
+  <button class="filter-reset" onclick="resetFilters()" aria-label="Reset all filters">✕ Reset</button>
   <span style="flex:1"></span>
-  <button class="filter-reset" onclick="exportCSV()" style="color:#1e40af;border-color:#93c5fd" title="Export filtered data as CSV">⬇ CSV</button>
-  <button class="filter-reset" onclick="exportPDF()" style="color:#065f46;border-color:#6ee7b7" title="Export summary as PDF">⬇ PDF</button>
+  <button class="filter-reset" onclick="exportCSV()" style="color:#1e40af;border-color:#93c5fd" title="Export filtered data as CSV" aria-label="Export CSV">⬇ CSV</button>
+  <button class="filter-reset" onclick="exportPDF()" style="color:#065f46;border-color:#6ee7b7" title="Export summary as PDF" aria-label="Export PDF">⬇ PDF</button>
 </div>
 
 <!-- MAIN DASHBOARD -->
@@ -585,8 +598,12 @@ const CONNECTOR_CONFIG = {
 function showFullPhoto(src) {
   const overlay = document.createElement('div');
   overlay.className = 'photo-overlay';
-  overlay.innerHTML = '<img src="' + src + '">';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-label', 'Photo preview');
+  overlay.innerHTML = '<img src="' + src + '" alt="Field photo full view">';
   overlay.onclick = () => overlay.remove();
+  const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
   document.body.appendChild(overlay);
 }
 
@@ -739,7 +756,7 @@ function buildDashboardHTML() {
     </div>
 
     <!-- Threat Alert Banner -->
-    <div class="alert-banner" id="alertBanner">
+    <div class="alert-banner" id="alertBanner" role="alert" aria-live="polite">
       <div class="alert-dot"></div>
       <span id="alertText"></span>
     </div>
