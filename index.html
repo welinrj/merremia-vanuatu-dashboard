@@ -26,6 +26,8 @@
     header p { color: #6ee7b7; font-size: 0.875rem; margin-top: 0.25rem; }
     .header-row { display: flex; align-items: center; gap: 1rem; }
     .header-logo { height: 56px; width: auto; border-radius: 0.4rem; background: rgba(255,255,255,0.9); padding: 4px; flex-shrink: 0; }
+    .logo-group { display: flex; align-items: center; gap: 0.75rem; flex-shrink: 0; }
+    .logo-dept-name { font-size: 0.85rem; font-weight: 700; color: #ecfdf5; line-height: 1.25; letter-spacing: 0.02em; max-width: 200px; }
     .attribution {
       margin-top: 0.6rem;
       padding: 0.5rem 0.85rem;
@@ -353,13 +355,19 @@
     .finding .detail { font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; }
 
     footer {
-      text-align: center;
-      padding: 1.25rem;
+      background: #0c1222;
+      padding: 2rem 2rem 1.5rem;
       color: #475569;
-      font-size: 0.75rem;
-      border-top: 1px solid #1e293b;
+      font-size: 0.78rem;
+      border-top: 2px solid #10b981;
     }
-    footer strong { color: #94a3b8; }
+    .footer-grid { display: flex; flex-wrap: wrap; gap: 2rem; justify-content: space-between; max-width: 1200px; margin: 0 auto; }
+    .footer-col h4 { color: #94a3b8; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+    .footer-col p, .footer-col a { color: #64748b; line-height: 1.7; }
+    .footer-col a { color: #6ee7b7; text-decoration: none; }
+    .footer-col a:hover { text-decoration: underline; }
+    .footer-bottom { text-align: center; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #1e293b; color: #475569; font-size: 0.72rem; }
+    .footer-bottom strong { color: #94a3b8; }
   </style>
 </head>
 <body>
@@ -367,7 +375,10 @@
   <!-- ═══ HEADER & ATTRIBUTION ═══ -->
   <header>
     <div class="header-row">
-      <img src="assets/depc-logo.png" alt="DEPC — Department of Environmental Protection and Conservation" class="header-logo">
+      <div class="logo-group">
+        <img src="assets/depc-logo.png" alt="DEPC — Department of Environmental Protection and Conservation" class="header-logo">
+        <span class="logo-dept-name">DEPARTMENT OF ENVIRONMENTAL PROTECTION AND CONSERVATION</span>
+      </div>
       <div>
         <h1>Merremia Vanuatu Dashboard</h1>
         <p>Invasive vine species monitoring across Vanuatu islands</p>
@@ -790,7 +801,32 @@
 
   <!-- ═══ FOOTER ═══ -->
   <footer>
-    Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Merremia Vanuatu Ecological Monitoring Project
+    <div class="footer-grid">
+      <div class="footer-col">
+        <h4>Department of Environmental Protection &amp; Conservation</h4>
+        <p>Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>
+        Environment, Energy and Disaster Management</p>
+      </div>
+      <div class="footer-col">
+        <h4>Contact</h4>
+        <p>
+          PMB 9063, Port Vila, Shefa Province, Vanuatu<br>
+          Phone: <a href="tel:+67825302">+678 25302</a> / <a href="tel:+67833430">+678 33430</a><br>
+          Email: <a href="mailto:depc@vanuatu.gov.vu">depc@vanuatu.gov.vu</a><br>
+          Web: <a href="https://environment.gov.vu" target="_blank" rel="noopener">environment.gov.vu</a>
+        </p>
+      </div>
+      <div class="footer-col">
+        <h4>Branch Office</h4>
+        <p>
+          Sanma Provincial Government Council<br>
+          PMB 239, Luganville, Sanma Province, Vanuatu
+        </p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Prototype dashboard created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong> &mdash; Merremia Vanuatu Ecological Monitoring Project
+    </div>
   </footer>
 
   <!-- ═══ SCRIPTS ═══ -->
