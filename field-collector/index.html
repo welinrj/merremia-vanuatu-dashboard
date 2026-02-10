@@ -67,8 +67,11 @@
     .record-card{background:#ffffff;border-radius:0.75rem;padding:1rem;border:1px solid #e2e8f0;margin-bottom:0.75rem;transition:border-color 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
     .record-card:hover{border-color:#cbd5e1}
     .record-card h4{color:#065f46;font-size:0.88rem;margin-bottom:0.25rem;font-weight:700}
-    .btn-delete-record{display:block;width:100%;margin-top:0.75rem;background:#fee2e2;color:#991b1b;border:2px solid #ef4444;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em}
+    .btn-edit-record{display:inline-block;width:48%;margin-top:0.75rem;background:#dbeafe;color:#1e40af;border:2px solid #3b82f6;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em}
+    .btn-edit-record:active{background:#bfdbfe;transform:scale(0.98)}
+    .btn-delete-record{display:inline-block;width:48%;margin-top:0.75rem;background:#fee2e2;color:#991b1b;border:2px solid #ef4444;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em;margin-left:2%}
     .btn-delete-record:active{background:#fecaca;transform:scale(0.98)}
+    .editing-banner{background:#dbeafe;color:#1e40af;text-align:center;padding:0.5rem;font-size:0.8rem;font-weight:700;border-radius:0.4rem;margin-bottom:0.75rem}
     .delete-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;display:flex;align-items:center;justify-content:center}
     .delete-modal{background:#ffffff;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1.5rem;max-width:340px;width:90%;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
     .delete-modal h3{color:#dc2626;font-size:1rem;margin-bottom:0.75rem}
@@ -478,7 +481,12 @@
       <div class="count" id="pending-count">0</div>
       <div class="label">records pending sync</div>
     </div>
-    <button class="btn btn-secondary" onclick="syncData()" style="margin-bottom:0.5rem">Sync All to GitHub</button>
+    <div id="storage-warning" style="display:none;background:#fef3c7;color:#92400e;padding:0.5rem;border-radius:0.4rem;font-size:0.72rem;font-weight:600;text-align:center;margin-bottom:0.5rem;border:1px solid #fcd34d"></div>
+    <button class="btn btn-secondary" onclick="syncData()" id="btn-sync-main" style="margin-bottom:0.5rem">Sync All to GitHub</button>
+    <div id="sync-progress" style="display:none;margin-bottom:0.75rem">
+      <div style="background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden"><div id="sync-bar" style="height:100%;background:#10b981;width:0%;transition:width 0.3s"></div></div>
+      <p id="sync-status-text" style="text-align:center;font-size:0.72rem;color:#64748b;margin-top:0.3rem">Syncing...</p>
+    </div>
     <button class="btn btn-secondary" onclick="downloadRecords()" style="margin-bottom:1rem;background:#1e3a5f;border-color:#3b82f6">Download Records (JSON)</button>
     <button class="btn btn-secondary" onclick="downloadCSV()" style="margin-bottom:1rem;background:#1e3a5f;border-color:#3b82f6">Download Records (CSV)</button>
     <div id="records-list"></div>
@@ -524,6 +532,7 @@
     var SETTINGS_KEY = 'merremia_settings';
     var currentPhotos = [];
     var currentLat = null, currentLng = null, currentAcc = null;
+    var editingRecordId = null;
 
     // ── Category labels ──
     var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
@@ -674,6 +683,86 @@
       document.body.appendChild(overlay);
     }
 
+    // ── Edit Record ──
+    function editRecord(id) {
+      var records = getRecords();
+      var r = records.find(function(rec) { return rec.id === id; });
+      if (!r) return;
+      editingRecordId = id;
+      showView('collect');
+      // Set category and trigger UI switch
+      document.getElementById('f-category').value = r.category || 'merremia';
+      switchCategory();
+      // Set common fields
+      document.getElementById('f-island').value = r.island || '';
+      document.getElementById('f-site').value = r.siteName || '';
+      document.getElementById('f-observer').value = r.observer || '';
+      document.getElementById('f-notes').value = r.notes || '';
+      // Set GPS manually
+      if (r.latitude && r.longitude) {
+        var manPanel = document.getElementById('gps-manual');
+        if (!manualGPSMode) toggleManualGPS();
+        document.getElementById('manual-lat').value = r.latitude;
+        document.getElementById('manual-lng').value = r.longitude;
+        applyManualGPS();
+      }
+      // Restore photos
+      currentPhotos = r.photos || [];
+      renderPhotoPreview();
+      // Set category-specific fields
+      if (r.category === 'merremia' || !r.category) {
+        if (r.species) document.getElementById('f-species').value = r.species;
+        if (r.count) document.getElementById('f-count').value = r.count;
+        if (r.threatLevel) document.getElementById('f-threat').value = r.threatLevel;
+        if (r.coverageArea) document.getElementById('f-area').value = r.coverageArea;
+      } else if (r.category === 'degraded') {
+        if (r.degradationType) document.getElementById('f-deg-type').value = r.degradationType;
+        if (r.severity) document.getElementById('f-deg-severity').value = r.severity;
+        if (r.estimatedArea) document.getElementById('f-deg-area').value = r.estimatedArea;
+        if (r.landUseType) document.getElementById('f-deg-landuse').value = r.landUseType;
+        if (r.vegetationCover != null) document.getElementById('f-deg-vegcover').value = r.vegetationCover;
+        if (r.erosionEvidence) document.getElementById('f-deg-erosion').value = r.erosionEvidence;
+        if (r.cause) document.getElementById('f-deg-cause').value = r.cause;
+        if (r.waterNearby) document.getElementById('f-deg-water').value = r.waterNearby;
+      } else if (r.category === 'restoration') {
+        if (r.restorationType) document.getElementById('f-rest-type').value = r.restorationType;
+        if (r.restorationStage) document.getElementById('f-rest-stage').value = r.restorationStage;
+        if (r.yearsSinceStarted) document.getElementById('f-rest-years').value = r.yearsSinceStarted;
+        if (r.estimatedArea) document.getElementById('f-rest-area').value = r.estimatedArea;
+        if (r.speciesPlanted) document.getElementById('f-rest-species').value = r.speciesPlanted;
+        if (r.projectName) document.getElementById('f-rest-project').value = r.projectName;
+        if (r.survivalRate != null) document.getElementById('f-rest-survival').value = r.survivalRate;
+        if (r.vegetationCover != null) document.getElementById('f-rest-vegcover').value = r.vegetationCover;
+      } else if (r.category === 'threatened') {
+        if (r.speciesName) document.getElementById('f-ts-species').value = r.speciesName;
+        if (r.speciesType) document.getElementById('f-ts-type').value = r.speciesType;
+        if (r.iucnStatus) document.getElementById('f-ts-iucn').value = r.iucnStatus;
+        if (r.populationEstimate) document.getElementById('f-ts-population').value = r.populationEstimate;
+        if (r.habitatType) document.getElementById('f-ts-habitat').value = r.habitatType;
+        if (r.breedingEvidence) document.getElementById('f-ts-breeding').value = r.breedingEvidence;
+        if (r.threatsObserved) document.getElementById('f-ts-threats').value = r.threatsObserved;
+      }
+      // Show editing banner
+      var banner = document.getElementById('editing-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'editing-banner';
+        banner.className = 'editing-banner';
+        var collectView = document.getElementById('view-collect');
+        collectView.insertBefore(banner, collectView.firstChild);
+      }
+      banner.innerHTML = 'Editing record &mdash; <a href="#" onclick="cancelEdit();return false" style="color:#1e40af">Cancel</a>';
+      banner.style.display = 'block';
+      document.getElementById('btn-save').textContent = 'Update Observation';
+    }
+
+    function cancelEdit() {
+      editingRecordId = null;
+      var banner = document.getElementById('editing-banner');
+      if (banner) banner.style.display = 'none';
+      document.getElementById('btn-save').textContent = 'Save Observation';
+    }
+
     // ── Save Record ──
     function saveRecord() {
       var category = document.getElementById('f-category').value;
@@ -682,9 +771,10 @@
       if (!island) { showToast('Please select an island.', 'warn'); return; }
       if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
 
+      var isEditing = !!editingRecordId;
       var record = {
-        id: Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
-        timestamp: new Date().toISOString(),
+        id: isEditing ? editingRecordId : Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+        timestamp: isEditing ? getRecords().find(function(r) { return r.id === editingRecordId; }).timestamp : new Date().toISOString(),
         category: category,
         latitude: currentLat,
         longitude: currentLng,
@@ -736,7 +826,16 @@
       }
 
       var records = getRecords();
-      records.push(record);
+      if (isEditing) {
+        var idx = records.findIndex(function(r) { return r.id === editingRecordId; });
+        if (idx >= 0) records[idx] = record;
+        editingRecordId = null;
+        var banner = document.getElementById('editing-banner');
+        if (banner) banner.style.display = 'none';
+        document.getElementById('btn-save').textContent = 'Save Observation';
+      } else {
+        records.push(record);
+      }
       localStorage.setItem(DB_KEY, JSON.stringify(records));
 
       // Reset form (keep category, island, observer)
@@ -752,7 +851,7 @@
       document.querySelectorAll('.cat-fields input').forEach(function(i) { if (i.type !== 'file') i.value = ''; });
       updateRecordCount();
 
-      showToast('Data saved', 'info');
+      showToast(isEditing ? 'Record updated' : 'Data saved', 'info');
 
       if (navigator.onLine) {
         setTimeout(function() { syncData(); }, 500);
@@ -793,6 +892,14 @@
       catch(e) { return []; }
     }
 
+    function getStorageUsageMB() {
+      var total = 0;
+      for (var k in localStorage) {
+        if (localStorage.hasOwnProperty(k)) total += localStorage[k].length * 2;
+      }
+      return (total / 1024 / 1024).toFixed(1);
+    }
+
     function updateRecordCount() {
       var records = getRecords();
       var pending = records.filter(function(r) { return !r.synced; }).length;
@@ -801,6 +908,17 @@
       else el.textContent = '';
       var pc = document.getElementById('pending-count');
       if (pc) pc.textContent = pending;
+      // Storage warning
+      var usageMB = parseFloat(getStorageUsageMB());
+      var warn = document.getElementById('storage-warning');
+      if (warn) {
+        if (usageMB > 4) {
+          warn.style.display = 'block';
+          warn.textContent = 'Storage ' + usageMB + ' MB / ~5 MB — Sync and clear synced records to free space';
+        } else {
+          warn.style.display = 'none';
+        }
+      }
     }
 
     function renderRecords() {
@@ -827,7 +945,8 @@
           '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
           '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
           photoHtml +
-          '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete Record</button>' +
+          '<button class="btn-edit-record" onclick="editRecord(\'' + r.id + '\')">Edit</button>' +
+          '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button>' +
           '</div>';
       }).join('');
     }
@@ -835,7 +954,11 @@
     // ── Settings ──
     var _tp = ['Z2l0aHViX3BhdF8xMUFQNlc1NlEwUnN','lRVFCWXlyV2RyX2U0enMxQ3ZiNWFiVX','ZSYnp0aEozbmhqRDhlUU5XV1VDQ0hkM','HFleEZ2VnU1Qk9CSldISjlZYXVVcTla'];
     var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: atob(_tp.join('')) };
-    var DELETE_PASSWORD = 'M3r3mia@2025';
+    var DELETE_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
+    async function sha256(message) {
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
+      return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
 
     function getSettings() {
       try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
@@ -904,11 +1027,22 @@
 
       var btn = document.getElementById('btn-sync');
       btn.classList.add('active');
+      var btnMain = document.getElementById('btn-sync-main');
+      if (btnMain) { btnMain.disabled = true; btnMain.textContent = 'Syncing...'; }
+      var progressEl = document.getElementById('sync-progress');
+      var barEl = document.getElementById('sync-bar');
+      var statusEl = document.getElementById('sync-status-text');
+      if (progressEl) progressEl.style.display = 'block';
+      var syncedCount = 0;
 
       try {
         for (var i = 0; i < records.length; i++) {
           if (records[i].synced) continue;
           var r = records[i];
+          syncedCount++;
+          var pct = Math.round((syncedCount / pending.length) * 100);
+          if (barEl) barEl.style.width = pct + '%';
+          if (statusEl) statusEl.textContent = 'Syncing record ' + syncedCount + ' of ' + pending.length + '...';
 
           var recordContent = btoa(unescape(encodeURIComponent(JSON.stringify(r, function(key, val) {
             if (key === 'photos') return undefined;
@@ -924,6 +1058,7 @@
 
           if (r.photos) {
             for (var j = 0; j < r.photos.length; j++) {
+              if (statusEl) statusEl.textContent = 'Uploading photo ' + (j+1) + '/' + r.photos.length + ' for record ' + syncedCount + '...';
               var photoData = r.photos[j].split(',')[1];
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + r.id + '-' + j + '.jpg', {
                 method: 'PUT',
@@ -934,20 +1069,26 @@
           }
 
           records[i].synced = true;
+          records[i].photoCount = (r.photos || []).length;
         }
 
         localStorage.setItem(DB_KEY, JSON.stringify(records));
         updateRecordCount();
         if (document.getElementById('view-records').classList.contains('active')) renderRecords();
 
+        if (statusEl) statusEl.textContent = 'Updating dashboard...';
         await updateAllRecords(s, records);
 
+        if (statusEl) statusEl.textContent = 'Sync complete!';
         showToast('Data synced to database', 'info');
       } catch(err) {
+        if (statusEl) statusEl.textContent = 'Sync error — records saved locally';
         showToast('Sync error — records saved locally. Try again later.', 'error');
       }
 
       btn.classList.remove('active');
+      if (btnMain) { btnMain.disabled = false; btnMain.textContent = 'Sync All to GitHub'; }
+      setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; }, 3000);
     }
 
     async function updateAllRecords(s, localRecords) {
@@ -1052,7 +1193,8 @@
 
     async function confirmDeleteRecord() {
       var pw = document.getElementById('delete-password').value;
-      if (pw !== DELETE_PASSWORD) {
+      var hash = await sha256(pw);
+      if (hash !== DELETE_HASH) {
         showToast('Incorrect password', 'error');
         return;
       }
@@ -1127,10 +1269,12 @@
     }
 
     // ── Clear Data ──
-    function clearAllData() {
+    async function clearAllData() {
       var pw = prompt('Enter admin password to clear all data:');
-      if (pw !== DELETE_PASSWORD) {
-        if (pw !== null) showToast('Incorrect password', 'error');
+      if (pw === null) return;
+      var hash = await sha256(pw);
+      if (hash !== DELETE_HASH) {
+        showToast('Incorrect password', 'error');
         return;
       }
       localStorage.removeItem(DB_KEY);

@@ -485,7 +485,12 @@
     <option value="moderate">🟡 Moderate</option>
     <option value="low">🟢 Low</option>
   </select>
+  <input type="date" class="filter-select" id="filterDateFrom" onchange="applyFilters()" title="From date" style="min-width:auto">
+  <input type="date" class="filter-select" id="filterDateTo" onchange="applyFilters()" title="To date" style="min-width:auto">
   <button class="filter-reset" onclick="resetFilters()">✕ Reset</button>
+  <span style="flex:1"></span>
+  <button class="filter-reset" onclick="exportCSV()" style="color:#1e40af;border-color:#93c5fd" title="Export filtered data as CSV">⬇ CSV</button>
+  <button class="filter-reset" onclick="exportPDF()" style="color:#065f46;border-color:#6ee7b7" title="Export summary as PDF">⬇ PDF</button>
 </div>
 
 <!-- MAIN DASHBOARD -->
@@ -975,12 +980,17 @@ function applyFilters() {
   const island = document.getElementById('filterIsland').value;
   const species = document.getElementById('filterSpecies').value;
   const threat = document.getElementById('filterThreat').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
 
-  const filtered = connector.filterRecords(dashData.records, {
+  let filtered = connector.filterRecords(dashData.records, {
     island: island || undefined,
     species: species || undefined,
     threat: threat || undefined
   });
+
+  if (dateFrom) filtered = filtered.filter(r => r.timestamp && r.timestamp.slice(0,10) >= dateFrom);
+  if (dateTo) filtered = filtered.filter(r => r.timestamp && r.timestamp.slice(0,10) <= dateTo);
 
   // Reprocess filtered data manually
   const filteredData = reprocessForDisplay(filtered);
@@ -1043,7 +1053,78 @@ function resetFilters() {
   document.getElementById('filterIsland').value = '';
   document.getElementById('filterSpecies').value = '';
   document.getElementById('filterThreat').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
   if (dashData) renderDashboard(dashData);
+}
+
+// ══════════════════════════════════════════
+// DATA EXPORT
+// ══════════════════════════════════════════
+function getFilteredRecords() {
+  if (!dashData || !connector) return [];
+  const island = document.getElementById('filterIsland').value;
+  const species = document.getElementById('filterSpecies').value;
+  const threat = document.getElementById('filterThreat').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+  let records = connector.filterRecords(dashData.records, {
+    island: island || undefined, species: species || undefined, threat: threat || undefined
+  });
+  if (dateFrom) records = records.filter(r => r.timestamp && r.timestamp.slice(0,10) >= dateFrom);
+  if (dateTo) records = records.filter(r => r.timestamp && r.timestamp.slice(0,10) <= dateTo);
+  return records;
+}
+
+function exportCSV() {
+  const records = getFilteredRecords();
+  if (!records.length) return;
+  const headers = ['timestamp','island','siteName','observer','species','count','threatLevel','coverageArea','latitude','longitude','accuracy','notes'];
+  const rows = records.map(r => headers.map(h => {
+    let v = '';
+    if (h === 'species') v = Array.isArray(r.species) ? r.species.join('; ') : (r.species || '');
+    else if (h === 'latitude') v = r.latitude || (r.gps && r.gps.lat) || '';
+    else if (h === 'longitude') v = r.longitude || (r.gps && r.gps.lng) || '';
+    else if (h === 'accuracy') v = r.accuracy || (r.gps && r.gps.accuracy) || '';
+    else v = r[h] != null ? String(r[h]) : '';
+    return '"' + v.replace(/"/g, '""') + '"';
+  }).join(','));
+  const csv = headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'merremia-data-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportPDF() {
+  const records = getFilteredRecords();
+  if (!records.length) return;
+  const stats = reprocessForDisplay(records).stats;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Merremia Vanuatu Report</title>');
+  w.document.write('<style>body{font-family:Arial,sans-serif;padding:40px;color:#1e293b;max-width:800px;margin:0 auto}h1{color:#065f46;font-size:22px}h2{color:#334155;font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-top:24px}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e2e8f0}th{background:#f8fafc;font-weight:600;color:#334155}.stat{display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 20px;margin:4px;text-align:center}.stat-val{font-size:22px;font-weight:700;color:#065f46}.stat-label{font-size:11px;color:#64748b;text-transform:uppercase}p.footer{margin-top:30px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px}@media print{body{padding:20px}}</style></head><body>');
+  w.document.write('<h1>Merremia Vanuatu &mdash; Ecological Monitoring Report</h1>');
+  w.document.write('<p>Generated: ' + new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'}) + ' &middot; ' + records.length + ' records</p>');
+  w.document.write('<div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.speciesCount + '</div><div class="stat-label">Species</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.islandCount + '</div><div class="stat-label">Islands</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.siteCount + '</div><div class="stat-label">Sites</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.totalObservations + '</div><div class="stat-label">Observations</div></div>');
+  w.document.write('</div>');
+  w.document.write('<h2>Recent Records</h2><table><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Threat</th><th>Observer</th></tr>');
+  records.slice(0, 100).forEach(r => {
+    const sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '—');
+    const d = r.timestamp ? new Date(r.timestamp).toLocaleDateString('en-GB') : '—';
+    w.document.write('<tr><td>' + d + '</td><td>' + (r.island||'—') + '</td><td>' + (r.siteName||'—') + '</td><td>' + sp + '</td><td>' + (r.threatLevel||'—') + '</td><td>' + (r.observer||'—') + '</td></tr>');
+  });
+  if (records.length > 100) w.document.write('<tr><td colspan="6" style="text-align:center;color:#94a3b8">... and ' + (records.length - 100) + ' more records</td></tr>');
+  w.document.write('</table>');
+  w.document.write('<p class="footer">Department of Environmental Protection &amp; Conservation &middot; Merremia Vanuatu Ecological Monitoring Project</p>');
+  w.document.write('</body></html>');
+  w.document.close();
+  setTimeout(() => w.print(), 500);
 }
 </script>
 </body>
