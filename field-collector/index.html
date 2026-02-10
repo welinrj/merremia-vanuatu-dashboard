@@ -7,8 +7,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>DEPC Field Collector</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png">
   <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -108,6 +109,8 @@
     .footer-col a:hover{color:#6ee7b7}
     .footer-bottom{text-align:center;margin-top:1rem;padding-top:0.75rem;border-top:1px solid rgba(30,41,59,0.5);color:#334155;font-size:0.62rem}
     .footer-bottom strong{color:#475569}
+    .footer-coat-of-arms{display:flex;justify-content:center;margin-bottom:1rem}
+    .footer-coat-of-arms img{height:60px;opacity:0.12;filter:grayscale(0.3)}
   </style>
 </head>
 <body>
@@ -1102,7 +1105,7 @@
             newSW.addEventListener('statechange', function() {
               if (newSW.state === 'activated' && 'caches' in window) {
                 caches.keys().then(function(names) {
-                  names.forEach(function(n) { if (n !== 'merremia-collector-v6') caches.delete(n); });
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v7') caches.delete(n); });
                 });
               }
             });
@@ -1117,6 +1120,9 @@
   </script>
 
   <footer>
+    <div class="footer-coat-of-arms">
+      <img src="assets/vanuatu-coat-of-arms.png" alt="Coat of Arms of Vanuatu">
+    </div>
     <div class="footer-grid">
       <div class="footer-col">
         <h4>Department of Environmental Protection &amp; Conservation</h4>

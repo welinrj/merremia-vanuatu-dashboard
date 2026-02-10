@@ -1,9 +1,12 @@
-var CACHE_NAME = 'merremia-collector-v6';
+var CACHE_NAME = 'merremia-collector-v7';
 var URLS_TO_CACHE = [
   './',
   './index.html',
   './manifest.json',
-  './assets/depc-logo.png'
+  './assets/depc-logo.png',
+  './assets/vanuatu-coat-of-arms.png',
+  './assets/favicon-32.png',
+  './assets/favicon-180.png'
 ];
 
 self.addEventListener('install', function(event) {

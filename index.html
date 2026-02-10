@@ -6,6 +6,8 @@
   <meta name="theme-color" content="#065f46">
   <meta name="description" content="Invasive vine species monitoring dashboard for Vanuatu — Vanuatu Spatial Solutions for DEPC & NBSAP">
   <title>Merremia Vanuatu Dashboard</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -390,6 +392,8 @@
     .footer-col a:hover { color: #6ee7b7; }
     .footer-bottom { text-align: center; margin-top: 2rem; padding-top: 1.25rem; border-top: 1px solid rgba(30,41,59,0.5); color: #334155; font-size: 0.7rem; }
     .footer-bottom strong { color: #475569; }
+    .footer-coat-of-arms { display: flex; justify-content: center; margin-bottom: 1.5rem; }
+    .footer-coat-of-arms img { height: 80px; opacity: 0.12; filter: grayscale(0.3); }
   </style>
 </head>
 <body>
@@ -820,6 +824,9 @@
 
   <!-- ═══ FOOTER ═══ -->
   <footer>
+    <div class="footer-coat-of-arms">
+      <img src="assets/vanuatu-coat-of-arms.png" alt="Coat of Arms of Vanuatu">
+    </div>
     <div class="footer-grid">
       <div class="footer-col">
         <h4>Department of Environmental Protection &amp; Conservation</h4>
