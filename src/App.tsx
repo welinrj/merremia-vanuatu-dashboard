@@ -4,11 +4,13 @@ import Header from './components/Header'
 import StatCard from './components/StatCard'
 import SightingsTable from './components/SightingsTable'
 import LocationList from './components/LocationList'
+import DataPortal from './components/portal/DataPortal'
 import { stats, recentSightings, locationSummaries } from './data/sampleData'
 import './App.css'
 
 const sectionTitles: Record<string, string> = {
   overview: 'Overview',
+  'data-portal': 'Data Portal',
   sightings: 'Sightings',
   locations: 'Locations',
   species: 'Species',
@@ -37,6 +39,7 @@ function App() {
               </div>
             </>
           )}
+          {activeSection === 'data-portal' && <DataPortal />}
           {activeSection === 'sightings' && (
             <SightingsTable sightings={recentSightings} />
           )}

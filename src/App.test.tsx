@@ -15,6 +15,12 @@ describe('App', () => {
     expect(screen.getByText('Total Sightings')).toBeInTheDocument()
   })
 
+  it('navigates to data portal section', () => {
+    render(<App />)
+    fireEvent.click(screen.getByRole('button', { name: 'Data Portal' }))
+    expect(screen.getByText('GIS Data Portal')).toBeInTheDocument()
+  })
+
   it('navigates to sightings section', () => {
     render(<App />)
     const sightingsButtons = screen.getAllByText('Sightings')
