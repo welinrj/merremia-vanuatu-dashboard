@@ -80,6 +80,23 @@ class MerremiaConnector {
       const cached = this.getCache();
       if (cached) return cached;
 
+      // If no token, use raw URL (CDN-cached but no rate limits for public viewers)
+      if (!this.token) {
+        try {
+          const response = await fetch(`${this.baseURL}/data/all-records.json`);
+          if (response.ok) {
+            const records = await response.json();
+            if (Array.isArray(records) && records.length > 0) {
+              const processed = this.processRecords(records);
+              this.setCache(processed);
+              this.lastFetch = new Date();
+              return processed;
+            }
+          }
+        } catch (e) { /* fall through */ }
+        return this.emptyData();
+      }
+
       // Fetch from both sources and merge for completeness
       let allRecords = [];
 
@@ -168,27 +185,34 @@ class MerremiaConnector {
   }
 
   /**
-   * Normalize a field-collected record to the connector's expected format
+   * Normalize a field-collected record to the connector's expected format.
+   * Preserves all category-specific fields for multi-category support.
    */
   normalizeRecord(r) {
-    return {
-      id: r.id,
-      timestamp: r.timestamp,
-      gps: {
-        lat: r.latitude || (r.gps && r.gps.lat),
-        lng: r.longitude || (r.gps && r.gps.lng),
-        accuracy: r.accuracy || (r.gps && r.gps.accuracy)
-      },
-      island: r.island,
-      siteName: r.siteName,
-      species: Array.isArray(r.species) ? r.species : [r.species],
-      count: r.count || 1,
-      threatLevel: (r.threatLevel || 'low').toLowerCase(),
-      coverageArea: r.coverageArea || 0,
-      observer: r.observer,
-      notes: r.notes || '',
-      synced: r.synced
+    // Start with all original fields (preserves category-specific data)
+    const base = Object.assign({}, r);
+    // Normalize common fields
+    base.id = r.id;
+    base.timestamp = r.timestamp;
+    base.category = r.category || 'merremia';
+    base.gps = {
+      lat: r.latitude || (r.gps && r.gps.lat),
+      lng: r.longitude || (r.gps && r.gps.lng),
+      accuracy: r.accuracy || (r.gps && r.gps.accuracy)
     };
+    base.island = r.island;
+    base.siteName = r.siteName;
+    base.observer = r.observer;
+    base.notes = r.notes || '';
+    base.synced = r.synced;
+    // Normalize merremia-specific fields
+    if (base.category === 'merremia') {
+      base.species = Array.isArray(r.species) ? r.species : [r.species];
+      base.count = r.count || 1;
+      base.threatLevel = (r.threatLevel || 'low').toLowerCase();
+      base.coverageArea = r.coverageArea || 0;
+    }
+    return base;
   }
 
   /**
