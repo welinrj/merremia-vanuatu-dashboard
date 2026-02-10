@@ -743,19 +743,7 @@ function updateMap(data) {
         photoHtml += '<img src="' + photoBase + p.id + '-' + i + '.jpg" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)">';
       }
       photoHtml += '</div>';
-      layer.bindPopup(`
-        <div style="min-width:200px">
-          <strong style="font-size:14px;font-style:italic">${p.speciesLabel}</strong><br>
-          <span style="color:#7a9a7a">${p.island || 'Unknown'} · ${p.siteName || ''}</span><br>
-          <div style="margin-top:6px; font-size:12px;">
-            Count: <strong>${p.count || '—'}</strong> ·
-            Threat: <strong>${p.threatLevel}</strong><br>
-            Observer: ${p.observer || '—'}<br>
-            ${new Date(p.timestamp).toLocaleDateString()}
-          </div>
-          ${photoHtml}
-        </div>
-      `, { autoClose: false, closeOnClick: false });
+      layer.bindPopup(photoHtml, { autoClose: false, closeOnClick: false });
     }
   }).addTo(mapLayer);
 
