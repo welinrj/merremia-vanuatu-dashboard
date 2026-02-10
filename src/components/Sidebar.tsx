@@ -7,6 +7,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: 'overview', label: 'Overview' },
+  { id: 'data-portal', label: 'Data Portal' },
   { id: 'sightings', label: 'Sightings' },
   { id: 'locations', label: 'Locations' },
   { id: 'species', label: 'Species' },
