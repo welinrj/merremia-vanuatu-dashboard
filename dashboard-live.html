@@ -309,6 +309,8 @@
     var liveConnector = null;
     var REFRESH_INTERVAL = 5000;
     var lastDataSha = null;
+    var tablePage = 0;
+    var TABLE_PAGE_SIZE = 50;
 
     // Load saved config
     try {
@@ -321,6 +323,7 @@
     // ── Tab Switching ──
     function switchTab(cat) {
       activeTab = cat;
+      tablePage = 0;
       document.querySelectorAll('.cat-tab').forEach(function(b) { b.classList.remove('active'); });
       document.querySelector('.cat-tab.t-' + cat).classList.add('active');
       renderForTab();
@@ -337,7 +340,12 @@
       status.textContent = 'Loading...'; status.className = 'status-msg';
       if (liveConnector) liveConnector.stopAutoRefresh();
       lastDataSha = null;
-      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 3000 });
+      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 3000, onError: function(msg, err) {
+        var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        status.textContent = 'Connection error — retrying... (' + now + ')';
+        status.className = 'status-msg err';
+        console.error(msg, err);
+      }});
       liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
         if (!data || !data.records || data.records.length === 0) {
           status.textContent = 'No records found yet — checking every 5s...';
@@ -418,13 +426,14 @@
       return '#94a3b8';
     }
 
-    function getPhotoHTML(recordId) {
+    function getPhotoHTML(recordId, photoCount) {
       var owner = document.getElementById('cfg-owner').value.trim();
       var repo = document.getElementById('cfg-repo').value.trim();
       var base = 'https://raw.githubusercontent.com/' + owner + '/' + repo + '/main/photos/';
+      var count = photoCount || 3;
       var html = '<div class="popup-photos">';
-      for (var i = 0; i < 5; i++) {
-        html += '<img src="' + base + recordId + '-' + i + '.jpg" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)">';
+      for (var i = 0; i < count; i++) {
+        html += '<img src="' + base + recordId + '-' + i + '.jpg" alt="Field photo ' + (i+1) + '" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)" loading="lazy">';
       }
       return html + '</div>';
     }
@@ -438,7 +447,7 @@
     }
 
     function getPopupHTML(r) {
-      return getPhotoHTML(r.id);
+      return getPhotoHTML(r.id, r.photoCount);
     }
 
     function renderMap(records) {
@@ -516,6 +525,7 @@
     }
 
     function applyFilters() {
+      tablePage = 0;
       var v1 = document.getElementById('filter-1').value;
       var v2 = document.getElementById('filter-2').value;
       var vi = document.getElementById('filter-island').value;
@@ -539,16 +549,27 @@
       });
 
       var sorted = filtered.slice().sort(function(a, b) { return new Date(b.timestamp) - new Date(a.timestamp); });
-      var shown = sorted.slice(0, 50);
+      var totalPages = Math.ceil(sorted.length / TABLE_PAGE_SIZE);
+      if (tablePage >= totalPages) tablePage = Math.max(0, totalPages - 1);
+      var start = tablePage * TABLE_PAGE_SIZE;
+      var shown = sorted.slice(start, start + TABLE_PAGE_SIZE);
       var tableTitles = { merremia: 'Merremia Records', degraded: 'Degraded Area Records', restoration: 'Restoration Records', threatened: 'Threatened Species Records' };
       document.getElementById('table-title').textContent = tableTitles[activeTab] || 'Records';
       var rows = shown.map(function(r) { return buildRow(r); }).join('');
       var headers = buildHeaders();
       var notes = '';
-      if (sorted.length > 50) notes += '<p style="text-align:center;color:#64748b;font-size:0.75rem;margin-top:0.5rem">Showing 50 of ' + sorted.length + '</p>';
+      if (sorted.length > TABLE_PAGE_SIZE) {
+        notes += '<div style="display:flex;align-items:center;justify-content:center;gap:0.75rem;margin-top:0.75rem">';
+        notes += '<button onclick="changeTablePage(-1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;cursor:pointer;font-size:0.75rem;color:#334155"' + (tablePage === 0 ? ' disabled style="opacity:0.4;cursor:default"' : '') + '>&laquo; Prev</button>';
+        notes += '<span style="font-size:0.75rem;color:#64748b">Page ' + (tablePage + 1) + ' of ' + totalPages + ' (' + sorted.length + ' records)</span>';
+        notes += '<button onclick="changeTablePage(1)" style="padding:0.3rem 0.8rem;border:1px solid #e2e8f0;background:#f8fafc;border-radius:0.3rem;cursor:pointer;font-size:0.75rem;color:#334155"' + (tablePage >= totalPages - 1 ? ' disabled style="opacity:0.4;cursor:default"' : '') + '>Next &raquo;</button>';
+        notes += '</div>';
+      }
       if (v1 || v2 || vi) notes += '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:0.25rem">' + filtered.length + ' of ' + tabRecords.length + ' records</p>';
       document.getElementById('records-table').innerHTML = '<div class="table-scroll"><table><thead><tr>' + headers + '</tr></thead><tbody>' + rows + '</tbody></table></div>' + notes;
     }
+
+    function changeTablePage(delta) { tablePage += delta; renderTable(getTabRecords()); }
 
     function buildHeaders() {
       if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>';
@@ -805,12 +826,29 @@
     }
 
     // ── Download functionality ──
-    var DOWNLOAD_PASSWORD = 'M3r3mia@2025';
+    var DOWNLOAD_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
     var pendingFormat = null;
     var currentGeoJSON = null;
 
+    async function sha256(message) {
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
+      return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    function buildGeoJSON(records) {
+      return { type: 'FeatureCollection', features: records.filter(function(r) {
+        var lat = r.latitude || (r.gps && r.gps.lat);
+        var lng = r.longitude || (r.gps && r.gps.lng);
+        return lat && lng;
+      }).map(function(r) {
+        var lat = r.latitude || (r.gps && r.gps.lat);
+        var lng = r.longitude || (r.gps && r.gps.lng);
+        return { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: r };
+      })};
+    }
+
     function enableDownloadButtons(data) {
-      currentGeoJSON = data.geoJSON;
+      currentGeoJSON = data.geoJSON || buildGeoJSON(data.records || []);
       document.getElementById('btn-dl-json').disabled = false;
       document.getElementById('btn-dl-csv').disabled = false;
       document.getElementById('btn-dl-geojson').disabled = false;
@@ -827,9 +865,10 @@
 
     function closeDlModal() { document.getElementById('dl-modal').classList.remove('active'); pendingFormat = null; }
 
-    function confirmDownload() {
+    async function confirmDownload() {
       var pw = document.getElementById('dl-password').value;
-      if (pw !== DOWNLOAD_PASSWORD) { document.getElementById('dl-error').style.display = 'block'; document.getElementById('dl-password').value = ''; document.getElementById('dl-password').focus(); return; }
+      var hash = await sha256(pw);
+      if (hash !== DOWNLOAD_HASH) { document.getElementById('dl-error').style.display = 'block'; document.getElementById('dl-password').value = ''; document.getElementById('dl-password').focus(); return; }
       document.getElementById('dl-error').style.display = 'none';
       var format = pendingFormat || 'json';
       closeDlModal();
