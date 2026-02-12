@@ -33,9 +33,11 @@ const DataPortal: FC = () => {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     migrateFromLocalStorage()
       .then(() => refresh())
-      .finally(() => setLoading(false))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [refresh])
 
   async function handleView(id: string) {

@@ -8,6 +8,7 @@ interface SidebarProps {
 const navItems = [
   { id: 'overview', label: 'Overview' },
   { id: 'data-portal', label: 'Data Portal' },
+  { id: 'gis-database', label: 'GIS Database' },
   { id: 'sightings', label: 'Sightings' },
   { id: 'locations', label: 'Locations' },
   { id: 'species', label: 'Species' },

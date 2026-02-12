@@ -439,6 +439,74 @@ function parseKMLCoords(text: string): number[][] {
     .filter((c) => c.length >= 2)
 }
 
+/** Export all datasets as a single JSON blob for backup */
+export async function exportAllDatasets(): Promise<GeoDataset[]> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_DATASETS, 'readonly')
+    const req = tx.objectStore(STORE_DATASETS).getAll()
+    req.onsuccess = () => resolve(req.result as GeoDataset[])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+/** Import datasets from a backup, skipping any that already exist */
+export async function importDatasets(
+  datasets: GeoDataset[],
+): Promise<{ imported: number; skipped: number }> {
+  let imported = 0
+  let skipped = 0
+  const db = await openDB()
+
+  for (const dataset of datasets) {
+    // Check if already exists
+    const exists = await new Promise<boolean>((resolve, reject) => {
+      const tx = db.transaction(STORE_INDEX, 'readonly')
+      const req = tx.objectStore(STORE_INDEX).get(dataset.id)
+      req.onsuccess = () => resolve(req.result != null)
+      req.onerror = () => reject(req.error)
+    })
+
+    if (exists) {
+      skipped++
+      continue
+    }
+
+    const summary: DatasetSummary = {
+      id: dataset.id,
+      metadata: dataset.metadata,
+      format: dataset.format,
+      featureCount: dataset.featureCount,
+      createdAt: dataset.createdAt,
+      updatedAt: dataset.updatedAt,
+      sizeBytes: dataset.sizeBytes,
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+      tx.objectStore(STORE_DATASETS).put(dataset)
+      tx.objectStore(STORE_INDEX).put(summary)
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    imported++
+  }
+
+  return { imported, skipped }
+}
+
+/** Get storage estimate (where supported) */
+export async function getStorageEstimate(): Promise<{
+  used: number
+  quota: number
+} | null> {
+  if (navigator.storage && navigator.storage.estimate) {
+    const est = await navigator.storage.estimate()
+    return { used: est.usage ?? 0, quota: est.quota ?? 0 }
+  }
+  return null
+}
+
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 B'
   const k = 1024
