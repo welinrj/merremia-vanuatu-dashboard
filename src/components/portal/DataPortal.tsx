@@ -19,9 +19,13 @@ import DatasetEditor from './DatasetEditor'
 import type { GeoDataset, DatasetMetadata } from '../../types/geospatial'
 import './DataPortal.css'
 
+interface DataPortalProps {
+  onNavigate?: (section: string) => void
+}
+
 type PortalView = 'list' | 'upload' | 'detail' | 'edit'
 
-const DataPortal: FC = () => {
+const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
   const [view, setView] = useState<PortalView>('list')
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [activeDataset, setActiveDataset] = useState<GeoDataset | null>(null)
@@ -35,7 +39,7 @@ const DataPortal: FC = () => {
   useEffect(() => {
     let cancelled = false
     migrateFromLocalStorage()
-      .then(() => refresh())
+      .then(() => { if (!cancelled) return refresh() })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [refresh])
@@ -149,6 +153,18 @@ const DataPortal: FC = () => {
               </button>
             </div>
           </div>
+          {datasets.length > 0 && onNavigate && (
+            <div className="db-import-status" style={{ marginBottom: '1rem' }}>
+              All datasets are stored in the GIS Database.
+              <button
+                className="btn btn-sm"
+                style={{ marginLeft: 'auto' }}
+                onClick={() => onNavigate('gis-database')}
+              >
+                Open GIS Database
+              </button>
+            </div>
+          )}
           <DatasetList
             datasets={datasets}
             onView={handleView}

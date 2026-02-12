@@ -10,11 +10,19 @@ import {
   formatBytes,
   migrateFromLocalStorage,
 } from '../../services/datasetStore'
+import DatasetUpload from './DatasetUpload'
 import MapViewer from './MapViewer'
 import './DataPortal.css'
 import './GISDatabase.css'
 
-const GISDatabase: FC = () => {
+interface GISDatabaseProps {
+  onNavigate?: (section: string) => void
+}
+
+type DbView = 'browse' | 'upload'
+
+const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
+  const [view, setView] = useState<DbView>('browse')
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [storageUsed, setStorageUsed] = useState<number | null>(null)
@@ -22,7 +30,7 @@ const GISDatabase: FC = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [preview, setPreview] = useState<GeoDataset | null>(null)
   const [importStatus, setImportStatus] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const backupInputRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(async () => {
     const list = await listDatasets()
@@ -35,9 +43,11 @@ const GISDatabase: FC = () => {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     migrateFromLocalStorage()
       .then(() => refresh())
-      .finally(() => setLoading(false))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [refresh])
 
   const totalFeatures = datasets.reduce((sum, d) => sum + d.featureCount, 0)
@@ -90,7 +100,7 @@ const GISDatabase: FC = () => {
       if (Array.isArray(data)) {
         toImport = data
       } else if (data.type === 'FeatureCollection' || data.type === 'Feature' || data.coordinates) {
-        setImportStatus('This is a GIS file. Use the Data Portal "Upload Dataset" to import it.')
+        setImportStatus('This is a GIS file — use the "Upload Dataset" button to add it to the database.')
         return
       } else {
         setImportStatus('Invalid backup file format.')
@@ -107,8 +117,7 @@ const GISDatabase: FC = () => {
       setImportStatus('Failed to import — invalid file format.')
     }
 
-    // Reset file input
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    if (backupInputRef.current) backupInputRef.current.value = ''
   }
 
   async function handleExportOne(id: string) {
@@ -137,16 +146,33 @@ const GISDatabase: FC = () => {
     )
   }
 
+  if (view === 'upload') {
+    return (
+      <div className="data-portal">
+        <DatasetUpload
+          onUploaded={async () => {
+            await refresh()
+            setView('browse')
+            setImportStatus('Dataset uploaded and stored to database.')
+          }}
+          onCancel={() => setView('browse')}
+        />
+      </div>
+    )
+  }
+
   return (
     <div className="data-portal">
       <div className="portal-toolbar">
         <div className="portal-toolbar-left">
           <h2>GIS Database</h2>
-          <span className="dataset-count">IndexedDB</span>
+          <span className="dataset-count">
+            {datasets.length} dataset{datasets.length !== 1 ? 's' : ''} stored
+          </span>
         </div>
         <div className="portal-toolbar-right">
           <input
-            ref={fileInputRef}
+            ref={backupInputRef}
             type="file"
             accept=".json"
             onChange={handleImportFile}
@@ -154,16 +180,22 @@ const GISDatabase: FC = () => {
           />
           <button
             className="btn btn-secondary"
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => backupInputRef.current?.click()}
           >
             Restore Backup
           </button>
           <button
-            className="btn btn-primary"
+            className="btn btn-secondary"
             onClick={handleExportAll}
             disabled={datasets.length === 0}
           >
             Export Backup
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setView('upload')}
+          >
+            Upload Dataset
           </button>
         </div>
       </div>
@@ -216,10 +248,26 @@ const GISDatabase: FC = () => {
       {/* Dataset table */}
       {datasets.length === 0 ? (
         <div className="portal-empty">
-          <p>No datasets in the database.</p>
+          <p>No datasets in the database yet.</p>
           <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            Go to the <strong>Data Portal</strong> to upload GIS files, or use <strong>Restore Backup</strong> to import a previous export.
+            Click <strong>Upload Dataset</strong> to add GIS files (GeoJSON, CSV, KML), or use <strong>Restore Backup</strong> to import a previous export.
           </p>
+          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
+            <button
+              className="btn btn-primary"
+              onClick={() => setView('upload')}
+            >
+              Upload Your First Dataset
+            </button>
+            {onNavigate && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => onNavigate('data-portal')}
+              >
+                Go to Data Portal
+              </button>
+            )}
+          </div>
         </div>
       ) : (
         <div className="table-container">
