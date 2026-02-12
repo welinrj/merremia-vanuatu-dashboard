@@ -6,8 +6,49 @@ import type {
 } from '../types/geospatial'
 import type { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson'
 
-const STORAGE_KEY = 'merremia-datasets'
-const INDEX_KEY = 'merremia-datasets-index'
+const DB_NAME = 'merremia-gis'
+const DB_VERSION = 1
+const STORE_DATASETS = 'datasets'
+const STORE_INDEX = 'index'
+
+// Legacy localStorage keys for one-time migration
+const LEGACY_STORAGE_KEY = 'merremia-datasets'
+const LEGACY_INDEX_KEY = 'merremia-datasets-index'
+
+let dbInstance: IDBDatabase | null = null
+
+function openDB(): Promise<IDBDatabase> {
+  if (dbInstance) return Promise.resolve(dbInstance)
+
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION)
+
+    request.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+      if (!db.objectStoreNames.contains(STORE_DATASETS)) {
+        db.createObjectStore(STORE_DATASETS, { keyPath: 'id' })
+      }
+      if (!db.objectStoreNames.contains(STORE_INDEX)) {
+        db.createObjectStore(STORE_INDEX, { keyPath: 'id' })
+      }
+    }
+
+    request.onsuccess = () => {
+      dbInstance = request.result
+      resolve(dbInstance)
+    }
+
+    request.onerror = () => reject(request.error)
+  })
+}
+
+/** Reset cached DB connection — used by tests only */
+export function _resetForTests(): void {
+  if (dbInstance) {
+    dbInstance.close()
+    dbInstance = null
+  }
+}
 
 function generateId(): string {
   return `ds_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
@@ -59,37 +100,97 @@ function extractPropertyNames(fc: FeatureCollection): string[] {
   return Array.from(keys).sort()
 }
 
-function getIndex(): DatasetSummary[] {
+/**
+ * Migrate any existing localStorage data to IndexedDB (runs once).
+ * Safe to call multiple times — skips if IndexedDB already has data.
+ */
+export async function migrateFromLocalStorage(): Promise<void> {
   try {
-    const raw = localStorage.getItem(INDEX_KEY)
-    return raw ? JSON.parse(raw) : []
+    const raw = localStorage.getItem(LEGACY_INDEX_KEY)
+    if (!raw) return
+
+    const legacyIndex: DatasetSummary[] = JSON.parse(raw)
+    if (legacyIndex.length === 0) {
+      localStorage.removeItem(LEGACY_INDEX_KEY)
+      return
+    }
+
+    const db = await openDB()
+
+    // Check if IndexedDB already has data
+    const existingCount = await new Promise<number>((resolve, reject) => {
+      const tx = db.transaction(STORE_INDEX, 'readonly')
+      const req = tx.objectStore(STORE_INDEX).count()
+      req.onsuccess = () => resolve(req.result)
+      req.onerror = () => reject(req.error)
+    })
+
+    if (existingCount > 0) {
+      // Already migrated — clean up localStorage
+      localStorage.removeItem(LEGACY_INDEX_KEY)
+      for (const s of legacyIndex) {
+        localStorage.removeItem(`${LEGACY_STORAGE_KEY}:${s.id}`)
+      }
+      return
+    }
+
+    // Migrate each dataset
+    for (const summary of legacyIndex) {
+      const dataRaw = localStorage.getItem(`${LEGACY_STORAGE_KEY}:${summary.id}`)
+      if (dataRaw) {
+        const dataset: GeoDataset = JSON.parse(dataRaw)
+        await new Promise<void>((resolve, reject) => {
+          const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+          tx.objectStore(STORE_DATASETS).put(dataset)
+          tx.objectStore(STORE_INDEX).put(summary)
+          tx.oncomplete = () => resolve()
+          tx.onerror = () => reject(tx.error)
+        })
+      }
+    }
+
+    // Clean up localStorage
+    localStorage.removeItem(LEGACY_INDEX_KEY)
+    for (const s of legacyIndex) {
+      localStorage.removeItem(`${LEGACY_STORAGE_KEY}:${s.id}`)
+    }
   } catch {
-    return []
+    // Migration failure is non-fatal — data stays in localStorage
   }
 }
 
-function saveIndex(index: DatasetSummary[]): void {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(index))
+export async function listDatasets(): Promise<DatasetSummary[]> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_INDEX, 'readonly')
+    const req = tx.objectStore(STORE_INDEX).getAll()
+    req.onsuccess = () => {
+      const results = req.result as DatasetSummary[]
+      results.sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      resolve(results)
+    }
+    req.onerror = () => reject(req.error)
+  })
 }
 
-export function listDatasets(): DatasetSummary[] {
-  return getIndex()
+export async function getDataset(id: string): Promise<GeoDataset | null> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_DATASETS, 'readonly')
+    const req = tx.objectStore(STORE_DATASETS).get(id)
+    req.onsuccess = () => resolve((req.result as GeoDataset) ?? null)
+    req.onerror = () => reject(req.error)
+  })
 }
 
-export function getDataset(id: string): GeoDataset | null {
-  try {
-    const raw = localStorage.getItem(`${STORAGE_KEY}:${id}`)
-    return raw ? JSON.parse(raw) : null
-  } catch {
-    return null
-  }
-}
-
-export function addDataset(
+export async function addDataset(
   data: FeatureCollection<Geometry, GeoJsonProperties>,
   metadata: Partial<DatasetMetadata>,
   format: DatasetFormat,
-): GeoDataset {
+): Promise<GeoDataset> {
   const id = generateId()
   const now = new Date().toISOString()
   const raw = JSON.stringify(data)
@@ -117,10 +218,7 @@ export function addDataset(
     data,
   }
 
-  localStorage.setItem(`${STORAGE_KEY}:${id}`, JSON.stringify(dataset))
-
-  const index = getIndex()
-  index.unshift({
+  const summary: DatasetSummary = {
     id: dataset.id,
     metadata: dataset.metadata,
     format: dataset.format,
@@ -128,45 +226,77 @@ export function addDataset(
     createdAt: dataset.createdAt,
     updatedAt: dataset.updatedAt,
     sizeBytes: dataset.sizeBytes,
+  }
+
+  const db = await openDB()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+    tx.objectStore(STORE_DATASETS).put(dataset)
+    tx.objectStore(STORE_INDEX).put(summary)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
   })
-  saveIndex(index)
 
   return dataset
 }
 
-export function updateDatasetMetadata(
+export async function updateDatasetMetadata(
   id: string,
   updates: Partial<DatasetMetadata>,
-): GeoDataset | null {
-  const dataset = getDataset(id)
+): Promise<GeoDataset | null> {
+  const dataset = await getDataset(id)
   if (!dataset) return null
 
   dataset.metadata = { ...dataset.metadata, ...updates }
   dataset.updatedAt = new Date().toISOString()
 
-  localStorage.setItem(`${STORAGE_KEY}:${id}`, JSON.stringify(dataset))
-
-  const index = getIndex()
-  const entry = index.find((d) => d.id === id)
-  if (entry) {
-    entry.metadata = dataset.metadata
-    entry.updatedAt = dataset.updatedAt
-    saveIndex(index)
+  const summary: DatasetSummary = {
+    id: dataset.id,
+    metadata: dataset.metadata,
+    format: dataset.format,
+    featureCount: dataset.featureCount,
+    createdAt: dataset.createdAt,
+    updatedAt: dataset.updatedAt,
+    sizeBytes: dataset.sizeBytes,
   }
+
+  const db = await openDB()
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+    tx.objectStore(STORE_DATASETS).put(dataset)
+    tx.objectStore(STORE_INDEX).put(summary)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
 
   return dataset
 }
 
-export function deleteDataset(id: string): boolean {
-  const index = getIndex()
-  const idx = index.findIndex((d) => d.id === id)
-  if (idx === -1) return false
+export async function deleteDataset(id: string): Promise<boolean> {
+  const db = await openDB()
 
-  index.splice(idx, 1)
-  saveIndex(index)
-  localStorage.removeItem(`${STORAGE_KEY}:${id}`)
+  // Check if the dataset exists in the index
+  const exists = await new Promise<boolean>((resolve, reject) => {
+    const tx = db.transaction(STORE_INDEX, 'readonly')
+    const req = tx.objectStore(STORE_INDEX).get(id)
+    req.onsuccess = () => resolve(req.result != null)
+    req.onerror = () => reject(req.error)
+  })
+
+  if (!exists) return false
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+    tx.objectStore(STORE_DATASETS).delete(id)
+    tx.objectStore(STORE_INDEX).delete(id)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+
   return true
 }
+
+// ── Parsers (synchronous — no storage involved) ──
 
 export function parseGeoJSON(text: string): FeatureCollection {
   const parsed = JSON.parse(text)
