@@ -1,4 +1,4 @@
-import { useState, useCallback, type FC } from 'react'
+import { useState, useCallback, useEffect, type FC } from 'react'
 import type { DatasetSummary } from '../../types/geospatial'
 import {
   listDatasets,
@@ -6,6 +6,7 @@ import {
   deleteDataset,
   updateDatasetMetadata,
   addDataset,
+  migrateFromLocalStorage,
 } from '../../services/datasetStore'
 import {
   vanuatuSightingsGeoJSON,
@@ -22,37 +23,45 @@ type PortalView = 'list' | 'upload' | 'detail' | 'edit'
 
 const DataPortal: FC = () => {
   const [view, setView] = useState<PortalView>('list')
-  const [datasets, setDatasets] = useState<DatasetSummary[]>(() => listDatasets())
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [activeDataset, setActiveDataset] = useState<GeoDataset | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const refresh = useCallback(() => {
-    setDatasets(listDatasets())
+  const refresh = useCallback(async () => {
+    const list = await listDatasets()
+    setDatasets(list)
   }, [])
 
-  function handleView(id: string) {
-    const ds = getDataset(id)
+  useEffect(() => {
+    migrateFromLocalStorage()
+      .then(() => refresh())
+      .finally(() => setLoading(false))
+  }, [refresh])
+
+  async function handleView(id: string) {
+    const ds = await getDataset(id)
     if (ds) {
       setActiveDataset(ds)
       setView('detail')
     }
   }
 
-  function handleEdit(id: string) {
-    const ds = getDataset(id)
+  async function handleEdit(id: string) {
+    const ds = await getDataset(id)
     if (ds) {
       setActiveDataset(ds)
       setView('edit')
     }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const ds = datasets.find((d) => d.id === id)
     const confirmed = window.confirm(
       `Delete dataset "${ds?.metadata.name ?? id}"? This cannot be undone.`,
     )
     if (confirmed) {
-      deleteDataset(id)
-      refresh()
+      await deleteDataset(id)
+      await refresh()
       if (activeDataset?.id === id) {
         setActiveDataset(null)
         setView('list')
@@ -60,21 +69,21 @@ const DataPortal: FC = () => {
     }
   }
 
-  function handleSaveMetadata(updates: Partial<DatasetMetadata>) {
+  async function handleSaveMetadata(updates: Partial<DatasetMetadata>) {
     if (!activeDataset) return
-    const updated = updateDatasetMetadata(activeDataset.id, updates)
+    const updated = await updateDatasetMetadata(activeDataset.id, updates)
     if (updated) {
       setActiveDataset(updated)
-      refresh()
+      await refresh()
       setView('detail')
     }
   }
 
-  function loadSampleData() {
-    const existing = listDatasets()
+  async function loadSampleData() {
+    const existing = await listDatasets()
     if (existing.some((d) => d.metadata.name === 'Merremia Sightings')) return
 
-    addDataset(
+    await addDataset(
       vanuatuSightingsGeoJSON,
       {
         name: 'Merremia Sightings',
@@ -84,7 +93,7 @@ const DataPortal: FC = () => {
       },
       'geojson',
     )
-    addDataset(
+    await addDataset(
       vanuatuIslandBoundaries,
       {
         name: 'Island Survey Boundaries',
@@ -94,7 +103,20 @@ const DataPortal: FC = () => {
       },
       'geojson',
     )
-    refresh()
+    await refresh()
+  }
+
+  if (loading) {
+    return (
+      <div className="data-portal">
+        <div className="portal-toolbar">
+          <div className="portal-toolbar-left">
+            <h2>GIS Data Portal</h2>
+            <span className="dataset-count">Loading...</span>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (

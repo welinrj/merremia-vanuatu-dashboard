@@ -1,6 +1,6 @@
-import { useState, useCallback, type FC } from 'react'
+import { useState, useCallback, useEffect, type FC } from 'react'
 import type { DatasetSummary, GeoDataset } from '../../types/geospatial'
-import { listDatasets, getDataset } from '../../services/datasetStore'
+import { listDatasets, getDataset, migrateFromLocalStorage } from '../../services/datasetStore'
 import PublicDatasetList from './PublicDatasetList'
 import PublicDatasetDetail from './PublicDatasetDetail'
 import './PublicPortal.css'
@@ -9,18 +9,41 @@ type PortalView = 'list' | 'detail'
 
 const PublicDataPortal: FC = () => {
   const [view, setView] = useState<PortalView>('list')
-  const [datasets] = useState<DatasetSummary[]>(() => {
-    return listDatasets().filter((ds) => ds.metadata.status === 'active')
-  })
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [activeDataset, setActiveDataset] = useState<GeoDataset | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleView = useCallback((id: string) => {
-    const ds = getDataset(id)
+  const loadDatasets = useCallback(async () => {
+    const all = await listDatasets()
+    setDatasets(all.filter((ds) => ds.metadata.status === 'active'))
+  }, [])
+
+  useEffect(() => {
+    migrateFromLocalStorage()
+      .then(() => loadDatasets())
+      .finally(() => setLoading(false))
+  }, [loadDatasets])
+
+  const handleView = useCallback(async (id: string) => {
+    const ds = await getDataset(id)
     if (ds) {
       setActiveDataset(ds)
       setView('detail')
     }
   }, [])
+
+  if (loading) {
+    return (
+      <div className="data-portal">
+        <div className="portal-toolbar">
+          <div className="portal-toolbar-left">
+            <h2>Published Datasets</h2>
+            <span className="dataset-count">Loading...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="data-portal">

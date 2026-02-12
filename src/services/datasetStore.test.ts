@@ -8,6 +8,7 @@ import {
   parseGeoJSON,
   parseCSV,
   formatBytes,
+  _resetForTests,
 } from './datasetStore'
 import type { FeatureCollection } from 'geojson'
 
@@ -27,13 +28,20 @@ const sampleFC: FeatureCollection = {
   ],
 }
 
-beforeEach(() => {
+beforeEach(async () => {
+  _resetForTests()
+  await new Promise<void>((resolve) => {
+    const req = indexedDB.deleteDatabase('merremia-gis')
+    req.onsuccess = () => resolve()
+    req.onerror = () => resolve()
+    req.onblocked = () => resolve()
+  })
   localStorage.clear()
 })
 
 describe('addDataset', () => {
-  it('creates a dataset and returns it', () => {
-    const ds = addDataset(sampleFC, { name: 'Test Data' }, 'geojson')
+  it('creates a dataset and returns it', async () => {
+    const ds = await addDataset(sampleFC, { name: 'Test Data' }, 'geojson')
     expect(ds.id).toMatch(/^ds_/)
     expect(ds.metadata.name).toBe('Test Data')
     expect(ds.featureCount).toBe(2)
@@ -42,8 +50,8 @@ describe('addDataset', () => {
     expect(ds.properties).toContain('value')
   })
 
-  it('computes bounding box', () => {
-    const ds = addDataset(sampleFC, { name: 'BBox Test' }, 'geojson')
+  it('computes bounding box', async () => {
+    const ds = await addDataset(sampleFC, { name: 'BBox Test' }, 'geojson')
     expect(ds.bbox).not.toBeNull()
     expect(ds.bbox![0]).toBeCloseTo(167.1)
     expect(ds.bbox![1]).toBeCloseTo(-17.7)
@@ -53,14 +61,14 @@ describe('addDataset', () => {
 })
 
 describe('listDatasets', () => {
-  it('returns empty list initially', () => {
-    expect(listDatasets()).toEqual([])
+  it('returns empty list initially', async () => {
+    expect(await listDatasets()).toEqual([])
   })
 
-  it('lists added datasets', () => {
-    addDataset(sampleFC, { name: 'DS 1' }, 'geojson')
-    addDataset(sampleFC, { name: 'DS 2' }, 'csv')
-    const list = listDatasets()
+  it('lists added datasets', async () => {
+    await addDataset(sampleFC, { name: 'DS 1' }, 'geojson')
+    await addDataset(sampleFC, { name: 'DS 2' }, 'csv')
+    const list = await listDatasets()
     expect(list).toHaveLength(2)
     expect(list[0].metadata.name).toBe('DS 2')
     expect(list[1].metadata.name).toBe('DS 1')
@@ -68,23 +76,23 @@ describe('listDatasets', () => {
 })
 
 describe('getDataset', () => {
-  it('retrieves a stored dataset with data', () => {
-    const created = addDataset(sampleFC, { name: 'Retrievable' }, 'geojson')
-    const fetched = getDataset(created.id)
+  it('retrieves a stored dataset with data', async () => {
+    const created = await addDataset(sampleFC, { name: 'Retrievable' }, 'geojson')
+    const fetched = await getDataset(created.id)
     expect(fetched).not.toBeNull()
     expect(fetched!.data.features).toHaveLength(2)
     expect(fetched!.metadata.name).toBe('Retrievable')
   })
 
-  it('returns null for unknown id', () => {
-    expect(getDataset('nonexistent')).toBeNull()
+  it('returns null for unknown id', async () => {
+    expect(await getDataset('nonexistent')).toBeNull()
   })
 })
 
 describe('updateDatasetMetadata', () => {
-  it('updates metadata fields', () => {
-    const ds = addDataset(sampleFC, { name: 'Original' }, 'geojson')
-    const updated = updateDatasetMetadata(ds.id, {
+  it('updates metadata fields', async () => {
+    const ds = await addDataset(sampleFC, { name: 'Original' }, 'geojson')
+    const updated = await updateDatasetMetadata(ds.id, {
       name: 'Renamed',
       description: 'New desc',
       tags: ['a', 'b'],
@@ -95,21 +103,21 @@ describe('updateDatasetMetadata', () => {
     expect(updated!.metadata.tags).toEqual(['a', 'b'])
   })
 
-  it('returns null for unknown id', () => {
-    expect(updateDatasetMetadata('nonexistent', { name: 'X' })).toBeNull()
+  it('returns null for unknown id', async () => {
+    expect(await updateDatasetMetadata('nonexistent', { name: 'X' })).toBeNull()
   })
 })
 
 describe('deleteDataset', () => {
-  it('removes dataset', () => {
-    const ds = addDataset(sampleFC, { name: 'To Delete' }, 'geojson')
-    expect(deleteDataset(ds.id)).toBe(true)
-    expect(listDatasets()).toHaveLength(0)
-    expect(getDataset(ds.id)).toBeNull()
+  it('removes dataset', async () => {
+    const ds = await addDataset(sampleFC, { name: 'To Delete' }, 'geojson')
+    expect(await deleteDataset(ds.id)).toBe(true)
+    expect(await listDatasets()).toHaveLength(0)
+    expect(await getDataset(ds.id)).toBeNull()
   })
 
-  it('returns false for unknown id', () => {
-    expect(deleteDataset('nonexistent')).toBe(false)
+  it('returns false for unknown id', async () => {
+    expect(await deleteDataset('nonexistent')).toBe(false)
   })
 })
 

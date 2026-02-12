@@ -70,7 +70,7 @@ const DatasetUpload: FC<DatasetUploadProps> = ({ onUploaded, onCancel }) => {
           break
       }
 
-      addDataset(fc, { name, description, source }, format)
+      await addDataset(fc, { name, description, source }, format)
       onUploaded()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to parse file')
