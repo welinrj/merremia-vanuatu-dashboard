@@ -238,6 +238,18 @@
   color: var(--color-text-secondary);
 }
 
+/* Sidebar footer */
+.sidebar-footer {
+  margin-top: auto;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 0.5rem 0;
+}
+
+.public-portal-link {
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
 /* Placeholder section */
 .placeholder-section {
   background: var(--color-surface);

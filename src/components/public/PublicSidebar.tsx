@@ -1,27 +1,23 @@
 import type { FC } from 'react'
 
-interface SidebarProps {
+interface PublicSidebarProps {
   activeSection: string
   onNavigate: (section: string) => void
 }
 
 const navItems = [
-  { id: 'overview', label: 'Overview' },
-  { id: 'data-portal', label: 'Data Portal' },
-  { id: 'sightings', label: 'Sightings' },
-  { id: 'locations', label: 'Locations' },
-  { id: 'species', label: 'Species' },
-  { id: 'settings', label: 'Settings' },
+  { id: 'datasets', label: 'Datasets' },
+  { id: 'about', label: 'About' },
 ]
 
-const publicPortalUrl = import.meta.env.BASE_URL + 'public.html'
+const inHousePortalUrl = import.meta.env.BASE_URL + 'app.html'
 
-const Sidebar: FC<SidebarProps> = ({ activeSection, onNavigate }) => {
+const PublicSidebar: FC<PublicSidebarProps> = ({ activeSection, onNavigate }) => {
   return (
-    <aside className="sidebar">
+    <aside className="sidebar public-sidebar">
       <div className="sidebar-header">
         <h2>Merremia</h2>
-        <span className="sidebar-subtitle">In-House Portal</span>
+        <span className="sidebar-subtitle">Public Portal</span>
       </div>
       <nav className="sidebar-nav">
         <ul>
@@ -38,12 +34,13 @@ const Sidebar: FC<SidebarProps> = ({ activeSection, onNavigate }) => {
         </ul>
       </nav>
       <div className="sidebar-footer">
-        <a href={publicPortalUrl} className="nav-item public-portal-link" target="_blank" rel="noopener noreferrer">
-          Public Portal &rarr;
+        <span className="public-badge">Read-Only Access</span>
+        <a href={inHousePortalUrl} className="nav-item public-portal-link">
+          Staff Login &rarr;
         </a>
       </div>
     </aside>
   )
 }
 
-export default Sidebar
+export default PublicSidebar
