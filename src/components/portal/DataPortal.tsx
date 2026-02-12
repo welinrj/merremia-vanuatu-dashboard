@@ -39,7 +39,11 @@ const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
   useEffect(() => {
     let cancelled = false
     migrateFromLocalStorage()
-      .then(() => { if (!cancelled) return refresh() })
+      .then(async () => {
+        if (cancelled) return
+        const list = await listDatasets()
+        if (!cancelled) setDatasets(list)
+      })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [refresh])
