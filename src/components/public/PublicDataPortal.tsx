@@ -20,10 +20,12 @@ const PublicDataPortal: FC = () => {
   }, [])
 
   useEffect(() => {
+    let cancelled = false
     migrateFromLocalStorage()
       .then(() => loadDatasets())
-      .catch(() => setError('Unable to load datasets. Please try refreshing the page.'))
-      .finally(() => setLoading(false))
+      .catch(() => { if (!cancelled) setError('Unable to load datasets. Please try refreshing the page.') })
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [loadDatasets])
 
   const handleView = useCallback(async (id: string) => {
