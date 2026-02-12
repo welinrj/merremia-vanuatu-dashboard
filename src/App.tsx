@@ -41,8 +41,12 @@ function App() {
               </div>
             </>
           )}
-          {activeSection === 'data-portal' && <DataPortal />}
-          {activeSection === 'gis-database' && <GISDatabase />}
+          {activeSection === 'data-portal' && (
+            <DataPortal onNavigate={setActiveSection} />
+          )}
+          {activeSection === 'gis-database' && (
+            <GISDatabase onNavigate={setActiveSection} />
+          )}
           {activeSection === 'sightings' && (
             <SightingsTable sightings={recentSightings} />
           )}

@@ -67,6 +67,8 @@ describe('listDatasets', () => {
 
   it('lists added datasets', async () => {
     await addDataset(sampleFC, { name: 'DS 1' }, 'geojson')
+    // Small delay so timestamps differ for deterministic sort order
+    await new Promise((r) => setTimeout(r, 10))
     await addDataset(sampleFC, { name: 'DS 2' }, 'csv')
     const list = await listDatasets()
     expect(list).toHaveLength(2)
