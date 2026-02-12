@@ -31,6 +31,7 @@ const Sidebar: FC<SidebarProps> = ({ activeSection, onNavigate }) => {
               <button
                 className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
                 onClick={() => onNavigate(item.id)}
+                title={item.label}
               >
                 {item.label}
               </button>

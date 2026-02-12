@@ -35,7 +35,7 @@ const PublicSidebar: FC<PublicSidebarProps> = ({ activeSection, onNavigate }) =>
       </nav>
       <div className="sidebar-footer">
         <span className="public-badge">Read-Only Access</span>
-        <a href={inHousePortalUrl} className="nav-item public-portal-link">
+        <a href={inHousePortalUrl} className="nav-item public-portal-link" target="_blank" rel="noopener noreferrer">
           Staff Login &rarr;
         </a>
       </div>

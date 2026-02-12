@@ -49,6 +49,9 @@ const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
     if (ds) {
       setActiveDataset(ds)
       setView('detail')
+    } else {
+      setActiveDataset(null)
+      setView('list')
     }
   }
 
@@ -57,6 +60,9 @@ const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
     if (ds) {
       setActiveDataset(ds)
       setView('edit')
+    } else {
+      setActiveDataset(null)
+      setView('list')
     }
   }
 

@@ -52,17 +52,20 @@ const AttributeTable: FC<AttributeTableProps> = ({ data, properties }) => {
               <th>#</th>
               <th>Geometry</th>
               {properties.map((prop) => (
-                <th
-                  key={prop}
-                  onClick={() => handleSort(prop)}
-                  className="sortable-header"
-                >
-                  {prop}
-                  {sortField === prop && (
-                    <span className="sort-indicator">
-                      {sortAsc ? ' \u25B2' : ' \u25BC'}
-                    </span>
-                  )}
+                <th key={prop} className="sortable-header">
+                  <button
+                    type="button"
+                    className="sort-button"
+                    onClick={() => handleSort(prop)}
+                    aria-label={`Sort by ${prop}`}
+                  >
+                    {prop}
+                    {sortField === prop && (
+                      <span className="sort-indicator" aria-hidden="true">
+                        {sortAsc ? ' \u25B2' : ' \u25BC'}
+                      </span>
+                    )}
+                  </button>
                 </th>
               ))}
             </tr>

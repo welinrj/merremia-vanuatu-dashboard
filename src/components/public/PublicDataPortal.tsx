@@ -12,6 +12,7 @@ const PublicDataPortal: FC = () => {
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [activeDataset, setActiveDataset] = useState<GeoDataset | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   const loadDatasets = useCallback(async () => {
     const all = await listDatasets()
@@ -21,6 +22,7 @@ const PublicDataPortal: FC = () => {
   useEffect(() => {
     migrateFromLocalStorage()
       .then(() => loadDatasets())
+      .catch(() => setError('Unable to load datasets. Please try refreshing the page.'))
       .finally(() => setLoading(false))
   }, [loadDatasets])
 
@@ -47,6 +49,9 @@ const PublicDataPortal: FC = () => {
 
   return (
     <div className="data-portal">
+      {error && (
+        <div className="form-error" role="alert">{error}</div>
+      )}
       {view === 'list' && (
         <>
           <div className="portal-toolbar">
@@ -60,7 +65,7 @@ const PublicDataPortal: FC = () => {
               <span className="public-read-only-badge">Read-Only</span>
             </div>
           </div>
-          {datasets.length === 0 ? (
+          {datasets.length === 0 && !error ? (
             <div className="portal-empty">
               <p>No published datasets available yet.</p>
               <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>

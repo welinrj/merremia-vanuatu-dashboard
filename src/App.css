@@ -264,12 +264,30 @@
 @media (max-width: 768px) {
   .sidebar {
     width: 60px;
+    overflow: hidden;
   }
 
-  .sidebar-header h2,
-  .sidebar-subtitle,
+  .sidebar-header {
+    padding: 1rem 0.5rem;
+    text-align: center;
+  }
+
+  .sidebar-header h2 {
+    font-size: 0.75rem;
+  }
+
+  .sidebar-subtitle {
+    display: none;
+  }
+
   .nav-item {
+    padding: 0.75rem 0.5rem;
     font-size: 0;
+    text-align: center;
+  }
+
+  .nav-item::first-letter {
+    font-size: 1rem;
   }
 
   .main-content {

@@ -203,7 +203,7 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
       {importStatus && (
         <div className="db-import-status" role="status">
           {importStatus}
-          <button className="db-dismiss" onClick={() => setImportStatus('')}>
+          <button className="db-dismiss" onClick={() => setImportStatus('')} aria-label="Dismiss">
             &times;
           </button>
         </div>
