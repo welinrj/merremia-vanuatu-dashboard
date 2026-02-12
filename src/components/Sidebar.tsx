@@ -5,6 +5,8 @@ interface SidebarProps {
   activeSection: string
   onPageChange: (page: 'staff' | 'public') => void
   onNavigate: (section: string) => void
+  staffAuth: boolean
+  onLogout: () => void
 }
 
 const staffNavItems = [
@@ -22,7 +24,7 @@ const publicNavItems = [
   { id: 'about', label: 'About' },
 ]
 
-const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, onNavigate }) => {
+const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, onNavigate, staffAuth, onLogout }) => {
   const navItems = activePage === 'staff' ? staffNavItems : publicNavItems
 
   return (
@@ -62,6 +64,11 @@ const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, on
       <div className="sidebar-footer">
         {activePage === 'public' && (
           <span className="public-badge">Read-Only Access</span>
+        )}
+        {activePage === 'staff' && staffAuth && (
+          <button className="nav-item logout-btn" onClick={onLogout}>
+            Log Out
+          </button>
         )}
       </div>
     </aside>
