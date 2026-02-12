@@ -27,12 +27,7 @@ jobs:
 
       - run: npm ci
       - run: npm run build
-        continue-on-error: true
       - run: npm test
-        continue-on-error: true
-
-      # Ensure dist exists even if Vite build failed
-      - run: mkdir -p dist
 
       # Copy static HTML portals into the deploy output
       - name: Copy static portals to dist

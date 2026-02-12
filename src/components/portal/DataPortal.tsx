@@ -158,8 +158,8 @@ const DataPortal: FC = () => {
 
       {view === 'upload' && (
         <DatasetUpload
-          onUploaded={() => {
-            refresh()
+          onUploaded={async () => {
+            await refresh()
             setView('list')
           }}
           onCancel={() => setView('list')}
