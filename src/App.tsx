@@ -5,12 +5,14 @@ import StatCard from './components/StatCard'
 import SightingsTable from './components/SightingsTable'
 import LocationList from './components/LocationList'
 import DataPortal from './components/portal/DataPortal'
+import GISDatabase from './components/portal/GISDatabase'
 import { stats, recentSightings, locationSummaries } from './data/sampleData'
 import './App.css'
 
 const sectionTitles: Record<string, string> = {
   overview: 'Overview',
   'data-portal': 'Data Portal',
+  'gis-database': 'GIS Database',
   sightings: 'Sightings',
   locations: 'Locations',
   species: 'Species',
@@ -40,6 +42,7 @@ function App() {
             </>
           )}
           {activeSection === 'data-portal' && <DataPortal />}
+          {activeSection === 'gis-database' && <GISDatabase />}
           {activeSection === 'sightings' && (
             <SightingsTable sightings={recentSightings} />
           )}

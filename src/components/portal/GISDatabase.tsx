@@ -1,0 +1,311 @@
+import { useState, useCallback, useEffect, useRef, type FC } from 'react'
+import type { DatasetSummary, GeoDataset } from '../../types/geospatial'
+import {
+  listDatasets,
+  getDataset,
+  deleteDataset,
+  exportAllDatasets,
+  importDatasets,
+  getStorageEstimate,
+  formatBytes,
+  migrateFromLocalStorage,
+} from '../../services/datasetStore'
+import MapViewer from './MapViewer'
+import './DataPortal.css'
+import './GISDatabase.css'
+
+const GISDatabase: FC = () => {
+  const [datasets, setDatasets] = useState<DatasetSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const [storageUsed, setStorageUsed] = useState<number | null>(null)
+  const [storageQuota, setStorageQuota] = useState<number | null>(null)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [preview, setPreview] = useState<GeoDataset | null>(null)
+  const [importStatus, setImportStatus] = useState('')
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const refresh = useCallback(async () => {
+    const list = await listDatasets()
+    setDatasets(list)
+    const est = await getStorageEstimate()
+    if (est) {
+      setStorageUsed(est.used)
+      setStorageQuota(est.quota)
+    }
+  }, [])
+
+  useEffect(() => {
+    migrateFromLocalStorage()
+      .then(() => refresh())
+      .finally(() => setLoading(false))
+  }, [refresh])
+
+  const totalFeatures = datasets.reduce((sum, d) => sum + d.featureCount, 0)
+  const totalSize = datasets.reduce((sum, d) => sum + d.sizeBytes, 0)
+
+  async function handlePreview(id: string) {
+    if (selectedId === id) {
+      setSelectedId(null)
+      setPreview(null)
+      return
+    }
+    setSelectedId(id)
+    const ds = await getDataset(id)
+    setPreview(ds)
+  }
+
+  async function handleDelete(id: string) {
+    const ds = datasets.find((d) => d.id === id)
+    if (!window.confirm(`Delete "${ds?.metadata.name}"? This cannot be undone.`)) return
+    await deleteDataset(id)
+    if (selectedId === id) {
+      setSelectedId(null)
+      setPreview(null)
+    }
+    await refresh()
+  }
+
+  async function handleExportAll() {
+    const all = await exportAllDatasets()
+    const json = JSON.stringify(all, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `merremia-gis-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setImportStatus('Importing...')
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+
+      let toImport: GeoDataset[]
+      if (Array.isArray(data)) {
+        toImport = data
+      } else if (data.type === 'FeatureCollection' || data.type === 'Feature' || data.coordinates) {
+        setImportStatus('This is a GIS file. Use the Data Portal "Upload Dataset" to import it.')
+        return
+      } else {
+        setImportStatus('Invalid backup file format.')
+        return
+      }
+
+      const result = await importDatasets(toImport)
+      await refresh()
+      setImportStatus(
+        `Imported ${result.imported} dataset${result.imported !== 1 ? 's' : ''}` +
+        (result.skipped > 0 ? `, ${result.skipped} already existed` : ''),
+      )
+    } catch {
+      setImportStatus('Failed to import — invalid file format.')
+    }
+
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handleExportOne(id: string) {
+    const ds = await getDataset(id)
+    if (!ds) return
+    const json = JSON.stringify(ds.data, null, 2)
+    const blob = new Blob([json], { type: 'application/geo+json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${ds.metadata.name.replace(/\s+/g, '_')}.geojson`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return (
+      <div className="data-portal">
+        <div className="portal-toolbar">
+          <div className="portal-toolbar-left">
+            <h2>GIS Database</h2>
+            <span className="dataset-count">Loading...</span>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="data-portal">
+      <div className="portal-toolbar">
+        <div className="portal-toolbar-left">
+          <h2>GIS Database</h2>
+          <span className="dataset-count">IndexedDB</span>
+        </div>
+        <div className="portal-toolbar-right">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json"
+            onChange={handleImportFile}
+            hidden
+          />
+          <button
+            className="btn btn-secondary"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Restore Backup
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={handleExportAll}
+            disabled={datasets.length === 0}
+          >
+            Export Backup
+          </button>
+        </div>
+      </div>
+
+      {importStatus && (
+        <div className="db-import-status" role="status">
+          {importStatus}
+          <button className="db-dismiss" onClick={() => setImportStatus('')}>
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Storage stats */}
+      <div className="db-stats-grid">
+        <div className="db-stat-card">
+          <span className="db-stat-value">{datasets.length}</span>
+          <span className="db-stat-label">Datasets</span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-value">{totalFeatures.toLocaleString()}</span>
+          <span className="db-stat-label">Total Features</span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-value">{formatBytes(totalSize)}</span>
+          <span className="db-stat-label">Data Size</span>
+        </div>
+        <div className="db-stat-card">
+          <span className="db-stat-value">
+            {storageQuota ? formatBytes(storageQuota - (storageUsed ?? 0)) : 'N/A'}
+          </span>
+          <span className="db-stat-label">Storage Available</span>
+        </div>
+      </div>
+
+      {storageUsed != null && storageQuota != null && storageQuota > 0 && (
+        <div className="db-storage-bar-container">
+          <div className="db-storage-bar">
+            <div
+              className="db-storage-bar-fill"
+              style={{ width: `${Math.min((storageUsed / storageQuota) * 100, 100)}%` }}
+            />
+          </div>
+          <span className="db-storage-text">
+            {formatBytes(storageUsed)} of {formatBytes(storageQuota)} used
+          </span>
+        </div>
+      )}
+
+      {/* Dataset table */}
+      {datasets.length === 0 ? (
+        <div className="portal-empty">
+          <p>No datasets in the database.</p>
+          <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
+            Go to the <strong>Data Portal</strong> to upload GIS files, or use <strong>Restore Backup</strong> to import a previous export.
+          </p>
+        </div>
+      ) : (
+        <div className="table-container">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Format</th>
+                <th>Features</th>
+                <th>Size</th>
+                <th>Status</th>
+                <th>Stored</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {datasets.map((ds) => (
+                <tr key={ds.id} className={selectedId === ds.id ? 'db-row-selected' : ''}>
+                  <td>
+                    <button className="link-button" onClick={() => handlePreview(ds.id)}>
+                      {ds.metadata.name}
+                    </button>
+                    {ds.metadata.description && (
+                      <span className="dataset-description">{ds.metadata.description}</span>
+                    )}
+                  </td>
+                  <td>
+                    <span className="badge badge-format">{ds.format.toUpperCase()}</span>
+                  </td>
+                  <td>{ds.featureCount.toLocaleString()}</td>
+                  <td>{formatBytes(ds.sizeBytes)}</td>
+                  <td>
+                    <span className={`badge badge-${ds.metadata.status}`}>
+                      {ds.metadata.status}
+                    </span>
+                  </td>
+                  <td>{new Date(ds.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => handleExportOne(ds.id)}
+                        title="Download as GeoJSON"
+                      >
+                        Download
+                      </button>
+                      <button
+                        className="btn btn-sm btn-danger"
+                        onClick={() => handleDelete(ds.id)}
+                        title="Delete from database"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* Map preview */}
+      {preview && (
+        <div className="db-preview">
+          <div className="db-preview-header">
+            <h3>Preview: {preview.metadata.name}</h3>
+            <button className="btn btn-sm" onClick={() => { setSelectedId(null); setPreview(null) }}>
+              Close
+            </button>
+          </div>
+          <div className="db-preview-meta">
+            <span>{preview.featureCount} features</span>
+            <span>{preview.format.toUpperCase()}</span>
+            <span>{formatBytes(preview.sizeBytes)}</span>
+            {preview.bbox && (
+              <span>
+                Bbox: [{preview.bbox.map((v) => v.toFixed(2)).join(', ')}]
+              </span>
+            )}
+          </div>
+          <MapViewer data={preview.data} height="350px" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default GISDatabase
