@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#065f46">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>DEPC Field Collector</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;color:#1e293b;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
+    header{background:linear-gradient(135deg,#052e23 0%,#064e3b 50%,#065f46 100%);padding:1rem 1.25rem;border-bottom:1px solid rgba(16,185,129,0.3);display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 24px rgba(0,0,0,0.3)}
+    header h1{font-size:1.05rem;font-weight:800;color:#ecfdf5;letter-spacing:-0.01em}
+    header .subtitle{font-size:0.68rem;color:rgba(110,231,183,0.8);font-weight:500}
+    .header-left{display:flex;align-items:center;gap:0.6rem}
+    .header-logo{height:38px;width:auto;border-radius:0.4rem;background:rgba(255,255,255,0.95);padding:3px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,0.2)}
+    .logo-dept-name{font-size:0.5rem;font-weight:700;color:rgba(236,253,245,0.85);line-height:1.3;letter-spacing:0.04em;max-width:120px;text-transform:uppercase}
+    .header-btns{display:flex;gap:0.5rem}
+    .icon-btn{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#ecfdf5;width:36px;height:36px;border-radius:0.5rem;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:1.1rem;transition:all 0.2s}
+    .icon-btn:active{transform:scale(0.95)}
+    .icon-btn.active{background:#10b981;border-color:#34d399}
+    nav{display:flex;background:#f8fafc;border-bottom:1px solid #e2e8f0}
+    nav button{flex:1;padding:0.75rem;background:none;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.25s;letter-spacing:0.01em}
+    nav button.active{color:#065f46;border-bottom-color:#10b981;background:linear-gradient(180deg,transparent 0%,rgba(16,185,129,0.06) 100%)}
+    .view{display:none;flex:1;overflow-y:auto;padding:1rem;background:#f8fafc}
+    .view.active{display:flex;flex-direction:column;gap:0.85rem}
+    .field-group{background:#ffffff;border-radius:0.75rem;padding:1rem;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+    .field-group label{display:block;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.08em;color:#64748b;margin-bottom:0.4rem;font-weight:700}
+    .field-group input,.field-group select,.field-group textarea{width:100%;padding:0.65rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:0.5rem;color:#1e293b;font-size:0.88rem;font-family:inherit;transition:border-color 0.2s}
+    .field-group input:focus,.field-group select:focus,.field-group textarea:focus{outline:none;border-color:#10b981}
+    .field-group textarea{height:80px;resize:vertical}
+    .field-group select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2364748b' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 0.6rem center}
+    .row{display:grid;grid-template-columns:1fr 1fr;gap:0.75rem}
+    .gps-display{display:flex;align-items:center;gap:0.5rem;padding:0.5rem;background:#f8fafc;border-radius:0.4rem;font-size:0.85rem;border:1px solid #e2e8f0}
+    .gps-display .coord{color:#065f46;font-family:monospace;font-weight:600}
+    .gps-display .accuracy{color:#f59e0b;font-size:0.75rem}
+    .gps-manual-toggle{display:inline-block;font-size:0.72rem;color:#065f46;margin-top:0.3rem;cursor:pointer;text-decoration:underline}
+    .gps-manual-inputs{display:none;gap:0.5rem;margin-top:0.4rem}
+    .gps-manual-inputs.active{display:grid;grid-template-columns:1fr 1fr}
+    .gps-manual-inputs input{padding:0.4rem 0.5rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.8rem;background:#f8fafc;color:#1e293b;font-family:monospace}
+    .btn{padding:0.8rem 1.5rem;border-radius:0.6rem;border:none;font-size:0.92rem;font-weight:700;cursor:pointer;width:100%;transition:all 0.25s;font-family:inherit}
+    .btn-primary{background:linear-gradient(135deg,#065f46,#047857);color:#ecfdf5;border:1px solid rgba(16,185,129,0.4);box-shadow:0 4px 16px rgba(16,185,129,0.2)}
+    .btn-primary:active{transform:scale(0.98)}
+    .btn-primary:disabled{opacity:0.4;cursor:not-allowed;transform:none}
+    .gps-hint{text-align:center;font-size:0.75rem;color:#f59e0b;margin-top:0.4rem}
+    .gps-hint.ready{color:#065f46}
+    .gps-accuracy-good{color:#065f46!important}
+    .gps-accuracy-bad{color:#dc2626!important}
+    .btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #ef4444}
+    .btn-secondary{background:#f1f5f9;color:#334155;border:1px solid #cbd5e1}
+    .photo-btn{display:flex;align-items:center;justify-content:center;gap:0.5rem;padding:1.5rem;border:2px dashed #cbd5e1;border-radius:0.75rem;background:#f8fafc;color:#64748b;cursor:pointer;font-size:0.88rem;transition:all 0.2s;font-family:inherit}
+    .photo-btn:active{border-color:#10b981;color:#065f46}
+    .photo-preview{display:flex;gap:0.5rem;flex-wrap:wrap;margin-top:0.5rem}
+    .photo-preview img{width:60px;height:60px;object-fit:cover;border-radius:0.4rem;border:1px solid #e2e8f0;cursor:pointer}
+    .photo-preview img:hover{border-color:#10b981}
+    .record-photos{display:flex;gap:0.4rem;flex-wrap:wrap;margin-top:0.5rem}
+    .record-photos img{width:56px;height:42px;object-fit:cover;border-radius:0.3rem;border:1px solid #e2e8f0;cursor:pointer}
+    .record-photos img:hover{border-color:#10b981}
+    .photo-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer}
+    .photo-overlay img{max-width:95%;max-height:90%;border-radius:0.5rem}
+    .record-card{background:#ffffff;border-radius:0.75rem;padding:1rem;border:1px solid #e2e8f0;margin-bottom:0.75rem;transition:border-color 0.3s;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+    .record-card:hover{border-color:#cbd5e1}
+    .record-card h4{color:#065f46;font-size:0.88rem;margin-bottom:0.25rem;font-weight:700}
+    .btn-edit-record{display:inline-block;width:48%;margin-top:0.75rem;background:#dbeafe;color:#1e40af;border:2px solid #3b82f6;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em}
+    .btn-edit-record:active{background:#bfdbfe;transform:scale(0.98)}
+    .btn-delete-record{display:inline-block;width:48%;margin-top:0.75rem;background:#fee2e2;color:#991b1b;border:2px solid #ef4444;border-radius:0.5rem;padding:0.65rem;font-size:0.9rem;font-weight:700;cursor:pointer;text-align:center;letter-spacing:0.03em;margin-left:2%}
+    .btn-delete-record:active{background:#fecaca;transform:scale(0.98)}
+    .editing-banner{background:#dbeafe;color:#1e40af;text-align:center;padding:0.5rem;font-size:0.8rem;font-weight:700;border-radius:0.4rem;margin-bottom:0.75rem}
+    .delete-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;display:flex;align-items:center;justify-content:center}
+    .delete-modal{background:#ffffff;border:1px solid #e2e8f0;border-radius:0.75rem;padding:1.5rem;max-width:340px;width:90%;z-index:9999;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+    .delete-modal h3{color:#dc2626;font-size:1rem;margin-bottom:0.75rem}
+    .delete-modal p{color:#64748b;font-size:0.85rem;margin-bottom:1rem}
+    .delete-modal input{width:100%;padding:0.6rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:0.4rem;color:#1e293b;font-size:0.9rem;margin-bottom:1rem}
+    .delete-modal-btns{display:flex;gap:0.5rem}
+    .delete-modal-btns button{flex:1;padding:0.6rem;border-radius:0.4rem;font-weight:600;cursor:pointer;border:none;font-size:0.85rem}
+    .record-card p{color:#64748b;font-size:0.8rem;line-height:1.5}
+    .record-card .meta{display:flex;gap:0.75rem;margin-top:0.5rem;font-size:0.7rem;color:#94a3b8;flex-wrap:wrap}
+    .badge-sm{display:inline-block;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.65rem;font-weight:600}
+    .badge-pending{background:#fef3c7;color:#92400e}
+    .badge-synced{background:#d1fae5;color:#065f46}
+    .empty-state{text-align:center;padding:3rem 1rem;color:#64748b}
+    .empty-state .icon{font-size:3rem;margin-bottom:1rem}
+    .settings-field{margin-bottom:1rem}
+    .settings-field label{display:block;font-size:0.8rem;color:#64748b;margin-bottom:0.3rem}
+    .settings-field input{width:100%;padding:0.6rem;background:#f8fafc;border:1px solid #cbd5e1;border-radius:0.4rem;color:#1e293b;font-size:0.85rem}
+    .sync-status{text-align:center;padding:1rem;background:#ffffff;border-radius:0.75rem;border:1px solid #e2e8f0;margin-bottom:1rem;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+    .sync-status .count{font-size:2rem;font-weight:800;background:linear-gradient(135deg,#d97706,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+    .sync-status .label{font-size:0.8rem;color:#64748b}
+    .offline-banner{background:#78350f;color:#fcd34d;text-align:center;padding:0.4rem;font-size:0.75rem;font-weight:600;display:none}
+    .offline-banner.show{display:block}
+    input[type="file"]{display:none}
+    .toast{position:fixed;top:60px;left:50%;transform:translateX(-50%);padding:0.75rem 1.25rem;border-radius:0.5rem;font-size:0.85rem;font-weight:600;z-index:9999;animation:slideDown 0.3s ease;max-width:90%}
+    .toast-info{background:#d1fae5;color:#065f46;border:1px solid #10b981}
+    .toast-warn{background:#fef3c7;color:#92400e;border:1px solid #f59e0b}
+    .toast-error{background:#fee2e2;color:#991b1b;border:1px solid #ef4444}
+    @keyframes slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+    .cat-fields{display:none;flex-direction:column;gap:1rem}
+    .cat-fields.active{display:flex}
+    .cat-badge{display:inline-block;padding:0.1rem 0.45rem;border-radius:9999px;font-size:0.6rem;font-weight:700;text-transform:uppercase;letter-spacing:0.03em;margin-left:0.3rem}
+    .cat-merremia{background:#d1fae5;color:#065f46}
+    .cat-degraded{background:#fee2e2;color:#991b1b}
+    .cat-restoration{background:#dbeafe;color:#1e40af}
+    .cat-threatened{background:#f3e8ff;color:#6b21a8}
+    .category-select select{font-size:1rem;font-weight:600;padding:0.75rem}
+    footer{background:#f8fafc;padding:1.5rem 1.25rem 1.25rem;color:#64748b;font-size:0.72rem;border-top:1px solid #e2e8f0;margin-top:auto;text-align:center}
+    .footer-inner{max-width:720px;margin:0 auto}
+    .footer-coa{margin-bottom:0.6rem}
+    .footer-coa img{height:48px;opacity:0.5}
+    .footer-dept-name{color:#1e293b;font-size:0.72rem;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:0.15rem}
+    .footer-ministry{color:#64748b;font-size:0.64rem;line-height:1.5;margin-bottom:1rem}
+    .footer-divider{border:none;border-top:1px solid #e2e8f0;margin:0 auto 1rem;max-width:320px}
+    .footer-contacts{display:grid;grid-template-columns:1fr 1fr;gap:1rem 1.5rem;text-align:left;margin-bottom:1rem;max-width:500px;margin-left:auto;margin-right:auto}
+    .footer-contact-col h4{color:#334155;font-size:0.58rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 0.25rem;font-weight:700}
+    .footer-contact-col p{color:#64748b;line-height:1.6;font-size:0.66rem;margin:0}
+    .footer-contact-col a{color:#065f46;text-decoration:none}
+    .footer-contact-col a:hover{color:#10b981}
+    .footer-bottom{padding-top:0.75rem;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:0.58rem;max-width:320px;margin:0 auto}
+    .footer-bottom strong{color:#64748b}
+    @media(max-width:480px){.footer-contacts{grid-template-columns:1fr;text-align:center}}
+    @media print{
+      header,nav,.header-btns,.offline-banner,.gps-manual-toggle,.gps-manual-inputs,.photo-preview,.btn,.btn-save,.sync-status,#storage-warning,#sync-progress{display:none!important}
+      body{background:#fff;color:#000;font-size:11pt}
+      .view{display:block!important;padding:0.5rem}
+      .field-group{border:1px solid #ccc;padding:0.5rem;margin-bottom:0.5rem;break-inside:avoid}
+      .record-item{break-inside:avoid;border:1px solid #ccc;padding:0.5rem;margin-bottom:0.5rem}
+      footer{font-size:9pt;border-top:1px solid #ccc}
+    }
+  </style>
+</head>
+<body>
+  <div class="offline-banner" id="offline-banner" role="alert" aria-live="assertive">OFFLINE MODE — data saved locally</div>
+  <header>
+    <div class="header-left">
+      <img src="assets/depc-logo.png" alt="DEPC" class="header-logo">
+      <span class="logo-dept-name">DEPARTMENT OF ENVIRONMENTAL PROTECTION AND CONSERVATION</span>
+      <div>
+        <h1>DEPC Field Collector</h1>
+        <div class="subtitle">DEPC &mdash; Spatial Solutions</div>
+      </div>
+    </div>
+    <div class="header-btns">
+      <button class="icon-btn" onclick="showHelp()" title="Help" aria-label="Help">?</button>
+      <button class="icon-btn" id="btn-sync" onclick="syncData()" title="Sync data" aria-label="Sync data">&#8635;</button>
+    </div>
+  </header>
+
+  <nav>
+    <button class="active" onclick="showView('collect')" id="nav-collect">Collect</button>
+    <button onclick="showView('records')" id="nav-records">Records <span id="record-count"></span></button>
+    <button onclick="showView('settings')" id="nav-settings">Settings</button>
+  </nav>
+
+  <!-- ═══ COLLECT VIEW ═══ -->
+  <div class="view active" id="view-collect">
+    <div class="field-group">
+      <label>GPS Location</label>
+      <div class="gps-display" id="gps-display">
+        <span>&#128205;</span>
+        <span class="coord" id="gps-coords">Acquiring...</span>
+        <span class="accuracy" id="gps-accuracy"></span>
+      </div>
+      <span class="gps-manual-toggle" onclick="toggleManualGPS()">Enter coordinates manually</span>
+      <div class="gps-manual-inputs" id="gps-manual">
+        <input type="number" id="manual-lat" placeholder="Latitude (e.g. -17.7)" step="any">
+        <input type="number" id="manual-lng" placeholder="Longitude (e.g. 168.3)" step="any">
+      </div>
+    </div>
+
+    <div class="field-group category-select">
+      <label>Survey Category</label>
+      <select id="f-category" onchange="switchCategory()">
+        <option value="merremia">Merremia Vine Monitoring</option>
+        <option value="degraded">Degraded Areas</option>
+        <option value="restoration">Areas Under Restoration</option>
+        <option value="threatened">Threatened Species</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <div class="field-group">
+        <label>Island</label>
+        <select id="f-island">
+          <option value="">Select island</option>
+          <option>Efate</option>
+          <option>Espiritu Santo</option>
+          <option>Tanna</option>
+          <option>Malakula</option>
+          <option>Pentecost</option>
+          <option>Ambae</option>
+          <option>Erromango</option>
+          <option>Epi</option>
+          <option>Other</option>
+        </select>
+      </div>
+      <div class="field-group">
+        <label>Site Name</label>
+        <input id="f-site" placeholder="e.g. Mele Bay">
+      </div>
+    </div>
+
+    <!-- ── MERREMIA FIELDS ── -->
+    <div class="cat-fields active" id="fields-merremia">
+      <div class="row">
+        <div class="field-group">
+          <label>Species</label>
+          <select id="f-species">
+            <option value="">Select species</option>
+            <option>M. peltata</option>
+            <option>M. vitifolia</option>
+            <option>M. tridentata</option>
+            <option>M. gemella</option>
+            <option>M. umbellata</option>
+            <option>M. tuberosa</option>
+            <option>M. dissecta</option>
+            <option>Unknown Merremia</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Observation Count</label>
+          <input id="f-count" type="number" min="1" value="1">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Threat Level</label>
+          <select id="f-threat">
+            <option value="">Select level</option>
+            <option>High</option>
+            <option>Moderate</option>
+            <option>Low</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Coverage Area (ha)</label>
+          <input id="f-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DEGRADED AREAS FIELDS ── -->
+    <div class="cat-fields" id="fields-degraded">
+      <div class="row">
+        <div class="field-group">
+          <label>Degradation Type</label>
+          <select id="f-deg-type">
+            <option value="">Select type</option>
+            <option>Deforestation</option>
+            <option>Soil Erosion</option>
+            <option>Overgrazing</option>
+            <option>Mining / Quarrying</option>
+            <option>Fire Damage</option>
+            <option>Invasive Species</option>
+            <option>Pollution</option>
+            <option>Coastal Erosion</option>
+            <option>Cyclone Damage</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Severity</label>
+          <select id="f-deg-severity">
+            <option value="">Select severity</option>
+            <option>Severe</option>
+            <option>Moderate</option>
+            <option>Mild</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Estimated Area (ha)</label>
+          <input id="f-deg-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
+        <div class="field-group">
+          <label>Land Use Type</label>
+          <select id="f-deg-landuse">
+            <option value="">Select type</option>
+            <option>Forest</option>
+            <option>Agricultural</option>
+            <option>Coastal</option>
+            <option>Wetland</option>
+            <option>Grassland</option>
+            <option>Urban Fringe</option>
+            <option>Mangrove</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Vegetation Cover (%)</label>
+          <input id="f-deg-vegcover" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+        <div class="field-group">
+          <label>Evidence of Erosion</label>
+          <select id="f-deg-erosion">
+            <option value="">Select</option>
+            <option>Yes</option>
+            <option>No</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Cause of Degradation</label>
+        <input id="f-deg-cause" placeholder="Describe the main cause">
+      </div>
+      <div class="field-group">
+        <label>Water Source Nearby</label>
+        <select id="f-deg-water">
+          <option value="">Select</option>
+          <option>Yes</option>
+          <option>No</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ── RESTORATION FIELDS ── -->
+    <div class="cat-fields" id="fields-restoration">
+      <div class="row">
+        <div class="field-group">
+          <label>Restoration Type</label>
+          <select id="f-rest-type">
+            <option value="">Select type</option>
+            <option>Reforestation</option>
+            <option>Mangrove Replanting</option>
+            <option>Coral Reef Restoration</option>
+            <option>Soil Rehabilitation</option>
+            <option>Wetland Restoration</option>
+            <option>Invasive Species Removal</option>
+            <option>Agroforestry</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Restoration Stage</label>
+          <select id="f-rest-stage">
+            <option value="">Select stage</option>
+            <option>Planning</option>
+            <option>Early Stage (0-2 yr)</option>
+            <option>Mid Stage (2-5 yr)</option>
+            <option>Established (5-10 yr)</option>
+            <option>Mature (10+ yr)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Years Since Started</label>
+          <input id="f-rest-years" type="number" min="0" placeholder="0">
+        </div>
+        <div class="field-group">
+          <label>Estimated Area (ha)</label>
+          <input id="f-rest-area" type="number" min="0" step="0.1" placeholder="0.0">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Species Planted / Restored</label>
+        <input id="f-rest-species" placeholder="e.g. Rhizophora, Casuarina">
+      </div>
+      <div class="field-group">
+        <label>Project / Programme Name</label>
+        <input id="f-rest-project" placeholder="e.g. NBSAP Mangrove Project">
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Survival Rate (%)</label>
+          <input id="f-rest-survival" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+        <div class="field-group">
+          <label>Vegetation Cover (%)</label>
+          <input id="f-rest-vegcover" type="number" min="0" max="100" placeholder="0-100">
+        </div>
+      </div>
+    </div>
+
+    <!-- ── THREATENED SPECIES FIELDS ── -->
+    <div class="cat-fields" id="fields-threatened">
+      <div class="row">
+        <div class="field-group">
+          <label>Species Name</label>
+          <input id="f-ts-species" placeholder="e.g. Dugong dugon">
+        </div>
+        <div class="field-group">
+          <label>Species Type</label>
+          <select id="f-ts-type">
+            <option value="">Select type</option>
+            <option>Plant</option>
+            <option>Bird</option>
+            <option>Reptile</option>
+            <option>Mammal</option>
+            <option>Amphibian</option>
+            <option>Fish</option>
+            <option>Invertebrate</option>
+            <option>Coral</option>
+            <option>Other</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>IUCN Status</label>
+          <select id="f-ts-iucn">
+            <option value="">Select status</option>
+            <option>Critically Endangered</option>
+            <option>Endangered</option>
+            <option>Vulnerable</option>
+            <option>Near Threatened</option>
+            <option>Data Deficient</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Population Estimate</label>
+          <input id="f-ts-population" type="number" min="0" placeholder="Individuals seen">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Habitat Type</label>
+          <select id="f-ts-habitat">
+            <option value="">Select habitat</option>
+            <option>Forest</option>
+            <option>Coastal</option>
+            <option>Mangrove</option>
+            <option>Freshwater</option>
+            <option>Grassland</option>
+            <option>Cave</option>
+            <option>Marine</option>
+            <option>Coral Reef</option>
+            <option>Other</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Breeding Evidence</label>
+          <select id="f-ts-breeding">
+            <option value="">Select</option>
+            <option>Yes</option>
+            <option>No</option>
+            <option>Unknown</option>
+          </select>
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Primary Threat</label>
+        <select id="f-ts-threats">
+          <option value="">Select threat</option>
+          <option>Habitat Loss</option>
+          <option>Invasive Species</option>
+          <option>Hunting / Harvesting</option>
+          <option>Pollution</option>
+          <option>Climate Change</option>
+          <option>Disease</option>
+          <option>Human Disturbance</option>
+          <option>Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>Observer Name</label>
+      <input id="f-observer" placeholder="Your name">
+    </div>
+
+    <div class="field-group">
+      <label>Photos</label>
+      <div class="photo-btn" onclick="document.getElementById('photo-input').click()">
+        &#128247; Tap to add photos
+      </div>
+      <input type="file" id="photo-input" accept="image/*" capture="environment" multiple onchange="handlePhotos(event)">
+      <div class="photo-preview" id="photo-preview"></div>
+    </div>
+
+    <div class="field-group">
+      <label>Notes</label>
+      <textarea id="f-notes" placeholder="Additional observations, habitat type, nearby landmarks..."></textarea>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveRecord()" id="btn-save" disabled>Save Observation</button>
+    <p class="gps-hint" id="gps-hint">Waiting for GPS accuracy &lt; 8m before saving...</p>
+  </div>
+
+  <!-- ═══ RECORDS VIEW ═══ -->
+  <div class="view" id="view-records">
+    <div class="sync-status">
+      <div class="count" id="pending-count">0</div>
+      <div class="label">records pending sync</div>
+    </div>
+    <div id="storage-warning" style="display:none;background:#fef3c7;color:#92400e;padding:0.5rem;border-radius:0.4rem;font-size:0.72rem;font-weight:600;text-align:center;margin-bottom:0.5rem;border:1px solid #fcd34d"></div>
+    <button class="btn btn-secondary" onclick="syncData()" id="btn-sync-main" style="margin-bottom:0.5rem">Sync All to GitHub</button>
+    <div id="sync-progress" style="display:none;margin-bottom:0.75rem">
+      <div style="background:#e2e8f0;border-radius:4px;height:6px;overflow:hidden"><div id="sync-bar" style="height:100%;background:#10b981;width:0%;transition:width 0.3s"></div></div>
+      <p id="sync-status-text" style="text-align:center;font-size:0.72rem;color:#64748b;margin-top:0.3rem">Syncing...</p>
+    </div>
+    <button class="btn btn-secondary" onclick="downloadRecords()" style="margin-bottom:0.5rem;background:#1e3a5f;border-color:#3b82f6">Download Records (JSON)</button>
+    <button class="btn btn-secondary" onclick="downloadCSV()" style="margin-bottom:0.5rem;background:#1e3a5f;border-color:#3b82f6">Download Records (CSV)</button>
+    <button class="btn btn-secondary" onclick="document.getElementById('import-file').click()" style="margin-bottom:1rem;background:#4a3b6b;border-color:#8b5cf6">Import Backup (JSON)</button>
+    <input type="file" id="import-file" accept=".json" onchange="importRecords(this)" style="display:none">
+    <div id="records-list"></div>
+  </div>
+
+  <!-- ═══ SETTINGS VIEW ═══ -->
+  <div class="view" id="view-settings">
+    <div class="field-group">
+      <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">GitHub Sync Settings</h3>
+      <div class="settings-field">
+        <label>GitHub Owner (username)</label>
+        <input id="s-owner" placeholder="your-username" value="welinrj">
+      </div>
+      <div class="settings-field">
+        <label>Data Repository</label>
+        <input id="s-repo" value="merremia-field-data">
+      </div>
+      <div class="settings-field">
+        <label>Personal Access Token</label>
+        <input id="s-token" type="password" placeholder="Pre-configured">
+      </div>
+      <button class="btn btn-secondary" onclick="saveSettings()" style="margin-bottom:1rem">Save Settings</button>
+    </div>
+
+    <div class="field-group">
+      <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">Default Observer</h3>
+      <div class="settings-field">
+        <label>Name</label>
+        <input id="s-observer" placeholder="Your name">
+      </div>
+      <button class="btn btn-secondary" onclick="saveDefaultObserver()">Save Default</button>
+    </div>
+
+    <div class="field-group" style="margin-top:1rem">
+      <h3 style="color:#ef4444;font-size:0.95rem;margin-bottom:0.75rem">Danger Zone</h3>
+      <button class="btn btn-danger" onclick="clearAllData()">Clear All Local Data</button>
+    </div>
+  </div>
+
+  <script>
+    // ── State ──
+    var DB_KEY = 'merremia_records';
+    var SETTINGS_KEY = 'merremia_settings';
+    var currentPhotos = [];
+    var currentLat = null, currentLng = null, currentAcc = null;
+    var editingRecordId = null;
+
+    // ── Category labels ──
+    var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
+
+    // ── Toast Notifications ──
+    function showToast(msg, type) {
+      type = type || 'info';
+      var existing = document.querySelector('.toast');
+      if (existing) existing.remove();
+      var el = document.createElement('div');
+      el.className = 'toast toast-' + type;
+      el.textContent = msg;
+      document.body.appendChild(el);
+      setTimeout(function() { el.remove(); }, 3500);
+    }
+
+    // ── Views ──
+    function showView(name) {
+      document.querySelectorAll('.view').forEach(function(v) { v.classList.remove('active'); });
+      document.querySelectorAll('nav button').forEach(function(b) { b.classList.remove('active'); });
+      document.getElementById('view-' + name).classList.add('active');
+      document.getElementById('nav-' + name).classList.add('active');
+      if (name === 'records') renderRecords();
+    }
+
+    // ── Category Switching ──
+    function switchCategory() {
+      var cat = document.getElementById('f-category').value;
+      document.querySelectorAll('.cat-fields').forEach(function(el) { el.classList.remove('active'); });
+      var target = document.getElementById('fields-' + cat);
+      if (target) target.classList.add('active');
+    }
+
+    // ── GPS ──
+    var manualGPSMode = false;
+    var gpsWatchId = null;
+    var GPS_ACC_THRESHOLD = 8;
+    function startGPS() {
+      if (!navigator.geolocation) {
+        document.getElementById('gps-coords').textContent = 'GPS not available';
+        document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
+        return;
+      }
+      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      gpsWatchId = navigator.geolocation.watchPosition(
+        function(pos) {
+          if (manualGPSMode) return;
+          currentLat = pos.coords.latitude;
+          currentLng = pos.coords.longitude;
+          currentAcc = Math.round(pos.coords.accuracy);
+          document.getElementById('gps-coords').textContent = currentLat.toFixed(6) + ', ' + currentLng.toFixed(6);
+          var accEl = document.getElementById('gps-accuracy');
+          accEl.textContent = '\u00b1' + currentAcc + 'm';
+          var btn = document.getElementById('btn-save');
+          var hint = document.getElementById('gps-hint');
+          if (currentAcc <= GPS_ACC_THRESHOLD) {
+            accEl.className = 'accuracy gps-accuracy-good';
+            btn.disabled = false;
+            hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
+            hint.className = 'gps-hint ready';
+          } else {
+            accEl.className = 'accuracy gps-accuracy-bad';
+            btn.disabled = true;
+            hint.textContent = 'GPS accuracy ' + currentAcc + 'm — need < ' + GPS_ACC_THRESHOLD + 'm to save';
+            hint.className = 'gps-hint';
+          }
+        },
+        function(err) {
+          document.getElementById('gps-coords').textContent = 'GPS error: ' + err.message;
+          document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
+        },
+        { enableHighAccuracy: true, maximumAge: 10000 }
+      );
+    }
+    startGPS();
+
+    function toggleManualGPS() {
+      var panel = document.getElementById('gps-manual');
+      var toggle = document.querySelector('.gps-manual-toggle');
+      manualGPSMode = !manualGPSMode;
+      if (manualGPSMode) {
+        if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+        panel.classList.add('active');
+        toggle.textContent = 'Use automatic GPS';
+        document.getElementById('manual-lat').oninput = applyManualGPS;
+        document.getElementById('manual-lng').oninput = applyManualGPS;
+      } else {
+        panel.classList.remove('active');
+        toggle.textContent = 'Enter coordinates manually';
+        currentLat = null; currentLng = null; currentAcc = null;
+        document.getElementById('gps-coords').textContent = 'Acquiring...';
+        document.getElementById('gps-accuracy').textContent = '';
+        document.getElementById('btn-save').disabled = true;
+        document.getElementById('gps-hint').textContent = 'Waiting for GPS accuracy < 8m before saving...';
+        document.getElementById('gps-hint').className = 'gps-hint';
+        startGPS();
+      }
+    }
+
+    function applyManualGPS() {
+      var lat = parseFloat(document.getElementById('manual-lat').value);
+      var lng = parseFloat(document.getElementById('manual-lng').value);
+      if (!isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        currentLat = lat; currentLng = lng; currentAcc = 0;
+        document.getElementById('gps-coords').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+        document.getElementById('gps-accuracy').textContent = 'manual';
+        document.getElementById('gps-accuracy').className = 'accuracy gps-accuracy-good';
+        document.getElementById('btn-save').disabled = false;
+        document.getElementById('gps-hint').textContent = 'Manual coordinates set — ready to save';
+        document.getElementById('gps-hint').className = 'gps-hint ready';
+      } else {
+        document.getElementById('btn-save').disabled = true;
+        document.getElementById('gps-hint').textContent = 'Enter valid lat (-90 to 90) and lng (-180 to 180)';
+        document.getElementById('gps-hint').className = 'gps-hint';
+      }
+    }
+
+    // ── Photos ──
+    function handlePhotos(e) {
+      var files = Array.from(e.target.files);
+      files.forEach(function(file) {
+        var reader = new FileReader();
+        reader.onload = function(ev) {
+          var img = new Image();
+          img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var maxW = 800;
+            var scale = Math.min(1, maxW / img.width);
+            canvas.width = img.width * scale;
+            canvas.height = img.height * scale;
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            var dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            currentPhotos.push(dataUrl);
+            renderPhotoPreview();
+          };
+          img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function renderPhotoPreview() {
+      var el = document.getElementById('photo-preview');
+      el.innerHTML = currentPhotos.map(function(p) { return '<img src="' + p + '" onclick="showFullPhoto(this.src)">'; }).join('');
+    }
+
+    function showFullPhoto(src) {
+      var overlay = document.createElement('div');
+      overlay.className = 'photo-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-label', 'Photo preview');
+      overlay.innerHTML = '<img src="' + src + '" alt="Field photo full view">';
+      overlay.onclick = function() { overlay.remove(); };
+      var escHandler = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+      document.addEventListener('keydown', escHandler);
+      document.body.appendChild(overlay);
+    }
+
+    // ── Edit Record ──
+    function editRecord(id) {
+      var records = getRecords();
+      var r = records.find(function(rec) { return rec.id === id; });
+      if (!r) return;
+      editingRecordId = id;
+      showView('collect');
+      // Set category and trigger UI switch
+      document.getElementById('f-category').value = r.category || 'merremia';
+      switchCategory();
+      // Set common fields
+      document.getElementById('f-island').value = r.island || '';
+      document.getElementById('f-site').value = r.siteName || '';
+      document.getElementById('f-observer').value = r.observer || '';
+      document.getElementById('f-notes').value = r.notes || '';
+      // Set GPS manually
+      if (r.latitude && r.longitude) {
+        var manPanel = document.getElementById('gps-manual');
+        if (!manualGPSMode) toggleManualGPS();
+        document.getElementById('manual-lat').value = r.latitude;
+        document.getElementById('manual-lng').value = r.longitude;
+        applyManualGPS();
+      }
+      // Restore photos
+      currentPhotos = r.photos || [];
+      renderPhotoPreview();
+      // Set category-specific fields
+      if (r.category === 'merremia' || !r.category) {
+        if (r.species) document.getElementById('f-species').value = r.species;
+        if (r.count) document.getElementById('f-count').value = r.count;
+        if (r.threatLevel) document.getElementById('f-threat').value = r.threatLevel;
+        if (r.coverageArea) document.getElementById('f-area').value = r.coverageArea;
+      } else if (r.category === 'degraded') {
+        if (r.degradationType) document.getElementById('f-deg-type').value = r.degradationType;
+        if (r.severity) document.getElementById('f-deg-severity').value = r.severity;
+        if (r.estimatedArea) document.getElementById('f-deg-area').value = r.estimatedArea;
+        if (r.landUseType) document.getElementById('f-deg-landuse').value = r.landUseType;
+        if (r.vegetationCover != null) document.getElementById('f-deg-vegcover').value = r.vegetationCover;
+        if (r.erosionEvidence) document.getElementById('f-deg-erosion').value = r.erosionEvidence;
+        if (r.cause) document.getElementById('f-deg-cause').value = r.cause;
+        if (r.waterNearby) document.getElementById('f-deg-water').value = r.waterNearby;
+      } else if (r.category === 'restoration') {
+        if (r.restorationType) document.getElementById('f-rest-type').value = r.restorationType;
+        if (r.restorationStage) document.getElementById('f-rest-stage').value = r.restorationStage;
+        if (r.yearsSinceStarted) document.getElementById('f-rest-years').value = r.yearsSinceStarted;
+        if (r.estimatedArea) document.getElementById('f-rest-area').value = r.estimatedArea;
+        if (r.speciesPlanted) document.getElementById('f-rest-species').value = r.speciesPlanted;
+        if (r.projectName) document.getElementById('f-rest-project').value = r.projectName;
+        if (r.survivalRate != null) document.getElementById('f-rest-survival').value = r.survivalRate;
+        if (r.vegetationCover != null) document.getElementById('f-rest-vegcover').value = r.vegetationCover;
+      } else if (r.category === 'threatened') {
+        if (r.speciesName) document.getElementById('f-ts-species').value = r.speciesName;
+        if (r.speciesType) document.getElementById('f-ts-type').value = r.speciesType;
+        if (r.iucnStatus) document.getElementById('f-ts-iucn').value = r.iucnStatus;
+        if (r.populationEstimate) document.getElementById('f-ts-population').value = r.populationEstimate;
+        if (r.habitatType) document.getElementById('f-ts-habitat').value = r.habitatType;
+        if (r.breedingEvidence) document.getElementById('f-ts-breeding').value = r.breedingEvidence;
+        if (r.threatsObserved) document.getElementById('f-ts-threats').value = r.threatsObserved;
+      }
+      // Show editing banner
+      var banner = document.getElementById('editing-banner');
+      if (!banner) {
+        banner = document.createElement('div');
+        banner.id = 'editing-banner';
+        banner.className = 'editing-banner';
+        var collectView = document.getElementById('view-collect');
+        collectView.insertBefore(banner, collectView.firstChild);
+      }
+      banner.innerHTML = 'Editing record &mdash; <a href="#" onclick="cancelEdit();return false" style="color:#1e40af">Cancel</a>';
+      banner.style.display = 'block';
+      document.getElementById('btn-save').textContent = 'Update Observation';
+    }
+
+    function cancelEdit() {
+      editingRecordId = null;
+      var banner = document.getElementById('editing-banner');
+      if (banner) banner.style.display = 'none';
+      document.getElementById('btn-save').textContent = 'Save Observation';
+    }
+
+    // ── Save Record ──
+    function saveRecord() {
+      var category = document.getElementById('f-category').value;
+      var island = document.getElementById('f-island').value;
+
+      if (!island) { showToast('Please select an island.', 'warn'); return; }
+      if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
+      // Validate GPS within Vanuatu bounds (-25 to -10 lat, 165 to 172 lng)
+      if (currentLat < -25 || currentLat > -10 || currentLng < 165 || currentLng > 172) {
+        showToast('GPS coordinates outside Vanuatu range. Check your location.', 'warn');
+        return;
+      }
+
+      var isEditing = !!editingRecordId;
+      var record = {
+        id: isEditing ? editingRecordId : Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+        timestamp: isEditing ? getRecords().find(function(r) { return r.id === editingRecordId; }).timestamp : new Date().toISOString(),
+        category: category,
+        latitude: currentLat,
+        longitude: currentLng,
+        accuracy: currentAcc,
+        island: island,
+        siteName: document.getElementById('f-site').value || '',
+        observer: document.getElementById('f-observer').value || getSettings().defaultObserver || '',
+        notes: document.getElementById('f-notes').value || '',
+        photos: currentPhotos,
+        synced: false
+      };
+
+      // Category-specific fields and validation
+      if (category === 'merremia') {
+        record.species = document.getElementById('f-species').value;
+        record.count = parseInt(document.getElementById('f-count').value) || 1;
+        record.threatLevel = document.getElementById('f-threat').value;
+        record.coverageArea = parseFloat(document.getElementById('f-area').value) || 0;
+        if (!record.species || !record.threatLevel) { showToast('Please fill in Species and Threat Level.', 'warn'); return; }
+        if (record.count < 1 || record.count > 100000) { showToast('Count must be between 1 and 100,000.', 'warn'); return; }
+        if (record.coverageArea < 0 || record.coverageArea > 50000) { showToast('Area must be between 0 and 50,000 hectares.', 'warn'); return; }
+      } else if (category === 'degraded') {
+        record.degradationType = document.getElementById('f-deg-type').value;
+        record.severity = document.getElementById('f-deg-severity').value;
+        record.estimatedArea = parseFloat(document.getElementById('f-deg-area').value) || 0;
+        record.landUseType = document.getElementById('f-deg-landuse').value;
+        record.vegetationCover = document.getElementById('f-deg-vegcover').value ? parseInt(document.getElementById('f-deg-vegcover').value) : null;
+        record.erosionEvidence = document.getElementById('f-deg-erosion').value;
+        record.cause = document.getElementById('f-deg-cause').value || '';
+        record.waterNearby = document.getElementById('f-deg-water').value;
+        if (!record.degradationType || !record.severity) { showToast('Please fill in Degradation Type and Severity.', 'warn'); return; }
+        if (record.vegetationCover !== null && (record.vegetationCover < 0 || record.vegetationCover > 100)) { showToast('Vegetation cover must be 0\u2013100%.', 'warn'); return; }
+      } else if (category === 'restoration') {
+        record.restorationType = document.getElementById('f-rest-type').value;
+        record.restorationStage = document.getElementById('f-rest-stage').value;
+        record.yearsSinceStarted = parseInt(document.getElementById('f-rest-years').value) || 0;
+        record.estimatedArea = parseFloat(document.getElementById('f-rest-area').value) || 0;
+        record.speciesPlanted = document.getElementById('f-rest-species').value || '';
+        record.projectName = document.getElementById('f-rest-project').value || '';
+        record.survivalRate = document.getElementById('f-rest-survival').value ? parseInt(document.getElementById('f-rest-survival').value) : null;
+        record.vegetationCover = document.getElementById('f-rest-vegcover').value ? parseInt(document.getElementById('f-rest-vegcover').value) : null;
+        if (!record.restorationType || !record.restorationStage) { showToast('Please fill in Restoration Type and Stage.', 'warn'); return; }
+        if (record.survivalRate !== null && (record.survivalRate < 0 || record.survivalRate > 100)) { showToast('Survival rate must be 0\u2013100%.', 'warn'); return; }
+        if (record.vegetationCover !== null && (record.vegetationCover < 0 || record.vegetationCover > 100)) { showToast('Vegetation cover must be 0\u2013100%.', 'warn'); return; }
+      } else if (category === 'threatened') {
+        record.speciesName = document.getElementById('f-ts-species').value;
+        record.speciesType = document.getElementById('f-ts-type').value;
+        record.iucnStatus = document.getElementById('f-ts-iucn').value;
+        record.populationEstimate = parseInt(document.getElementById('f-ts-population').value) || 0;
+        record.habitatType = document.getElementById('f-ts-habitat').value;
+        record.breedingEvidence = document.getElementById('f-ts-breeding').value;
+        record.threatsObserved = document.getElementById('f-ts-threats').value;
+        if (!record.speciesName || !record.speciesType) { showToast('Please fill in Species Name and Type.', 'warn'); return; }
+      }
+
+      var records = getRecords();
+      if (isEditing) {
+        var idx = records.findIndex(function(r) { return r.id === editingRecordId; });
+        if (idx >= 0) records[idx] = record;
+        editingRecordId = null;
+        var banner = document.getElementById('editing-banner');
+        if (banner) banner.style.display = 'none';
+        document.getElementById('btn-save').textContent = 'Save Observation';
+      } else {
+        records.push(record);
+      }
+      localStorage.setItem(DB_KEY, JSON.stringify(records));
+
+      // Reset form (keep category, island, observer)
+      document.getElementById('f-site').value = '';
+      document.getElementById('f-notes').value = '';
+      currentPhotos = [];
+      renderPhotoPreview();
+      document.getElementById('photo-input').value = '';
+      // Reset category-specific fields
+      document.getElementById('f-count').value = '1';
+      document.getElementById('f-area').value = '';
+      document.querySelectorAll('.cat-fields select').forEach(function(s) { s.selectedIndex = 0; });
+      document.querySelectorAll('.cat-fields input').forEach(function(i) { if (i.type !== 'file') i.value = ''; });
+      updateRecordCount();
+
+      showToast(isEditing ? 'Record updated' : 'Data saved', 'info');
+
+      if (navigator.onLine) {
+        setTimeout(function() { syncData(); }, 500);
+      }
+    }
+
+    // ── Record helpers ──
+    function getRecordTitle(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return r.species || 'Merremia';
+      if (cat === 'degraded') return (r.degradationType || 'Degraded Area');
+      if (cat === 'restoration') return (r.restorationType || 'Restoration');
+      if (cat === 'threatened') return (r.speciesName || 'Threatened Species');
+      return 'Record';
+    }
+
+    function getRecordMeta(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return 'Count: ' + (r.count || 1) + ' | Threat: ' + (r.threatLevel || '-');
+      if (cat === 'degraded') return 'Severity: ' + (r.severity || '-') + ' | Area: ' + (r.estimatedArea || 0) + ' ha';
+      if (cat === 'restoration') return 'Stage: ' + (r.restorationStage || '-') + ' | Area: ' + (r.estimatedArea || 0) + ' ha';
+      if (cat === 'threatened') return 'IUCN: ' + (r.iucnStatus || '-') + ' | Pop: ' + (r.populationEstimate || '-');
+      return '';
+    }
+
+    function getCommitLabel(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return (r.species || 'Merremia') + ' at ' + r.island;
+      if (cat === 'degraded') return 'Degraded area at ' + r.island;
+      if (cat === 'restoration') return 'Restoration site at ' + r.island;
+      if (cat === 'threatened') return (r.speciesName || 'Threatened species') + ' at ' + r.island;
+      return 'Record at ' + r.island;
+    }
+
+    // ── Records ──
+    function getRecords() {
+      try { return JSON.parse(localStorage.getItem(DB_KEY)) || []; }
+      catch(e) { return []; }
+    }
+
+    function getStorageUsageMB() {
+      var total = 0;
+      for (var k in localStorage) {
+        if (localStorage.hasOwnProperty(k)) total += localStorage[k].length * 2;
+      }
+      return (total / 1024 / 1024).toFixed(1);
+    }
+
+    function updateRecordCount() {
+      var records = getRecords();
+      var pending = records.filter(function(r) { return !r.synced; }).length;
+      var el = document.getElementById('record-count');
+      if (records.length > 0) el.textContent = '(' + records.length + ')';
+      else el.textContent = '';
+      var pc = document.getElementById('pending-count');
+      if (pc) pc.textContent = pending;
+      // Storage warning
+      var usageMB = parseFloat(getStorageUsageMB());
+      var warn = document.getElementById('storage-warning');
+      if (warn) {
+        if (usageMB > 4) {
+          warn.style.display = 'block';
+          warn.textContent = 'Storage ' + usageMB + ' MB / ~5 MB — Sync and clear synced records to free space';
+        } else {
+          warn.style.display = 'none';
+        }
+      }
+    }
+
+    function renderRecords() {
+      var records = getRecords().reverse();
+      var list = document.getElementById('records-list');
+      updateRecordCount();
+      if (records.length === 0) {
+        list.innerHTML = '<div class="empty-state"><div class="icon">&#127793;</div><p>No observations yet.<br>Go to Collect to add your first record.</p></div>';
+        return;
+      }
+      list.innerHTML = records.map(function(r) {
+        var date = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' });
+        var syncBadge = r.synced ? '<span class="badge-sm badge-synced">Synced</span>' : '<span class="badge-sm badge-pending">Pending</span>';
+        var cat = r.category || 'merremia';
+        var catBadge = '<span class="cat-badge cat-' + cat + '">' + (CAT_LABELS[cat] || cat) + '</span>';
+        var photoHtml = '';
+        if (r.photos && r.photos.length) {
+          photoHtml = '<div class="record-photos">' + r.photos.map(function(p) {
+            return '<img src="' + p + '" onclick="showFullPhoto(this.src)">';
+          }).join('') + '</div>';
+        }
+        return '<div class="record-card">' +
+          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + '</h4>' +
+          '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
+          '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
+          photoHtml +
+          '<button class="btn-edit-record" onclick="editRecord(\'' + r.id + '\')">Edit</button>' +
+          '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button>' +
+          '</div>';
+      }).join('');
+    }
+
+    // ── Settings ──
+    var _tp = ['Z2l0aHViX3BhdF8xMUFQNlc1NlEwUnN','lRVFCWXlyV2RyX2U0enMxQ3ZiNWFiVX','ZSYnp0aEozbmhqRDhlUU5XV1VDQ0hkM','HFleEZ2VnU1Qk9CSldISjlZYXVVcTla'];
+    var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: atob(_tp.join('')) };
+    var DELETE_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
+    async function sha256(message) {
+      var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
+      return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+    }
+
+    function getSettings() {
+      try { return JSON.parse(localStorage.getItem(SETTINGS_KEY)) || {}; }
+      catch(e) { return {}; }
+    }
+
+    function saveSettings() {
+      var settings = getSettings();
+      settings.owner = document.getElementById('s-owner').value.trim();
+      settings.repo = document.getElementById('s-repo').value.trim();
+      settings.token = document.getElementById('s-token').value.trim();
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      showToast('Settings saved!', 'info');
+    }
+
+    function saveDefaultObserver() {
+      var settings = getSettings();
+      settings.defaultObserver = document.getElementById('s-observer').value.trim();
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+      document.getElementById('f-observer').value = settings.defaultObserver;
+      showToast('Default observer saved!', 'info');
+    }
+
+    function loadSettings() {
+      var s = getSettings();
+      if (!s.owner || !s.token) {
+        s.owner = s.owner || DEFAULTS.owner;
+        s.repo = s.repo || DEFAULTS.repo;
+        s.token = s.token || DEFAULTS.token;
+        localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
+      }
+      document.getElementById('s-owner').value = s.owner || DEFAULTS.owner;
+      document.getElementById('s-repo').value = s.repo || DEFAULTS.repo;
+      document.getElementById('s-token').value = s.token || DEFAULTS.token;
+      if (s.defaultObserver) {
+        document.getElementById('s-observer').value = s.defaultObserver;
+        document.getElementById('f-observer').value = s.defaultObserver;
+      }
+    }
+
+    // ── Sync to GitHub ──
+    async function syncData() {
+      var s = getSettings();
+      s.owner = s.owner || document.getElementById('s-owner').value.trim() || DEFAULTS.owner;
+      s.repo = s.repo || document.getElementById('s-repo').value.trim() || DEFAULTS.repo;
+      s.token = s.token || document.getElementById('s-token').value.trim();
+      if (!s.token) {
+        showToast('Enter a GitHub Personal Access Token in Settings to sync', 'warn');
+        showView('settings');
+        return;
+      }
+
+      var records = getRecords();
+      var pending = records.filter(function(r) { return !r.synced; });
+
+      if (pending.length === 0) {
+        if (records.length > 0) {
+          showToast('Updating dashboard...', 'info');
+          await updateAllRecords(s, records);
+          showToast('Dashboard updated with all ' + records.length + ' records!', 'info');
+        } else {
+          showToast('No records to sync.', 'info');
+        }
+        return;
+      }
+
+      var btn = document.getElementById('btn-sync');
+      btn.classList.add('active');
+      var btnMain = document.getElementById('btn-sync-main');
+      if (btnMain) { btnMain.disabled = true; btnMain.textContent = 'Syncing...'; }
+      var progressEl = document.getElementById('sync-progress');
+      var barEl = document.getElementById('sync-bar');
+      var statusEl = document.getElementById('sync-status-text');
+      if (progressEl) progressEl.style.display = 'block';
+      var syncedCount = 0;
+
+      try {
+        for (var i = 0; i < records.length; i++) {
+          if (records[i].synced) continue;
+          var r = records[i];
+          syncedCount++;
+          var pct = Math.round((syncedCount / pending.length) * 100);
+          if (barEl) barEl.style.width = pct + '%';
+          if (statusEl) statusEl.textContent = 'Syncing record ' + syncedCount + ' of ' + pending.length + '...';
+
+          var recordContent = btoa(unescape(encodeURIComponent(JSON.stringify(r, function(key, val) {
+            if (key === 'photos') return undefined;
+            return val;
+          }, 2))));
+
+          var resp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
+            method: 'PUT',
+            headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Add record: ' + getCommitLabel(r), content: recordContent })
+          });
+          if (!resp.ok) { showToast('Sync failed for record — will retry later.', 'warn'); continue; }
+
+          if (r.photos) {
+            for (var j = 0; j < r.photos.length; j++) {
+              if (statusEl) statusEl.textContent = 'Uploading photo ' + (j+1) + '/' + r.photos.length + ' for record ' + syncedCount + '...';
+              var photoData = r.photos[j].split(',')[1];
+              await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + r.id + '-' + j + '.jpg', {
+                method: 'PUT',
+                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Add photo for ' + r.id, content: photoData })
+              });
+            }
+          }
+
+          records[i].synced = true;
+          records[i].photoCount = (r.photos || []).length;
+        }
+
+        localStorage.setItem(DB_KEY, JSON.stringify(records));
+        updateRecordCount();
+        if (document.getElementById('view-records').classList.contains('active')) renderRecords();
+
+        if (statusEl) statusEl.textContent = 'Updating dashboard...';
+        await updateAllRecords(s, records);
+
+        if (statusEl) statusEl.textContent = 'Sync complete!';
+        showToast('Data synced to database', 'info');
+      } catch(err) {
+        if (statusEl) statusEl.textContent = 'Sync error — records saved locally';
+        showToast('Sync error — records saved locally. Try again later.', 'error');
+      }
+
+      btn.classList.remove('active');
+      if (btnMain) { btnMain.disabled = false; btnMain.textContent = 'Sync All to GitHub'; }
+      setTimeout(function() { if (progressEl) progressEl.style.display = 'none'; }, 3000);
+    }
+
+    async function updateAllRecords(s, localRecords) {
+      try {
+        var allRecords = [];
+        var existingSha = null;
+        var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (getResp.ok) {
+          var existing = await getResp.json();
+          existingSha = existing.sha;
+          allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
+        }
+
+        var syncedLocal = localRecords.filter(function(r) { return r.synced; });
+        syncedLocal.forEach(function(r) {
+          var clean = Object.assign({}, r);
+          delete clean.photos;
+          var idx = allRecords.findIndex(function(x) { return x.id === r.id; });
+          if (idx >= 0) allRecords[idx] = clean;
+          else allRecords.push(clean);
+        });
+
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(allRecords, null, 2))));
+        var body = { message: 'Update all-records.json (' + allRecords.length + ' records)', content: content };
+        if (existingSha) body.sha = existingSha;
+
+        await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+      } catch(e) {
+        console.warn('Could not update all-records.json:', e);
+      }
+    }
+
+    // ── Download Records ──
+    function downloadRecords() {
+      var records = getRecords();
+      if (records.length === 0) { showToast('No records to download', 'warn'); return; }
+      var clean = records.map(function(r) {
+        var copy = Object.assign({}, r);
+        delete copy.photos;
+        return copy;
+      });
+      var blob = new Blob([JSON.stringify(clean, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'vanuatu-field-records-' + new Date().toISOString().slice(0, 10) + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded ' + records.length + ' record(s)', 'info');
+    }
+
+    function downloadCSV() {
+      var records = getRecords();
+      if (records.length === 0) { showToast('No records to download', 'warn'); return; }
+      var headers = ['id','timestamp','category','latitude','longitude','accuracy','island','siteName','observer','notes','synced','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','speciesPlanted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved'];
+      var rows = records.map(function(r) {
+        return headers.map(function(h) {
+          var v = r[h] != null ? String(r[h]) : '';
+          return '"' + v.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '') + '"';
+        }).join(',');
+      });
+      var csv = '\uFEFF' + headers.join(',') + '\n' + rows.join('\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'vanuatu-field-records-' + new Date().toISOString().slice(0, 10) + '.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Downloaded ' + records.length + ' record(s) as CSV', 'info');
+    }
+
+    // ── Import Records from Backup ──
+    function importRecords(input) {
+      var file = input.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          var imported = JSON.parse(e.target.result);
+          if (!Array.isArray(imported)) { showToast('Invalid file: expected array of records.', 'error'); return; }
+          // Validate basic structure
+          var valid = imported.filter(function(r) { return r.id && r.timestamp && r.category; });
+          if (valid.length === 0) { showToast('No valid records found in file.', 'error'); return; }
+          var existing = getRecords();
+          var existingIds = {};
+          existing.forEach(function(r) { existingIds[r.id] = true; });
+          var newRecords = valid.filter(function(r) { return !existingIds[r.id]; });
+          if (newRecords.length === 0) { showToast('All ' + valid.length + ' records already exist locally.', 'info'); return; }
+          var merged = existing.concat(newRecords);
+          localStorage.setItem(DB_KEY, JSON.stringify(merged));
+          updateRecordCount();
+          showToast('Imported ' + newRecords.length + ' new record(s). ' + (valid.length - newRecords.length) + ' duplicate(s) skipped.', 'info');
+        } catch(err) {
+          showToast('Failed to parse file: ' + err.message, 'error');
+        }
+        input.value = '';
+      };
+      reader.readAsText(file);
+    }
+
+    // ── Help Modal ──
+    function showHelp() {
+      var overlay = document.createElement('div');
+      overlay.className = 'delete-modal-overlay';
+      overlay.id = 'help-modal-overlay';
+      overlay.setAttribute('role', 'dialog');
+      overlay.setAttribute('aria-label', 'Help');
+      overlay.innerHTML = '<div class="delete-modal" style="max-width:480px;text-align:left;max-height:80vh;overflow-y:auto">' +
+        '<h3 style="text-align:center;margin-bottom:0.75rem">DEPC Field Collector Help</h3>' +
+        '<div style="font-size:0.78rem;color:#64748b;line-height:1.7">' +
+        '<p><strong style="color:#065f46">GPS Location:</strong> The app uses your device GPS. Wait for accuracy below 8m (green indicator) before saving. Use "Enter coordinates manually" if GPS is unavailable.</p>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Survey Categories:</strong></p>' +
+        '<ul style="padding-left:1.25rem;margin:0.25rem 0">' +
+        '<li><strong>Merremia</strong> \u2014 Invasive vine monitoring (species, count, threat level, area)</li>' +
+        '<li><strong>Degraded Areas</strong> \u2014 Land degradation assessment (type, severity, erosion)</li>' +
+        '<li><strong>Restoration</strong> \u2014 Active restoration sites (stage, survival rate, species planted)</li>' +
+        '<li><strong>Threatened Species</strong> \u2014 Endangered species sightings (IUCN status, population)</li>' +
+        '</ul>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Photos:</strong> Tap the camera icon to attach up to 5 photos per record. Photos are compressed automatically.</p>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Syncing:</strong> Records save locally first. When online, tap Sync to upload to GitHub. "Pending" = not yet synced. "Synced" = uploaded successfully.</p>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Backup:</strong> Use Download Records (JSON) to create a backup. Use Import Backup to restore from a previous backup file.</p>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Offline Mode:</strong> The app works fully offline. All data is saved to your device and will sync when you reconnect.</p>' +
+        '</div>' +
+        '<div style="text-align:center;margin-top:1rem"><button class="btn btn-secondary" onclick="document.getElementById(\'help-modal-overlay\').remove()" style="background:#065f46;border-color:#10b981">Got it</button></div>' +
+        '</div>';
+      var escHandler = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+      document.addEventListener('keydown', escHandler);
+      document.body.appendChild(overlay);
+    }
+
+    // ── Delete Single Record (password-protected) ──
+    var pendingDeleteId = null;
+
+    function promptDeleteRecord(id) {
+      pendingDeleteId = id;
+      var overlay = document.createElement('div');
+      overlay.className = 'delete-modal-overlay';
+      overlay.id = 'delete-modal-overlay';
+      overlay.innerHTML = '<div class="delete-modal">' +
+        '<h3>Delete Record</h3>' +
+        '<p>This will permanently delete this record locally and from GitHub. Enter the admin password to confirm.</p>' +
+        '<input type="password" id="delete-password" placeholder="Enter password">' +
+        '<div class="delete-modal-btns">' +
+          '<button style="background:#334155;color:#e2e8f0" onclick="closeDeleteModal()">Cancel</button>' +
+          '<button style="background:#7f1d1d;color:#fca5a5" onclick="confirmDeleteRecord()">Delete</button>' +
+        '</div></div>';
+      document.body.appendChild(overlay);
+      setTimeout(function() { document.getElementById('delete-password').focus(); }, 100);
+    }
+
+    function closeDeleteModal() {
+      pendingDeleteId = null;
+      var m = document.getElementById('delete-modal-overlay');
+      if (m) m.remove();
+    }
+
+    async function confirmDeleteRecord() {
+      var pw = document.getElementById('delete-password').value;
+      var hash = await sha256(pw);
+      if (hash !== DELETE_HASH) {
+        showToast('Incorrect password', 'error');
+        return;
+      }
+
+      var deleteId = pendingDeleteId;
+      closeDeleteModal();
+
+      var records = getRecords();
+      var record = records.find(function(r) { return r.id === deleteId; });
+      if (!record) { showToast('Record not found', 'error'); return; }
+
+      if (record.synced) {
+        var s = getSettings();
+        s.token = s.token || DEFAULTS.token;
+        try {
+          var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
+            headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+          });
+          if (getResp.ok) {
+            var fileData = await getResp.json();
+            await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Delete record: ' + getCommitLabel(record), sha: fileData.sha })
+            });
+          }
+
+          for (var j = 0; j < 5; j++) {
+            var photoResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
+              headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+            });
+            if (photoResp.ok) {
+              var photoData = await photoResp.json();
+              await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: 'Delete photo for ' + record.id, sha: photoData.sha })
+              });
+            } else break;
+          }
+
+          await removeRecordFromAllRecords(s, deleteId);
+        } catch(e) {
+          showToast('Error deleting from GitHub — removed locally only', 'warn');
+        }
+      }
+
+      records = records.filter(function(r) { return r.id !== deleteId; });
+      localStorage.setItem(DB_KEY, JSON.stringify(records));
+      updateRecordCount();
+      renderRecords();
+      showToast('Record deleted', 'info');
+    }
+
+    async function removeRecordFromAllRecords(s, deleteId) {
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!getResp.ok) return;
+        var existing = await getResp.json();
+        var allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
+        var filtered = allRecords.filter(function(r) { return r.id !== deleteId; });
+        if (filtered.length === allRecords.length) return;
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
+        await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
+        });
+      } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
+    }
+
+    // ── Clear Data ──
+    async function clearAllData() {
+      var pw = prompt('Enter admin password to clear all data:');
+      if (pw === null) return;
+      var hash = await sha256(pw);
+      if (hash !== DELETE_HASH) {
+        showToast('Incorrect password', 'error');
+        return;
+      }
+      localStorage.removeItem(DB_KEY);
+      updateRecordCount();
+      renderRecords();
+      showToast('All local data cleared.', 'info');
+    }
+
+    // ── Offline Detection ──
+    function updateOnlineStatus() {
+      var el = document.getElementById('offline-banner');
+      if (!navigator.onLine) el.classList.add('show');
+      else el.classList.remove('show');
+    }
+    window.addEventListener('online', updateOnlineStatus);
+    window.addEventListener('offline', updateOnlineStatus);
+    updateOnlineStatus();
+
+    // ── Service Worker ──
+    if ('serviceWorker' in navigator) {
+      var swReloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (!swReloading) { swReloading = true; location.reload(); }
+      });
+      navigator.serviceWorker.register('sw.js').then(function(reg) {
+        reg.addEventListener('updatefound', function() {
+          var newSW = reg.installing;
+          if (newSW) {
+            newSW.addEventListener('statechange', function() {
+              if (newSW.state === 'activated' && 'caches' in window) {
+                caches.keys().then(function(names) {
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v9') caches.delete(n); });
+                });
+              }
+            });
+          }
+        });
+      });
+    }
+
+    // ── Init ──
+    loadSettings();
+    updateRecordCount();
+  </script>
+
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-coa">
+        <img src="assets/vanuatu-coat-of-arms.png" alt="Coat of Arms of Vanuatu">
+      </div>
+      <div class="footer-dept-name">Department of Environmental Protection &amp; Conservation</div>
+      <div class="footer-ministry">Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>Environment, Energy and Disaster Management</div>
+      <hr class="footer-divider">
+      <div class="footer-contacts">
+        <div class="footer-contact-col">
+          <h4>Head Office &mdash; Port Vila</h4>
+          <p>PMB 9063, Port Vila, Shefa Province, Vanuatu<br>Phone: <a href="tel:+67825302">+678 25302</a> / <a href="tel:+67833430">+678 33430</a><br>Email: <a href="mailto:depc@vanuatu.gov.vu">depc@vanuatu.gov.vu</a><br>Web: <a href="https://environment.gov.vu" target="_blank" rel="noopener">environment.gov.vu</a></p>
+        </div>
+        <div class="footer-contact-col">
+          <h4>Branch Office &mdash; Luganville</h4>
+          <p>Sanma Provincial Government Council<br>PMB 239, Luganville, Sanma Province, Vanuatu</p>
+        </div>
+      </div>
+      <div class="footer-bottom">Prototype created by <strong>Vanuatu Spatial Solutions</strong> for <strong>DEPC</strong> &amp; <strong>NBSAP</strong></div>
+    </div>
+  </footer>
+</body>
+</html>

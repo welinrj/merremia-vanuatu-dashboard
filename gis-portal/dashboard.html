@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VCAP2 GIS Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Segoe UI', -apple-system, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; }
+
+  /* Header */
+  .header { background: linear-gradient(135deg, #052e23 0%, #064e3b 50%, #065f46 100%); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; border-bottom: 1px solid rgba(16,185,129,0.3); }
+  .header h1 { font-size: 1.2rem; font-weight: 700; color: #ecfdf5; }
+  .header .subtitle { font-size: 0.72rem; color: rgba(110,231,183,0.7); }
+  .header-nav { margin-left: auto; display: flex; gap: 0.5rem; }
+  .header-nav a { color: #a7f3d0; text-decoration: none; font-size: 0.78rem; font-weight: 600; padding: 0.35rem 0.75rem; border-radius: 0.35rem; transition: all 0.2s; border: 1px solid transparent; }
+  .header-nav a:hover, .header-nav a.active { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: #ecfdf5; }
+
+  /* Layout */
+  .dashboard { max-width: 1200px; margin: 0 auto; padding: 1.5rem 2rem; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; position: relative; overflow: hidden; }
+  .stat-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #10b981, #34d399); }
+  .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; color: #64748b; font-weight: 700; margin-bottom: 0.35rem; }
+  .stat-value { font-size: 1.8rem; font-weight: 800; color: #065f46; line-height: 1; }
+  .stat-sub { font-size: 0.72rem; color: #94a3b8; margin-top: 0.25rem; }
+
+  /* Chart grid */
+  .chart-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .chart-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; }
+  .chart-card h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin-bottom: 1rem; }
+  .chart-body { position: relative; height: 260px; }
+
+  /* Dataset table */
+  .table-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1.5rem; }
+  .table-card h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin-bottom: 1rem; }
+  .ds-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  .ds-table th { text-align: left; padding: 0.5rem 0.75rem; background: #f8fafc; color: #64748b; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid #e2e8f0; }
+  .ds-table td { padding: 0.5rem 0.75rem; border-bottom: 1px solid #f1f5f9; color: #334155; }
+  .ds-table tr:hover td { background: #f0fdf4; }
+  .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 9999px; font-size: 0.65rem; font-weight: 700; }
+  .badge-green { background: #d1fae5; color: #065f46; }
+  .badge-amber { background: #fef3c7; color: #92400e; }
+
+  /* Map panel */
+  .map-panel { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; overflow: hidden; margin-bottom: 1.5rem; position: relative; }
+  .map-panel h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; padding: 1rem 1.25rem 0.75rem; }
+  #coverage-map { height: 350px; }
+  .basemap-toggle { position: absolute; bottom: 12px; right: 12px; z-index: 500; display: flex; gap: 4px; background: rgba(255,255,255,0.92); border-radius: 0.4rem; padding: 3px; border: 1px solid #e2e8f0; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .basemap-btn { font-size: 0.68rem; font-weight: 600; padding: 0.3rem 0.6rem; border: 1px solid transparent; border-radius: 0.3rem; background: none; color: #64748b; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .basemap-btn:hover { color: #1e293b; }
+  .basemap-btn.active { background: #065f46; color: #fff; border-color: #065f46; }
+
+  /* Activity feed */
+  .activity-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 0.75rem; padding: 1.25rem; }
+  .activity-card h3 { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: #64748b; font-weight: 700; margin-bottom: 1rem; }
+  .activity-item { display: flex; gap: 0.75rem; padding: 0.5rem 0; border-bottom: 1px solid #f1f5f9; font-size: 0.78rem; }
+  .activity-item:last-child { border-bottom: none; }
+  .activity-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; flex-shrink: 0; margin-top: 5px; }
+  .activity-text { color: #475569; }
+  .activity-time { font-size: 0.68rem; color: #94a3b8; }
+
+  /* Loading */
+  .loading { text-align: center; padding: 3rem; color: #94a3b8; font-size: 0.85rem; }
+
+  /* Responsive */
+  @media (max-width: 768px) {
+    .stats-row { grid-template-columns: 1fr 1fr; }
+    .chart-grid { grid-template-columns: 1fr; }
+    .dashboard { padding: 1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <img src="vcap2-logo.svg" alt="VCAP2" style="width:40px;height:40px;flex-shrink:0">
+  <div>
+    <h1>VCAP2 GIS Dashboard</h1>
+    <div class="subtitle">Analytics &amp; Data Management</div>
+  </div>
+  <nav class="header-nav">
+    <a href="index.html">Map Portal</a>
+    <a href="dashboard.html" class="active">Dashboard</a>
+    <a href="dashboard-overview.html">Overview</a>
+  </nav>
+</div>
+
+<div class="dashboard">
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Datasets</div>
+      <div class="stat-value" id="stat-datasets">--</div>
+      <div class="stat-sub" id="stat-datasets-sub">loading...</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Features</div>
+      <div class="stat-value" id="stat-features">--</div>
+      <div class="stat-sub" id="stat-features-sub">across all datasets</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Area</div>
+      <div class="stat-value" id="stat-area">--</div>
+      <div class="stat-sub">hectares surveyed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Provinces</div>
+      <div class="stat-value" id="stat-provinces">--</div>
+      <div class="stat-sub">with data coverage</div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <h3>Features by Dataset</h3>
+      <div class="chart-body"><canvas id="chart-features"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Area Distribution</h3>
+      <div class="chart-body"><canvas id="chart-area"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Status Breakdown</h3>
+      <div class="chart-body"><canvas id="chart-status"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <h3>Biodiversity Index</h3>
+      <div class="chart-body"><canvas id="chart-bio"></canvas></div>
+    </div>
+  </div>
+
+  <!-- Coverage Map -->
+  <div class="map-panel">
+    <h3>Coverage Map</h3>
+    <div id="coverage-map"></div>
+    <div class="basemap-toggle" id="basemap-toggle">
+      <button class="basemap-btn active" data-basemap="light">Light</button>
+      <button class="basemap-btn" data-basemap="satellite">Satellite</button>
+      <button class="basemap-btn" data-basemap="dark">Dark</button>
+    </div>
+  </div>
+
+  <!-- Dataset Table -->
+  <div class="table-card">
+    <h3>Dataset Catalog</h3>
+    <table class="ds-table">
+      <thead>
+        <tr><th>Name</th><th>Features</th><th>Area (ha)</th><th>Status</th><th>Updated</th></tr>
+      </thead>
+      <tbody id="ds-table-body">
+        <tr><td colspan="5" class="loading">Loading datasets...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Activity -->
+  <div class="activity-card">
+    <h3>Recent Activity</h3>
+    <div id="activity-feed">
+      <div class="loading">Loading activity...</div>
+    </div>
+  </div>
+</div>
+
+<script src="dashboard.js"></script>
+</body>
+</html>

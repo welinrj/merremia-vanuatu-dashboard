@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0f1a0f">
+<title>Merremia Vanuatu Dashboard</title>
+<link rel="icon" type="image/png" sizes="32x32" href="assets/favicon-32.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/favicon-180.png">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- ─── THE CONNECTOR ─── -->
+<script src="merremia-connector.js"></script>
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --border: #e2e8f0;
+    --green: #065f46;
+    --green-dim: #10b981;
+    --green-glow: rgba(16,185,129,0.08);
+    --amber: #d97706;
+    --red: #dc2626;
+    --text: #1e293b;
+    --text-dim: #64748b;
+    --text-muted: #94a3b8;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── HEADER ── */
+  .dash-header {
+    padding: 40px 32px 24px;
+    border-bottom: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .dash-header::before {
+    content: '';
+    position: absolute;
+    top: -100px; right: -100px;
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(74,222,128,0.06) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  .dash-header h1 {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    font-weight: 400;
+    color: #1e293b;
+    line-height: 1.1;
+  }
+
+  .dash-header h1 em { color: #065f46; font-style: italic; }
+
+  .dash-subtitle {
+    margin-top: 6px;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  .header-row {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 14px;
+    background: #d1fae5;
+    border: 1px solid #a7f3d0;
+    border-radius: 20px;
+    font-size: 12px;
+    color: #065f46;
+    font-weight: 500;
+  }
+
+  .live-dot {
+    width: 8px; height: 8px;
+    background: #10b981;
+    border-radius: 50%;
+    animation: livePulse 2s ease-in-out infinite;
+  }
+
+  @keyframes livePulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16,185,129,0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(16,185,129,0); }
+  }
+
+  /* ── FILTERS BAR ── */
+  .filters-bar {
+    padding: 16px 32px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-right: 4px;
+  }
+
+  .filter-select {
+    padding: 8px 32px 8px 12px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%237a9a7a' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .filter-select:focus {
+    outline: none;
+    border-color: var(--green);
+  }
+
+  .filter-reset {
+    padding: 8px 14px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    color: var(--text-dim);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .filter-reset:hover {
+    border-color: var(--red);
+    color: var(--red);
+  }
+
+  /* ── MAIN GRID ── */
+  .dash-main {
+    padding: 24px 32px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+
+  /* ── STAT CARDS ── */
+  .stat-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    transition: all 0.25s;
+  }
+
+  .stat-card {
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .stat-card:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--green-dim);
+  }
+
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'Instrument Serif', serif;
+    font-size: 36px;
+    color: var(--green);
+    line-height: 1;
+  }
+
+  .stat-detail {
+    margin-top: 6px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ── BASEMAP TOGGLE ── */
+  .map-wrap { position: relative; }
+  .basemap-toggle { position: absolute; top: 10px; left: 10px; z-index: 800; display: flex; border-radius: 8px; overflow: hidden; border: 1px solid #cbd5e1; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+  .basemap-btn { padding: 6px 12px; background: #ffffff; color: #64748b; border: none; font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s; border-right: 1px solid #e2e8f0; }
+  .basemap-btn:last-child { border-right: none; }
+  .basemap-btn.active { background: #065f46; color: #ecfdf5; }
+  .basemap-btn:hover:not(.active) { background: #f1f5f9; color: #334155; }
+
+  /* ── MAP ── */
+  .map-card {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .card-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .card-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .card-subtitle {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  #dashMap {
+    height: 420px;
+    background: var(--bg);
+  }
+
+  /* Leaflet dark theme overrides */
+  .leaflet-container { background: var(--bg) !important; }
+  .leaflet-popup-content-wrapper {
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.1) !important;
+  }
+  .leaflet-popup-tip { background: var(--bg-card) !important; }
+  .leaflet-popup-content { font-family: 'DM Sans', sans-serif; font-size: 13px; min-width: 200px; }
+  .popup-photos{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+  .popup-photos img{width:60px;height:45px;object-fit:cover;border-radius:3px;cursor:pointer;border:1px solid var(--border)}
+  .popup-photos img:hover{border-color:var(--accent)}
+  .photo-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:pointer}
+  .photo-overlay img{max-width:90%;max-height:90%;border-radius:0.5rem}
+  .leaflet-control-zoom a {
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+  }
+
+  /* ── CHARTS ── */
+  .chart-card {
+    grid-column: span 2;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .chart-body {
+    padding: 16px 20px;
+    height: 280px;
+    position: relative;
+  }
+
+  /* ── SPECIES TABLE ── */
+  .table-card {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .species-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .species-table th {
+    text-align: left;
+    padding: 12px 20px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .species-table td {
+    padding: 14px 20px;
+    font-size: 14px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .species-table tr:last-child td { border-bottom: none; }
+
+  .species-table tr:hover td {
+    background: var(--bg-card-hover);
+  }
+
+  .species-name {
+    font-style: italic;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .threat-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .threat-badge.high { background: #fee2e2; color: #991b1b; }
+  .threat-badge.moderate { background: #fef3c7; color: #92400e; }
+  .threat-badge.low { background: #d1fae5; color: #065f46; }
+
+  /* ── RECENT RECORDS ── */
+  .recent-card {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .recent-list {
+    max-height: 300px;
+    overflow-y: auto;
+  }
+
+  .recent-item {
+    padding: 14px 20px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: background 0.2s;
+  }
+
+  .recent-item:hover { background: var(--bg-card-hover); }
+  .recent-item:last-child { border-bottom: none; }
+
+  .recent-dot {
+    width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  }
+
+  .recent-dot.high { background: #ef4444; }
+  .recent-dot.moderate { background: #f59e0b; }
+  .recent-dot.low { background: #10b981; }
+
+  .recent-info { flex: 1; }
+  .recent-species { font-size: 14px; font-weight: 500; font-style: italic; }
+  .recent-meta { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .recent-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+  /* ── LOADING ── */
+  .loading-overlay {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-dim);
+  }
+
+  .loading-spinner {
+    width: 40px; height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 16px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── EMPTY STATE ── */
+  .empty-dash {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--text-dim);
+  }
+
+  .empty-dash .empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+
+  /* ── ANALYSIS CARDS ── */
+  .analysis-card {
+    grid-column: 1 / -1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .analysis-card .card-header { padding: 14px 20px 0; }
+  .analysis-card-body { padding: 16px 20px 20px; }
+  .alert-banner {
+    grid-column: 1 / -1;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    padding: 12px 20px;
+    display: none;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #991b1b;
+  }
+  .alert-banner .alert-dot { width: 10px; height: 10px; border-radius: 50%; background: #ef4444; animation: pulse 1.5s infinite; flex-shrink: 0; }
+  .risk-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .risk-table th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); color: var(--text-dim); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .risk-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .risk-bar { height: 6px; background: #e2e8f0; border-radius: 3px; overflow: hidden; min-width: 80px; }
+  .risk-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .trend-up { color: #dc2626; } .trend-down { color: #059669; } .trend-flat { color: #64748b; }
+  .insight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+  .insight-item { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 14px; }
+  .insight-item .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px; }
+  .insight-item .value { font-size: 20px; font-weight: 700; color: var(--green); font-family: 'Instrument Serif', serif; }
+  .insight-item .detail { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+  .cooccurrence-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cooccurrence-item { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 10px 14px; font-size: 12px; }
+  .cooccurrence-item .pair { font-weight: 700; color: #065f46; margin-bottom: 2px; }
+  .cooccurrence-item .sites { color: #64748b; }
+
+  /* ── FOOTER ── */
+  .dash-footer {
+    padding: 2.5rem 2rem 1.5rem;
+    background: #f8fafc;
+    border-top: 1px solid #e2e8f0;
+    font-size: 0.78rem;
+    color: #64748b;
+    text-align: center;
+  }
+  .footer-inner { max-width: 720px; margin: 0 auto; }
+  .footer-coa { margin-bottom: 0.75rem; }
+  .footer-coa img { height: 56px; opacity: 0.5; }
+  .footer-dept-name { color: #1e293b; font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 0.2rem; }
+  .footer-ministry { color: #64748b; font-size: 0.7rem; line-height: 1.5; margin-bottom: 1.25rem; }
+  .footer-divider { border: none; border-top: 1px solid #e2e8f0; margin: 0 auto 1.25rem; max-width: 480px; }
+  .footer-contacts { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem 2rem; text-align: left; margin-bottom: 1.25rem; max-width: 600px; margin-left: auto; margin-right: auto; }
+  .footer-contact-col h4 { color: #334155; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; margin: 0 0 0.35rem; font-weight: 700; }
+  .footer-contact-col p { color: #64748b; line-height: 1.65; font-size: 0.72rem; margin: 0; }
+  .footer-contact-col a { color: #065f46; text-decoration: none; }
+  .footer-contact-col a:hover { color: #10b981; }
+  .footer-bottom { padding-top: 1rem; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 0.66rem; max-width: 480px; margin: 0 auto; }
+  .footer-bottom strong { color: #64748b; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 900px) {
+    .dash-main { grid-template-columns: repeat(2, 1fr); }
+    .chart-card { grid-column: 1 / -1; }
+    .dash-header, .filters-bar, .dash-main { padding-left: 16px; padding-right: 16px; }
+  }
+
+  @media (max-width: 600px) {
+    .dash-main { grid-template-columns: 1fr; }
+    .stat-card { grid-column: 1; }
+    .dash-header h1 { font-size: 28px; }
+    .footer-contacts { grid-template-columns: 1fr; text-align: center; }
+  }
+
+  @media print {
+    body { background: #fff; color: #000; font-size: 11pt; }
+    .dash-header { padding: 16px; border-bottom: 1px solid #ccc; }
+    .live-indicator, .filters-bar, .basemap-toggle, .photo-overlay { display: none !important; }
+    .dash-main { display: block; padding: 8px; }
+    .stat-card, .map-card, .chart-card, .analysis-card { break-inside: avoid; border: 1px solid #ccc; margin-bottom: 8px; box-shadow: none; }
+    .map-card { max-height: 400px; overflow: hidden; }
+    table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+    table th, table td { border: 1px solid #ccc; padding: 4px 6px; }
+    .alert-banner { border: 2px solid #dc2626; }
+    footer { font-size: 9pt; border-top: 1px solid #ccc; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="dash-header">
+  <div class="header-row">
+    <div>
+      <h1><em>Merremia</em> Vanuatu Dashboard</h1>
+      <p class="dash-subtitle">Invasive vine species monitoring across Vanuatu islands</p>
+    </div>
+    <div class="live-indicator" id="liveIndicator">
+      <div class="live-dot"></div>
+      <span id="liveText">Connecting...</span>
+    </div>
+  </div>
+</div>
+
+<!-- FILTERS -->
+<div class="filters-bar">
+  <span class="filter-label">Filter:</span>
+  <select class="filter-select" id="filterIsland" onchange="applyFilters()" aria-label="Filter by island">
+    <option value="">All Islands</option>
+  </select>
+  <select class="filter-select" id="filterSpecies" onchange="applyFilters()" aria-label="Filter by species">
+    <option value="">All Species</option>
+  </select>
+  <select class="filter-select" id="filterThreat" onchange="applyFilters()" aria-label="Filter by threat level">
+    <option value="">All Threat Levels</option>
+    <option value="high">🔴 High</option>
+    <option value="moderate">🟡 Moderate</option>
+    <option value="low">🟢 Low</option>
+  </select>
+  <input type="date" class="filter-select" id="filterDateFrom" onchange="applyFilters()" title="From date" aria-label="Filter from date" style="min-width:auto">
+  <input type="date" class="filter-select" id="filterDateTo" onchange="applyFilters()" title="To date" aria-label="Filter to date" style="min-width:auto">
+  <button class="filter-reset" onclick="resetFilters()" aria-label="Reset all filters">✕ Reset</button>
+  <span style="flex:1"></span>
+  <button class="filter-reset" onclick="exportCSV()" style="color:#1e40af;border-color:#93c5fd" title="Export filtered data as CSV" aria-label="Export CSV">⬇ CSV</button>
+  <button class="filter-reset" onclick="exportPDF()" style="color:#065f46;border-color:#6ee7b7" title="Export summary as PDF" aria-label="Export PDF">⬇ PDF</button>
+</div>
+
+<!-- MAIN DASHBOARD -->
+<div class="dash-main" id="dashMain">
+  <div class="loading-overlay" id="loadingState">
+    <div class="loading-spinner"></div>
+    <p>Loading field data...</p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<div class="dash-footer">
+  <div class="footer-inner">
+    <div class="footer-coa">
+      <img src="assets/vanuatu-coat-of-arms.png" alt="Coat of Arms of Vanuatu">
+    </div>
+    <div class="footer-dept-name">Department of Environmental Protection &amp; Conservation</div>
+    <div class="footer-ministry">Ministry of Climate Change Adaptation, Meteorology &amp; Geo-Hazards,<br>Environment, Energy and Disaster Management</div>
+    <hr class="footer-divider">
+    <div class="footer-contacts">
+      <div class="footer-contact-col">
+        <h4>Head Office &mdash; Port Vila</h4>
+        <p>PMB 9063, Port Vila, Shefa Province, Vanuatu<br>
+        Phone: <a href="tel:+67825302">+678 25302</a> / <a href="tel:+67833430">+678 33430</a><br>
+        Email: <a href="mailto:depc@vanuatu.gov.vu">depc@vanuatu.gov.vu</a><br>
+        Web: <a href="https://environment.gov.vu" target="_blank" rel="noopener">environment.gov.vu</a></p>
+      </div>
+      <div class="footer-contact-col">
+        <h4>Branch Office &mdash; Luganville</h4>
+        <p>Sanma Provincial Government Council<br>PMB 239, Luganville, Sanma Province, Vanuatu</p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      Merremia Vanuatu Dashboard &mdash; Ecological Monitoring Project &middot; Data synced from field collectors
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CONFIG — Change these to match your repos
+// ══════════════════════════════════════════
+const CONNECTOR_CONFIG = {
+  owner: 'welinrj',
+  repo: 'merremia-field-data',
+  branch: 'main'
+};
+
+// ══════════════════════════════════════════
+// PHOTO VIEWER
+// ══════════════════════════════════════════
+function showFullPhoto(src) {
+  const overlay = document.createElement('div');
+  overlay.className = 'photo-overlay';
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-label', 'Photo preview');
+  overlay.innerHTML = '<img src="' + src + '" alt="Field photo full view">';
+  overlay.onclick = () => overlay.remove();
+  const escHandler = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
+  document.body.appendChild(overlay);
+}
+
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let connector;
+let dashData = null;
+let map = null;
+let mapLayer = null;
+let islandChart = null;
+let timelineChart = null;
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  connector = new MerremiaConnector({
+    ...CONNECTOR_CONFIG,
+    onError: (msg, err) => {
+      console.error(msg, err);
+      const el = document.getElementById('liveText');
+      if (el) el.textContent = 'Connection error — retrying...';
+    }
+  });
+
+  connector.startAutoRefresh(300000, (data) => {
+    if (!data || !data.records) return;
+    dashData = data;
+    renderDashboard(data);
+    updateLiveStatus(data);
+  });
+});
+
+// ══════════════════════════════════════════
+// LIVE STATUS
+// ══════════════════════════════════════════
+function updateLiveStatus(data) {
+  const el = document.getElementById('liveText');
+  if (data.totalRecords > 0) {
+    const last = new Date(data.lastUpdated);
+    el.textContent = `Live · ${data.totalRecords} records · Updated ${timeAgo(last)}`;
+  } else {
+    el.textContent = 'Connected · No field data yet';
+  }
+}
+
+function timeAgo(date) {
+  const diff = Date.now() - date.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days}d ago`;
+}
+
+// ══════════════════════════════════════════
+// RENDER DASHBOARD
+// ══════════════════════════════════════════
+function renderDashboard(data) {
+  const main = document.getElementById('dashMain');
+  document.getElementById('loadingState')?.remove();
+
+  if (data.totalRecords === 0) {
+    main.innerHTML = `
+      <div class="empty-dash">
+        <div class="empty-icon">🌿</div>
+        <p>No field data yet.<br>Deploy the Field Collector app and start collecting data!</p>
+      </div>
+    `;
+    return;
+  }
+
+  // Only rebuild structure on first render
+  if (!main.querySelector('.stat-card')) {
+    main.innerHTML = buildDashboardHTML();
+    initMap();
+    initCharts();
+  }
+
+  updateStats(data.stats);
+  updateMap(data);
+  updateCharts(data);
+  updateSpeciesTable(data.bySpecies);
+  updateRecentRecords(data.records);
+  populateFilters(data.stats);
+  updateAnalysis(data);
+}
+
+function buildDashboardHTML() {
+  return `
+    <!-- Stats Row -->
+    <div class="stat-card">
+      <div class="stat-label">Species Tracked</div>
+      <div class="stat-value" id="statSpecies">—</div>
+      <div class="stat-detail" id="statSpeciesDetail">Merremia spp.</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Survey Sites</div>
+      <div class="stat-value" id="statSites">—</div>
+      <div class="stat-detail" id="statSitesDetail">across islands</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Area Affected</div>
+      <div class="stat-value" id="statArea">—</div>
+      <div class="stat-detail" id="statAreaDetail">hectares</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Observations</div>
+      <div class="stat-value" id="statObs">—</div>
+      <div class="stat-detail" id="statObsDetail">field records</div>
+    </div>
+
+    <!-- Map -->
+    <div class="map-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Distribution Map</div>
+          <div class="card-subtitle">GPS-tagged field observations</div>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <div class="basemap-toggle">
+          <button class="basemap-btn active" id="bm-dark" onclick="switchBasemap('dark')">Dark</button>
+          <button class="basemap-btn" id="bm-streets" onclick="switchBasemap('streets')">Streets</button>
+          <button class="basemap-btn" id="bm-satellite" onclick="switchBasemap('satellite')">Satellite</button>
+        </div>
+        <div id="dashMap"></div>
+      </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Coverage by Island</div>
+      </div>
+      <div class="chart-body">
+        <canvas id="chartIsland"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Collection Timeline</div>
+      </div>
+      <div class="chart-body">
+        <canvas id="chartTimeline"></canvas>
+      </div>
+    </div>
+
+    <!-- Threat Alert Banner -->
+    <div class="alert-banner" id="alertBanner" role="alert" aria-live="polite">
+      <div class="alert-dot"></div>
+      <span id="alertText"></span>
+    </div>
+
+    <!-- Trend Analysis -->
+    <div class="analysis-card">
+      <div class="card-header">
+        <div class="card-title">Trend Analysis &amp; Projections</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Growth rates, spread velocity, and forward projections</div>
+      </div>
+      <div class="analysis-card-body">
+        <div class="insight-grid" id="trendInsights"></div>
+      </div>
+    </div>
+
+    <!-- Island Risk Ranking -->
+    <div class="analysis-card">
+      <div class="card-header">
+        <div class="card-title">Island Risk Assessment</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Priority ranking based on observation density, threat levels, and spread rate</div>
+      </div>
+      <div class="analysis-card-body">
+        <table class="risk-table" id="riskTable">
+          <thead><tr><th>Rank</th><th>Island</th><th>Records</th><th>High Threat %</th><th>Area (ha)</th><th>Risk Score</th><th></th></tr></thead>
+          <tbody id="riskTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Year-over-Year Comparison -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Year-over-Year Comparison</div>
+      </div>
+      <div class="chart-body">
+        <canvas id="chartYoY"></canvas>
+      </div>
+    </div>
+
+    <!-- Species Co-occurrence -->
+    <div class="chart-card">
+      <div class="card-header">
+        <div class="card-title">Species Co-occurrence</div>
+        <div class="card-subtitle" style="font-size:11px;color:var(--text-muted)">Species frequently found together at same sites</div>
+      </div>
+      <div class="analysis-card-body" id="cooccurrenceList" style="padding:16px 20px"></div>
+    </div>
+
+    <!-- Species Table -->
+    <div class="table-card">
+      <div class="card-header">
+        <div class="card-title">Species Observations</div>
+      </div>
+      <table class="species-table">
+        <thead>
+          <tr>
+            <th>Species</th>
+            <th>Count</th>
+            <th>Islands</th>
+            <th>Primary Threat</th>
+          </tr>
+        </thead>
+        <tbody id="speciesTableBody"></tbody>
+      </table>
+    </div>
+
+    <!-- Recent Records -->
+    <div class="recent-card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Recent Field Records</div>
+          <div class="card-subtitle">Latest observations from field collectors</div>
+        </div>
+      </div>
+      <div class="recent-list" id="recentList"></div>
+    </div>
+  `;
+}
+
+// ══════════════════════════════════════════
+// UPDATE FUNCTIONS
+// ══════════════════════════════════════════
+function updateStats(stats) {
+  document.getElementById('statSpecies').textContent = stats.speciesCount;
+  document.getElementById('statSpeciesDetail').textContent = `Merremia spp. identified`;
+  document.getElementById('statSites').textContent = stats.siteCount;
+  document.getElementById('statSitesDetail').textContent = `Across ${stats.islandCount} islands`;
+  document.getElementById('statArea').textContent = stats.totalAreaHectares > 0
+    ? `${stats.totalAreaHectares.toLocaleString()}`
+    : '—';
+  document.getElementById('statAreaDetail').textContent = 'hectares surveyed';
+  document.getElementById('statObs').textContent = stats.totalObservations.toLocaleString();
+  document.getElementById('statObsDetail').textContent = `${stats.recordCount} field records`;
+}
+
+// ══════════════════════════════════════════
+// MAP
+// ══════════════════════════════════════════
+var baseLayers = {};
+var activeBasemap = 'dark';
+
+function initMap() {
+  map = L.map('dashMap', {
+    zoomControl: true,
+    attributionControl: false
+  }).setView([-16.5, 167.8], 6);
+
+  baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+  baseLayers.streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { maxZoom: 19 });
+  baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19 });
+
+  baseLayers.dark.addTo(map);
+  mapLayer = L.layerGroup().addTo(map);
+}
+
+function switchBasemap(type) {
+  if (activeBasemap === type) return;
+  map.removeLayer(baseLayers[activeBasemap]);
+  baseLayers[type].addTo(map);
+  baseLayers[type].bringToBack();
+  activeBasemap = type;
+  document.querySelectorAll('.basemap-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('bm-' + type).classList.add('active');
+}
+
+function updateMap(data) {
+  if (!mapLayer) return;
+  mapLayer.clearLayers();
+
+  const geojson = data.geoJSON;
+  if (!geojson || geojson.features.length === 0) return;
+
+  // Apply current filters
+  const filteredFeatures = applyGeoJSONFilters(geojson.features);
+
+  L.geoJSON({ type: 'FeatureCollection', features: filteredFeatures }, {
+    pointToLayer: (feature, latlng) => {
+      const colors = { high: '#f87171', moderate: '#fbbf24', low: '#4ade80' };
+      const color = colors[feature.properties.threatLevel] || '#888';
+      return L.circleMarker(latlng, {
+        radius: 8,
+        fillColor: color,
+        color: '#fff',
+        weight: 2,
+        fillOpacity: 0.85
+      });
+    },
+    onEachFeature: (feature, layer) => {
+      const p = feature.properties;
+      const photoBase = 'https://raw.githubusercontent.com/' + CONNECTOR_CONFIG.owner + '/' + CONNECTOR_CONFIG.repo + '/main/photos/';
+      const photoCount = p.photoCount || 3;
+      let photoHtml = '<div class="popup-photos">';
+      for (let i = 0; i < photoCount; i++) {
+        photoHtml += '<img src="' + photoBase + p.id + '-' + i + '.jpg" alt="Field photo ' + (i+1) + '" onerror="this.style.display=\'none\'" onclick="showFullPhoto(this.src)" loading="lazy">';
+      }
+      photoHtml += '</div>';
+      layer.bindPopup(photoHtml, { maxWidth: 300 });
+    }
+  }).addTo(mapLayer);
+
+  // Fit map to data bounds
+  if (filteredFeatures.length > 0) {
+    const coords = filteredFeatures.map(f => [f.geometry.coordinates[1], f.geometry.coordinates[0]]);
+    map.fitBounds(coords, { padding: [40, 40], maxZoom: 12 });
+  }
+}
+
+function applyGeoJSONFilters(features) {
+  const island = document.getElementById('filterIsland')?.value;
+  const species = document.getElementById('filterSpecies')?.value;
+  const threat = document.getElementById('filterThreat')?.value;
+
+  return features.filter(f => {
+    const p = f.properties;
+    if (island && p.island !== island) return false;
+    if (species && !p.speciesLabel.includes(species)) return false;
+    if (threat && p.threatLevel !== threat) return false;
+    return true;
+  });
+}
+
+// ══════════════════════════════════════════
+// CHARTS
+// ══════════════════════════════════════════
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: { display: false },
+  },
+  scales: {
+    x: {
+      grid: { color: 'rgba(42,63,42,0.3)' },
+      ticks: { color: '#7a9a7a', font: { family: 'DM Sans', size: 11 } }
+    },
+    y: {
+      grid: { color: 'rgba(42,63,42,0.3)' },
+      ticks: { color: '#7a9a7a', font: { family: 'DM Sans', size: 11 } }
+    }
+  }
+};
+
+function initCharts() {
+  const islandCtx = document.getElementById('chartIsland').getContext('2d');
+  islandChart = new Chart(islandCtx, {
+    type: 'bar',
+    data: { labels: [], datasets: [{ data: [], backgroundColor: '#4ade80', borderRadius: 6 }] },
+    options: { ...chartDefaults }
+  });
+
+  const timelineCtx = document.getElementById('chartTimeline').getContext('2d');
+  timelineChart = new Chart(timelineCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [{
+        data: [],
+        borderColor: '#4ade80',
+        backgroundColor: 'rgba(74,222,128,0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointBackgroundColor: '#4ade80',
+        pointRadius: 4
+      }]
+    },
+    options: { ...chartDefaults }
+  });
+}
+
+function updateCharts(data) {
+  if (!islandChart || !timelineChart) return;
+
+  // Island chart
+  const islands = Object.entries(data.byIsland)
+    .sort((a, b) => b[1].totalCount - a[1].totalCount);
+  islandChart.data.labels = islands.map(([name]) => name);
+  islandChart.data.datasets[0].data = islands.map(([, d]) => d.totalCount);
+  islandChart.update('none');
+
+  // Timeline chart
+  timelineChart.data.labels = data.timeline.map(t => t.month);
+  timelineChart.data.datasets[0].data = data.timeline.map(t => t.count);
+  timelineChart.update('none');
+}
+
+// ══════════════════════════════════════════
+// SPECIES TABLE
+// ══════════════════════════════════════════
+function updateSpeciesTable(bySpecies) {
+  const tbody = document.getElementById('speciesTableBody');
+  if (!tbody) return;
+
+  const sorted = Object.entries(bySpecies)
+    .sort((a, b) => b[1].totalCount - a[1].totalCount);
+
+  tbody.innerHTML = sorted.map(([name, data]) => {
+    const topThreat = ['high', 'moderate', 'low'].find(t => data.threats[t] > 0) || 'low';
+    return `
+      <tr>
+        <td><span class="species-name">${name}</span></td>
+        <td>${data.totalCount.toLocaleString()}</td>
+        <td style="color:var(--text-dim)">${data.islands.join(', ')}</td>
+        <td><span class="threat-badge ${topThreat}">${topThreat.charAt(0).toUpperCase() + topThreat.slice(1)}</span></td>
+      </tr>
+    `;
+  }).join('');
+}
+
+// ══════════════════════════════════════════
+// RECENT RECORDS
+// ══════════════════════════════════════════
+function updateRecentRecords(records) {
+  const list = document.getElementById('recentList');
+  if (!list) return;
+
+  const recent = records.slice(0, 15);
+  list.innerHTML = recent.map(r => {
+    const cat = r.category || 'merremia';
+    let title = '';
+    if (cat === 'merremia') title = Array.isArray(r.species) ? r.species.join(', ') : (r.species || 'Merremia');
+    else if (cat === 'degraded') title = r.degradationType || 'Degraded Area';
+    else if (cat === 'restoration') title = r.restorationType || 'Restoration';
+    else if (cat === 'threatened') title = r.speciesName || 'Threatened Species';
+    else title = 'Record';
+    const dotClass = r.threatLevel || (cat === 'degraded' ? (r.severity || '').toLowerCase() : 'low');
+    return `
+    <div class="recent-item">
+      <div class="recent-dot ${dotClass}"></div>
+      <div class="recent-info">
+        <div class="recent-species">${title}</div>
+        <div class="recent-meta">${r.island || 'Unknown'} · ${r.siteName || '—'} · ${r.observer || 'Unknown observer'}</div>
+      </div>
+      <div class="recent-time">${timeAgo(new Date(r.timestamp))}</div>
+    </div>
+  `}).join('');
+}
+
+// ══════════════════════════════════════════
+// ANALYSIS — TREND, RISK, ALERTS, CO-OCCURRENCE
+// ══════════════════════════════════════════
+let yoyChart = null;
+
+function updateAnalysis(data) {
+  updateTrendInsights(data);
+  updateRiskTable(data);
+  updateAlerts(data);
+  updateYoYChart(data);
+  updateCooccurrence(data);
+}
+
+function updateTrendInsights(data) {
+  const el = document.getElementById('trendInsights');
+  if (!el || !data.timeline || data.timeline.length < 2) {
+    if (el) el.innerHTML = '<p style="color:var(--text-muted);font-size:12px">Not enough data for trend analysis. Collect data over multiple months.</p>';
+    return;
+  }
+  const tl = data.timeline;
+  const recent3 = tl.slice(-3);
+  const prev3 = tl.slice(-6, -3);
+  const recentAvg = recent3.reduce((s, t) => s + t.count, 0) / (recent3.length || 1);
+  const prevAvg = prev3.length ? prev3.reduce((s, t) => s + t.count, 0) / prev3.length : recentAvg;
+  const growthRate = prevAvg > 0 ? ((recentAvg - prevAvg) / prevAvg * 100).toFixed(1) : 0;
+  const growthClass = growthRate > 5 ? 'trend-up' : growthRate < -5 ? 'trend-down' : 'trend-flat';
+  const growthArrow = growthRate > 5 ? '&#9650;' : growthRate < -5 ? '&#9660;' : '&#9644;';
+
+  const totalObs = tl.reduce((s, t) => s + t.count, 0);
+  const monthSpan = tl.length;
+  const avgPerMonth = (totalObs / monthSpan).toFixed(0);
+
+  // Projection: if growth continues at current rate, estimate next quarter
+  const projNext = Math.round(recentAvg * (1 + parseFloat(growthRate) / 100) * 3);
+
+  // Threat breakdown
+  const tb = data.stats.threatBreakdown || {};
+  const total = (tb.high || 0) + (tb.moderate || 0) + (tb.low || 0);
+  const highPct = total > 0 ? ((tb.high || 0) / total * 100).toFixed(0) : 0;
+
+  // Area trend
+  const totalArea = data.stats.totalAreaHectares || 0;
+  const areaPerRecord = data.stats.recordCount > 0 ? (totalArea / data.stats.recordCount).toFixed(2) : 0;
+
+  el.innerHTML = `
+    <div class="insight-item">
+      <div class="label">Growth Rate (3-month)</div>
+      <div class="value ${growthClass}">${growthArrow} ${Math.abs(growthRate)}%</div>
+      <div class="detail">${growthRate > 0 ? 'Increasing' : growthRate < 0 ? 'Declining' : 'Stable'} spread</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Avg. Observations / Month</div>
+      <div class="value">${avgPerMonth}</div>
+      <div class="detail">Over ${monthSpan} months of data</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Next Quarter Projection</div>
+      <div class="value">${projNext.toLocaleString()}</div>
+      <div class="detail">Estimated new observations</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">High Threat Records</div>
+      <div class="value" style="color:#dc2626">${highPct}%</div>
+      <div class="detail">${tb.high || 0} of ${total} records</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Avg. Area per Record</div>
+      <div class="value">${areaPerRecord} ha</div>
+      <div class="detail">${totalArea.toLocaleString()} ha total surveyed</div>
+    </div>
+    <div class="insight-item">
+      <div class="label">Data Collection Span</div>
+      <div class="value">${monthSpan} mo</div>
+      <div class="detail">${tl[0]?.month || ''} to ${tl[tl.length-1]?.month || ''}</div>
+    </div>
+  `;
+}
+
+function updateRiskTable(data) {
+  const tbody = document.getElementById('riskTableBody');
+  if (!tbody) return;
+  const records = data.records || [];
+  const islandData = {};
+  records.forEach(r => {
+    const isl = r.island || 'Unknown';
+    if (!islandData[isl]) islandData[isl] = { count: 0, high: 0, area: 0 };
+    islandData[isl].count++;
+    if (r.threatLevel === 'high') islandData[isl].high++;
+    islandData[isl].area += (r.coverageArea || 0);
+  });
+  // Score: weighted combination of count, high-threat %, and area
+  const ranked = Object.entries(islandData).map(([name, d]) => {
+    const highPct = d.count > 0 ? d.high / d.count : 0;
+    const score = Math.round(d.count * 0.4 + highPct * 60 + d.area * 0.3);
+    return { name, ...d, highPct, score };
+  }).sort((a, b) => b.score - a.score);
+  const maxScore = ranked[0]?.score || 1;
+
+  tbody.innerHTML = ranked.map((r, i) => {
+    const pct = (r.score / maxScore * 100).toFixed(0);
+    const color = r.highPct > 0.5 ? '#ef4444' : r.highPct > 0.2 ? '#f59e0b' : '#10b981';
+    return `<tr>
+      <td style="font-weight:700;color:var(--text-dim)">#${i + 1}</td>
+      <td style="font-weight:600">${r.name}</td>
+      <td>${r.count}</td>
+      <td>${(r.highPct * 100).toFixed(0)}%</td>
+      <td>${r.area.toFixed(1)}</td>
+      <td style="font-weight:700">${r.score}</td>
+      <td><div class="risk-bar"><div class="risk-bar-fill" style="width:${pct}%;background:${color}"></div></div></td>
+    </tr>`;
+  }).join('');
+}
+
+function updateAlerts(data) {
+  const banner = document.getElementById('alertBanner');
+  const text = document.getElementById('alertText');
+  if (!banner || !text) return;
+  const records = data.records || [];
+  // Check for recent high-threat records (last 7 days)
+  const weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
+  const recentHigh = records.filter(r => r.threatLevel === 'high' && new Date(r.timestamp) > weekAgo);
+  if (recentHigh.length > 0) {
+    const islands = [...new Set(recentHigh.map(r => r.island))].join(', ');
+    text.textContent = `${recentHigh.length} high-threat observation${recentHigh.length > 1 ? 's' : ''} in the last 7 days — ${islands}`;
+    banner.style.display = 'flex';
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+function updateYoYChart(data) {
+  const canvas = document.getElementById('chartYoY');
+  if (!canvas) return;
+  const records = data.records || [];
+  // Group by year-month
+  const byYearMonth = {};
+  records.forEach(r => {
+    if (!r.timestamp) return;
+    const d = new Date(r.timestamp);
+    const year = d.getFullYear();
+    const month = d.getMonth(); // 0-11
+    if (!byYearMonth[year]) byYearMonth[year] = Array(12).fill(0);
+    byYearMonth[year][month] += (r.count || 1);
+  });
+  const years = Object.keys(byYearMonth).sort();
+  if (years.length < 1) return;
+  const monthLabels = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const colors = ['#10b981','#3b82f6','#8b5cf6','#f59e0b','#ef4444'];
+  const datasets = years.map((yr, i) => ({
+    label: yr,
+    data: byYearMonth[yr],
+    borderColor: colors[i % colors.length],
+    backgroundColor: 'transparent',
+    borderWidth: 2,
+    tension: 0.3,
+    pointRadius: 3
+  }));
+
+  if (yoyChart) {
+    yoyChart.data.labels = monthLabels;
+    yoyChart.data.datasets = datasets;
+    yoyChart.update('none');
+  } else {
+    yoyChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: { labels: monthLabels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: true, position: 'top', labels: { font: { size: 11 }, color: '#64748b' } } },
+        scales: {
+          x: { grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { size: 11 } } },
+          y: { grid: { color: '#e2e8f0' }, ticks: { color: '#64748b', font: { size: 11 } }, beginAtZero: true }
+        }
+      }
+    });
+  }
+}
+
+function updateCooccurrence(data) {
+  const el = document.getElementById('cooccurrenceList');
+  if (!el) return;
+  const records = data.records || [];
+  // Find species pairs at same sites
+  const sitePairs = {};
+  const siteSpecies = {};
+  records.forEach(r => {
+    const site = (r.island || '') + '|' + (r.siteName || '');
+    const species = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
+    if (!siteSpecies[site]) siteSpecies[site] = new Set();
+    species.forEach(sp => siteSpecies[site].add(sp));
+  });
+  // Generate pairs
+  Object.entries(siteSpecies).forEach(([site, spp]) => {
+    const arr = [...spp].sort();
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = i + 1; j < arr.length; j++) {
+        const key = arr[i] + ' + ' + arr[j];
+        if (!sitePairs[key]) sitePairs[key] = new Set();
+        sitePairs[key].add(site);
+      }
+    }
+  });
+  const sorted = Object.entries(sitePairs)
+    .map(([pair, sites]) => ({ pair, count: sites.size }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  if (sorted.length === 0) {
+    el.innerHTML = '<p style="color:var(--text-muted);font-size:12px">Not enough multi-species observations to show co-occurrence patterns.</p>';
+    return;
+  }
+  el.innerHTML = '<div class="cooccurrence-list">' + sorted.map(s =>
+    `<div class="cooccurrence-item"><div class="pair">${s.pair}</div><div class="sites">${s.count} shared site${s.count > 1 ? 's' : ''}</div></div>`
+  ).join('') + '</div>';
+}
+
+// ══════════════════════════════════════════
+// FILTERS
+// ══════════════════════════════════════════
+function populateFilters(stats) {
+  const islandSelect = document.getElementById('filterIsland');
+  const speciesSelect = document.getElementById('filterSpecies');
+
+  // Only populate if empty (first render)
+  if (islandSelect.options.length <= 1) {
+    stats.islandList.forEach(island => {
+      const opt = document.createElement('option');
+      opt.value = island;
+      opt.textContent = island;
+      islandSelect.appendChild(opt);
+    });
+  }
+
+  if (speciesSelect.options.length <= 1) {
+    stats.speciesList.forEach(sp => {
+      const opt = document.createElement('option');
+      opt.value = sp;
+      opt.textContent = sp;
+      speciesSelect.appendChild(opt);
+    });
+  }
+}
+
+function applyFilters() {
+  if (!dashData || !connector) return;
+
+  const island = document.getElementById('filterIsland').value;
+  const species = document.getElementById('filterSpecies').value;
+  const threat = document.getElementById('filterThreat').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+
+  let filtered = connector.filterRecords(dashData.records, {
+    island: island || undefined,
+    species: species || undefined,
+    threat: threat || undefined
+  });
+
+  if (dateFrom) filtered = filtered.filter(r => r.timestamp && r.timestamp.slice(0,10) >= dateFrom);
+  if (dateTo) filtered = filtered.filter(r => r.timestamp && r.timestamp.slice(0,10) <= dateTo);
+
+  // Reprocess filtered data manually
+  const filteredData = reprocessForDisplay(filtered);
+  filteredData.records = filtered;
+  updateStats(filteredData.stats);
+  updateMap(dashData); // Map uses its own filter
+  updateCharts(filteredData);
+  updateSpeciesTable(filteredData.bySpecies);
+  updateRecentRecords(filtered);
+  updateAnalysis(filteredData);
+}
+
+function reprocessForDisplay(records) {
+  // Quick reprocess for filtered view
+  const stats = {
+    speciesCount: new Set(records.flatMap(r => Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []))).size,
+    speciesList: [...new Set(records.flatMap(r => Array.isArray(r.species) ? r.species : (r.species ? [r.species] : [])))].sort(),
+    islandCount: new Set(records.map(r => r.island).filter(Boolean)).size,
+    islandList: [...new Set(records.map(r => r.island).filter(Boolean))].sort(),
+    siteCount: new Set(records.map(r => r.siteName).filter(Boolean)).size,
+    totalObservations: records.reduce((s, r) => s + (r.count || 0), 0),
+    totalAreaHectares: Math.round(records.reduce((s, r) => s + (r.coverageArea || 0), 0) * 10) / 10,
+    recordCount: records.length,
+    threatBreakdown: {
+      high: records.filter(r => r.threatLevel === 'high').length,
+      moderate: records.filter(r => r.threatLevel === 'moderate').length,
+      low: records.filter(r => r.threatLevel === 'low').length
+    }
+  };
+
+  const byIsland = {};
+  records.forEach(r => {
+    const island = r.island || 'Unknown';
+    if (!byIsland[island]) byIsland[island] = { totalCount: 0 };
+    if (r.count) byIsland[island].totalCount += r.count;
+  });
+
+  const bySpecies = {};
+  records.forEach(r => {
+    (r.species || []).forEach(sp => {
+      if (!bySpecies[sp]) bySpecies[sp] = { totalCount: 0, islands: new Set(), threats: { high: 0, moderate: 0, low: 0 } };
+      if (r.count) bySpecies[sp].totalCount += r.count;
+      if (r.island) bySpecies[sp].islands.add(r.island);
+      if (r.threatLevel) bySpecies[sp].threats[r.threatLevel]++;
+    });
+  });
+  Object.values(bySpecies).forEach(g => { g.islands = [...g.islands]; });
+
+  const byMonth = {};
+  records.forEach(r => {
+    const d = new Date(r.timestamp);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    if (!byMonth[key]) byMonth[key] = { month: key, count: 0 };
+    if (r.count) byMonth[key].count += r.count;
+  });
+  const timeline = Object.values(byMonth).sort((a, b) => a.month.localeCompare(b.month));
+
+  return { stats, byIsland, bySpecies, timeline };
+}
+
+function resetFilters() {
+  document.getElementById('filterIsland').value = '';
+  document.getElementById('filterSpecies').value = '';
+  document.getElementById('filterThreat').value = '';
+  document.getElementById('filterDateFrom').value = '';
+  document.getElementById('filterDateTo').value = '';
+  if (dashData) renderDashboard(dashData);
+}
+
+// ══════════════════════════════════════════
+// DATA EXPORT
+// ══════════════════════════════════════════
+function getFilteredRecords() {
+  if (!dashData || !connector) return [];
+  const island = document.getElementById('filterIsland').value;
+  const species = document.getElementById('filterSpecies').value;
+  const threat = document.getElementById('filterThreat').value;
+  const dateFrom = document.getElementById('filterDateFrom').value;
+  const dateTo = document.getElementById('filterDateTo').value;
+  let records = connector.filterRecords(dashData.records, {
+    island: island || undefined, species: species || undefined, threat: threat || undefined
+  });
+  if (dateFrom) records = records.filter(r => r.timestamp && r.timestamp.slice(0,10) >= dateFrom);
+  if (dateTo) records = records.filter(r => r.timestamp && r.timestamp.slice(0,10) <= dateTo);
+  return records;
+}
+
+function exportCSV() {
+  const records = getFilteredRecords();
+  if (!records.length) return;
+  const headers = ['timestamp','island','siteName','observer','species','count','threatLevel','coverageArea','latitude','longitude','accuracy','notes'];
+  const rows = records.map(r => headers.map(h => {
+    let v = '';
+    if (h === 'species') v = Array.isArray(r.species) ? r.species.join('; ') : (r.species || '');
+    else if (h === 'latitude') v = r.latitude || (r.gps && r.gps.lat) || '';
+    else if (h === 'longitude') v = r.longitude || (r.gps && r.gps.lng) || '';
+    else if (h === 'accuracy') v = r.accuracy || (r.gps && r.gps.accuracy) || '';
+    else v = r[h] != null ? String(r[h]) : '';
+    return '"' + v.replace(/"/g, '""') + '"';
+  }).join(','));
+  const csv = headers.join(',') + '\n' + rows.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'merremia-data-' + new Date().toISOString().slice(0,10) + '.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportPDF() {
+  const records = getFilteredRecords();
+  if (!records.length) return;
+  const stats = reprocessForDisplay(records).stats;
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Merremia Vanuatu Report</title>');
+  w.document.write('<style>body{font-family:Arial,sans-serif;padding:40px;color:#1e293b;max-width:800px;margin:0 auto}h1{color:#065f46;font-size:22px}h2{color:#334155;font-size:16px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;margin-top:24px}table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}th,td{text-align:left;padding:6px 10px;border-bottom:1px solid #e2e8f0}th{background:#f8fafc;font-weight:600;color:#334155}.stat{display:inline-block;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:12px 20px;margin:4px;text-align:center}.stat-val{font-size:22px;font-weight:700;color:#065f46}.stat-label{font-size:11px;color:#64748b;text-transform:uppercase}p.footer{margin-top:30px;font-size:11px;color:#94a3b8;border-top:1px solid #e2e8f0;padding-top:10px}@media print{body{padding:20px}}</style></head><body>');
+  w.document.write('<h1>Merremia Vanuatu &mdash; Ecological Monitoring Report</h1>');
+  w.document.write('<p>Generated: ' + new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'}) + ' &middot; ' + records.length + ' records</p>');
+  w.document.write('<div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.speciesCount + '</div><div class="stat-label">Species</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.islandCount + '</div><div class="stat-label">Islands</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.siteCount + '</div><div class="stat-label">Sites</div></div>');
+  w.document.write('<div class="stat"><div class="stat-val">' + stats.totalObservations + '</div><div class="stat-label">Observations</div></div>');
+  w.document.write('</div>');
+  w.document.write('<h2>Recent Records</h2><table><tr><th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Threat</th><th>Observer</th></tr>');
+  records.slice(0, 100).forEach(r => {
+    const sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '—');
+    const d = r.timestamp ? new Date(r.timestamp).toLocaleDateString('en-GB') : '—';
+    w.document.write('<tr><td>' + d + '</td><td>' + (r.island||'—') + '</td><td>' + (r.siteName||'—') + '</td><td>' + sp + '</td><td>' + (r.threatLevel||'—') + '</td><td>' + (r.observer||'—') + '</td></tr>');
+  });
+  if (records.length > 100) w.document.write('<tr><td colspan="6" style="text-align:center;color:#94a3b8">... and ' + (records.length - 100) + ' more records</td></tr>');
+  w.document.write('</table>');
+  w.document.write('<p class="footer">Department of Environmental Protection &amp; Conservation &middot; Merremia Vanuatu Ecological Monitoring Project</p>');
+  w.document.write('</body></html>');
+  w.document.close();
+  setTimeout(() => w.print(), 500);
+}
+</script>
+</body>
+</html>
