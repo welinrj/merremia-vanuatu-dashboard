@@ -91,7 +91,7 @@ const DatasetUpload: FC<DatasetUploadProps> = ({ onUploaded, onCancel }) => {
           onClick={() => fileInputRef.current?.click()}
           role="button"
           tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') fileInputRef.current?.click() }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click() } }}
         >
           <input
             ref={fileInputRef}

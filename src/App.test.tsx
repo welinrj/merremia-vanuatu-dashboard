@@ -48,8 +48,8 @@ describe('App', () => {
     expect(screen.getByText('Settings page coming soon.')).toBeInTheDocument()
   })
 
-  it('renders search input', () => {
+  it('renders header with section title', () => {
     render(<App />)
-    expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument()
+    expect(screen.getByRole('banner')).toBeInTheDocument()
   })
 })
