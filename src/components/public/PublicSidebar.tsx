@@ -16,7 +16,7 @@ const PublicSidebar: FC<PublicSidebarProps> = ({ activeSection, onNavigate }) =>
   return (
     <aside className="sidebar public-sidebar">
       <div className="sidebar-header">
-        <h2>Merremia</h2>
+        <h2>VCAP2</h2>
         <span className="sidebar-subtitle">Public Portal</span>
       </div>
       <nav className="sidebar-nav">

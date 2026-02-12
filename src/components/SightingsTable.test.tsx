@@ -8,7 +8,7 @@ const mockSightings: SightingRecord[] = [
     id: '1',
     date: '2026-02-07',
     location: 'Efate Island',
-    species: 'Merremia peltata',
+    species: 'Acropora millepora',
     count: 45,
     observer: 'Dr. Tari',
   },
@@ -16,7 +16,7 @@ const mockSightings: SightingRecord[] = [
     id: '2',
     date: '2026-02-06',
     location: 'Tanna Island',
-    species: 'Merremia gemella',
+    species: 'Chelonia mydas',
     count: 12,
     observer: 'M. Kalsakau',
   },
@@ -35,7 +35,7 @@ describe('SightingsTable', () => {
   it('renders sighting data', () => {
     render(<SightingsTable sightings={mockSightings} />)
     expect(screen.getByText('Efate Island')).toBeInTheDocument()
-    expect(screen.getByText('Merremia peltata')).toBeInTheDocument()
+    expect(screen.getByText('Acropora millepora')).toBeInTheDocument()
     expect(screen.getByText('45')).toBeInTheDocument()
     expect(screen.getByText('Dr. Tari')).toBeInTheDocument()
   })
