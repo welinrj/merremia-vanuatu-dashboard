@@ -31,7 +31,7 @@ const sampleFC: FeatureCollection = {
 beforeEach(async () => {
   _resetForTests()
   await new Promise<void>((resolve) => {
-    const req = indexedDB.deleteDatabase('merremia-gis')
+    const req = indexedDB.deleteDatabase('vcap2-gis')
     req.onsuccess = () => resolve()
     req.onerror = () => resolve()
     req.onblocked = () => resolve()

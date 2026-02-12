@@ -9,7 +9,7 @@ import {
   migrateFromLocalStorage,
 } from '../../services/datasetStore'
 import {
-  vanuatuSightingsGeoJSON,
+  vanuatuSurveyPoints,
   vanuatuIslandBoundaries,
 } from '../../data/sampleGeoData'
 import DatasetList from './DatasetList'
@@ -93,15 +93,15 @@ const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
 
   async function loadSampleData() {
     const existing = await listDatasets()
-    if (existing.some((d) => d.metadata.name === 'Merremia Sightings')) return
+    if (existing.some((d) => d.metadata.name === 'VCAP2 Survey Points')) return
 
     await addDataset(
-      vanuatuSightingsGeoJSON,
+      vanuatuSurveyPoints,
       {
-        name: 'Merremia Sightings',
-        description: 'Vine sighting locations across Vanuatu islands',
-        source: 'Field Survey 2026',
-        tags: ['merremia', 'sightings', 'vanuatu'],
+        name: 'VCAP2 Survey Points',
+        description: 'Marine survey observation points across Vanuatu islands',
+        source: 'DEPC Field Survey 2026',
+        tags: ['vcap2', 'marine', 'survey', 'vanuatu'],
       },
       'geojson',
     )

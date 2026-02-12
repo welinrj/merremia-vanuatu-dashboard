@@ -82,7 +82,7 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `merremia-gis-backup-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `vcap2-gis-backup-${new Date().toISOString().slice(0, 10)}.json`
     a.click()
     URL.revokeObjectURL(url)
   }

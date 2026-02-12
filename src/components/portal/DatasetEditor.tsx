@@ -111,7 +111,7 @@ const DatasetEditor: FC<DatasetEditorProps> = ({
             type="text"
             value={tagsInput}
             onChange={(e) => setTagsInput(e.target.value)}
-            placeholder="merremia, vanuatu, survey"
+            placeholder="vcap2, marine, vanuatu, survey"
           />
         </div>
 

@@ -6,14 +6,14 @@ import type {
 } from '../types/geospatial'
 import type { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson'
 
-const DB_NAME = 'merremia-gis'
+const DB_NAME = 'vcap2-gis'
 const DB_VERSION = 1
 const STORE_DATASETS = 'datasets'
 const STORE_INDEX = 'index'
 
 // Legacy localStorage keys for one-time migration
-const LEGACY_STORAGE_KEY = 'merremia-datasets'
-const LEGACY_INDEX_KEY = 'merremia-datasets-index'
+const LEGACY_STORAGE_KEY = 'vcap2-datasets'
+const LEGACY_INDEX_KEY = 'vcap2-datasets-index'
 
 let dbInstance: IDBDatabase | null = null
 

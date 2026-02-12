@@ -5,14 +5,14 @@ import App from './App'
 describe('App', () => {
   it('renders sidebar with project name', () => {
     render(<App />)
-    expect(screen.getByText('Merremia')).toBeInTheDocument()
+    expect(screen.getByText('VCAP2')).toBeInTheDocument()
     expect(screen.getByText('In-House Portal')).toBeInTheDocument()
   })
 
   it('shows overview by default', () => {
     render(<App />)
     expect(screen.getAllByText('Overview').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getByText('Total Sightings')).toBeInTheDocument()
+    expect(screen.getByText('Total Surveys')).toBeInTheDocument()
   })
 
   it('navigates to data portal section', () => {

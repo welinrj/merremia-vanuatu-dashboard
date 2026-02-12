@@ -1,9 +1,9 @@
 import type { SightingRecord, StatCardData, LocationSummary } from '../types/dashboard'
 
 export const stats: StatCardData[] = [
-  { title: 'Total Sightings', value: 1284, change: 12.5 },
+  { title: 'Total Surveys', value: 1284, change: 12.5 },
   { title: 'Species Recorded', value: 23, change: 4.3 },
-  { title: 'Active Locations', value: 8, change: 0 },
+  { title: 'Active Sites', value: 8, change: 0 },
   { title: 'Observers', value: 15, change: -2.1 },
 ]
 
@@ -12,16 +12,16 @@ export const recentSightings: SightingRecord[] = [
     id: '1',
     date: '2026-02-07',
     location: 'Efate Island',
-    species: 'Merremia peltata',
+    species: 'Acropora millepora',
     count: 45,
     observer: 'Dr. Tari',
-    notes: 'Dense growth along coastal road',
+    notes: 'Healthy coral colony along reef crest',
   },
   {
     id: '2',
     date: '2026-02-06',
     location: 'Tanna Island',
-    species: 'Merremia peltata',
+    species: 'Chelonia mydas',
     count: 23,
     observer: 'M. Kalsakau',
   },
@@ -29,16 +29,16 @@ export const recentSightings: SightingRecord[] = [
     id: '3',
     date: '2026-02-05',
     location: 'Santo Island',
-    species: 'Merremia gemella',
-    count: 12,
+    species: 'Dugong dugon',
+    count: 3,
     observer: 'Dr. Tari',
-    notes: 'New growth near river crossing',
+    notes: 'Feeding in seagrass bed near estuary',
   },
   {
     id: '4',
     date: '2026-02-04',
     location: 'Malekula Island',
-    species: 'Merremia peltata',
+    species: 'Porites lutea',
     count: 67,
     observer: 'J. Naupa',
   },
@@ -46,10 +46,10 @@ export const recentSightings: SightingRecord[] = [
     id: '5',
     date: '2026-02-03',
     location: 'Efate Island',
-    species: 'Merremia vitifolia',
+    species: 'Tridacna gigas',
     count: 8,
     observer: 'S. Vatu',
-    notes: 'Small patch near plantation edge',
+    notes: 'Giant clam cluster near reef edge',
   },
 ]
 
