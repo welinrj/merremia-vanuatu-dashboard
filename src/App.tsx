@@ -7,6 +7,7 @@ import LocationList from './components/LocationList'
 import DataPortal from './components/portal/DataPortal'
 import GISDatabase from './components/portal/GISDatabase'
 import PublicDataPortal from './components/public/PublicDataPortal'
+import StaffLogin from './components/StaffLogin'
 import { stats, recentSightings, locationSummaries } from './data/sampleData'
 import './App.css'
 
@@ -23,12 +24,42 @@ const sectionTitles: Record<string, string> = {
 }
 
 function App() {
-  const [activePage, setActivePage] = useState<'staff' | 'public'>('staff')
-  const [activeSection, setActiveSection] = useState('overview')
+  const [activePage, setActivePage] = useState<'staff' | 'public'>('public')
+  const [activeSection, setActiveSection] = useState('datasets')
+  const [staffAuth, setStaffAuth] = useState(
+    () => sessionStorage.getItem('vcap2_staff_auth') === '1'
+  )
 
   const handlePageChange = (page: 'staff' | 'public') => {
+    if (page === 'staff' && !staffAuth) {
+      setActivePage('staff')
+      return
+    }
     setActivePage(page)
     setActiveSection(page === 'staff' ? 'overview' : 'datasets')
+  }
+
+  const handleLogout = () => {
+    sessionStorage.removeItem('vcap2_staff_auth')
+    setStaffAuth(false)
+    setActivePage('public')
+    setActiveSection('datasets')
+  }
+
+  // Show login form when staff page is selected but not authenticated
+  if (activePage === 'staff' && !staffAuth) {
+    return (
+      <StaffLogin
+        onSuccess={() => {
+          setStaffAuth(true)
+          setActiveSection('overview')
+        }}
+        onCancel={() => {
+          setActivePage('public')
+          setActiveSection('datasets')
+        }}
+      />
+    )
   }
 
   return (
@@ -38,6 +69,8 @@ function App() {
         activeSection={activeSection}
         onPageChange={handlePageChange}
         onNavigate={setActiveSection}
+        staffAuth={staffAuth}
+        onLogout={handleLogout}
       />
       <main className="main-content">
         <Header title={sectionTitles[activeSection] ?? activeSection} />
