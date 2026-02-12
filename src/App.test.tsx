@@ -6,7 +6,7 @@ describe('App', () => {
   it('renders sidebar with project name', () => {
     render(<App />)
     expect(screen.getByText('Merremia')).toBeInTheDocument()
-    expect(screen.getByText('Vanuatu Dashboard')).toBeInTheDocument()
+    expect(screen.getByText('In-House Portal')).toBeInTheDocument()
   })
 
   it('shows overview by default', () => {
