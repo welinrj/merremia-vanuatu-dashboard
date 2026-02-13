@@ -14,6 +14,7 @@ import {
   syncDatasets,
   getSyncSettings,
   getSyncState,
+  deleteRemoteDataset,
 } from '../../services/githubSync'
 import DatasetUpload from './DatasetUpload'
 import MapViewer from './MapViewer'
@@ -58,11 +59,28 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     }
   }, [])
 
+  // Auto-sync on mount: migrate, pull from GitHub, then refresh
   useEffect(() => {
     let cancelled = false
-    migrateFromLocalStorage()
-      .then(() => refresh())
-      .finally(() => { if (!cancelled) setLoading(false) })
+    async function initialLoad() {
+      await migrateFromLocalStorage()
+      try {
+        const config = getSyncSettings()
+        if (config.token) {
+          const result = await syncDatasets(config)
+          if (!cancelled && (result.pulled > 0 || result.pushed > 0)) {
+            setLastSync(new Date().toISOString())
+          }
+        }
+      } catch {
+        // silent — manual sync still available
+      }
+      if (!cancelled) {
+        await refresh()
+        setLoading(false)
+      }
+    }
+    initialLoad()
     return () => { cancelled = true }
   }, [refresh])
 
@@ -80,10 +98,26 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     setPreview(ds)
   }
 
+  // Fire-and-forget push to GitHub after local mutation
+  function backgroundSync() {
+    const config = getSyncSettings()
+    if (!config.token) return
+    syncDatasets(config)
+      .then((r) => {
+        if (r.pushed > 0 || r.pulled > 0) setLastSync(new Date().toISOString())
+      })
+      .catch(() => { /* silent — manual sync still available */ })
+  }
+
   async function handleDelete(id: string) {
     const ds = datasets.find((d) => d.id === id)
     if (!window.confirm(`Delete "${ds?.metadata.name}"? This cannot be undone.`)) return
     await deleteDataset(id)
+    // Also delete from GitHub
+    const config = getSyncSettings()
+    if (config.token) {
+      deleteRemoteDataset(id, config).catch(() => { /* silent */ })
+    }
     if (selectedId === id) {
       setSelectedId(null)
       setPreview(null)
@@ -152,6 +186,11 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
   async function handleSync() {
     const config = getSyncSettings()
 
+    if (!config.token) {
+      setSyncStatus('No GitHub token configured — cannot sync')
+      return
+    }
+
     setSyncing(true)
     setSyncStatus('Syncing with GitHub...')
 
@@ -162,7 +201,7 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
       const parts: string[] = []
       if (result.pushed > 0) parts.push(`${result.pushed} pushed`)
       if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
-      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}`)
+      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
       if (parts.length === 0) parts.push('Already in sync')
 
       setSyncStatus(parts.join(', '))
@@ -192,6 +231,7 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
       <div className="data-portal">
         <DatasetUpload
           onUploaded={async () => {
+            backgroundSync()
             await refresh()
             setView('browse')
             setImportStatus('Dataset uploaded and stored to database.')
