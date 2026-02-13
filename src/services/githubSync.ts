@@ -89,14 +89,17 @@ async function ghFetch(
   options: RequestInit = {},
 ): Promise<Response> {
   const url = `${API_BASE}/repos/${config.owner}/${config.repo}/contents/${path}${config.branch ? `?ref=${config.branch}` : ''}`
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github.v3+json',
+    'Content-Type': 'application/json',
+    ...((options.headers as Record<string, string>) ?? {}),
+  }
+  if (config.token) {
+    headers.Authorization = `Bearer ${config.token}`
+  }
   return fetch(url, {
     ...options,
-    headers: {
-      Authorization: `Bearer ${config.token}`,
-      Accept: 'application/vnd.github.v3+json',
-      'Content-Type': 'application/json',
-      ...((options.headers as Record<string, string>) ?? {}),
-    },
+    headers,
   })
 }
 
