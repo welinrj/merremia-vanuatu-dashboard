@@ -112,19 +112,7 @@
       }
     } catch (err) {
       console.warn('GitHub load:', err.message);
-      // Try loading sample data directly
-      try {
-        const resp = await fetch('data/sample-marine-areas.geojson');
-        if (resp.ok) {
-          const geojson = await resp.json();
-          addDataset('Vanuatu Marine Conservation Areas', geojson, 'sample-marine-areas');
-          setStatus('Sample data loaded (local fallback)');
-        } else {
-          setStatus('No data available — upload GIS files to get started');
-        }
-      } catch (e) {
-        setStatus('Ready — upload GIS files to get started');
-      }
+      setStatus('Ready — upload GIS files to get started');
     }
     updateDatasetList();
   }
