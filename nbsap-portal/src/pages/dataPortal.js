@@ -24,27 +24,38 @@ export function initDataPortal() {
     <div class="portal-layout">
       <div class="portal-main">
         <div class="portal-toolbar">
-          <input type="text" class="search-input" id="portal-search" placeholder="Search layers...">
-          <select id="portal-filter-target" style="width:100px;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px">
+          <input type="text" class="search-input" id="portal-search" placeholder="Search layers by name, category, or target...">
+          <select id="portal-filter-target">
             <option value="All">All Targets</option>
           </select>
-          <select id="portal-filter-category" style="width:120px;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px">
+          <select id="portal-filter-category">
             <option value="All">All Categories</option>
             ${Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
           </select>
-          <select id="portal-filter-status" style="width:100px;padding:8px;border:1px solid var(--border);border-radius:4px;font-size:13px">
+          <select id="portal-filter-status">
             <option value="All">All Status</option>
             <option value="Clean">Clean</option>
             <option value="Warnings">Warnings</option>
             <option value="Failed">Failed</option>
           </select>
-          <button class="btn btn-primary" id="btn-upload-layer" style="display:none">Upload Layer</button>
+          <button class="btn btn-primary" id="btn-upload-layer" style="display:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Layer
+          </button>
         </div>
         <div id="portal-table-container"></div>
       </div>
       <div class="portal-sidebar" id="portal-sidebar">
-        <h4 style="margin-bottom:10px">Layer Details</h4>
-        <p style="color:var(--text-light);font-size:13px">Select a layer to view details</p>
+        <div class="detail-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+          </svg>
+          <p><strong>Layer Details</strong></p>
+          <p>Select a layer to view metadata and compliance information</p>
+        </div>
       </div>
     </div>
   `;
@@ -116,9 +127,15 @@ function renderPortalTable() {
 
   if (layers.length === 0) {
     container.innerHTML = `
-      <div style="text-align:center;padding:40px;color:var(--text-light)">
-        <p style="font-size:16px;margin-bottom:8px">No layers found</p>
-        <p style="font-size:13px">${isAdmin() ? 'Upload a shapefile to get started' : 'No data available yet'}</p>
+      <div class="empty-state">
+        <div class="empty-state-icon">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+            <polyline points="13 2 13 9 20 9"/>
+          </svg>
+        </div>
+        <div class="empty-state-title">No layers found</div>
+        <div class="empty-state-text">${isAdmin() ? 'Upload a shapefile to get started' : 'No data available yet'}</div>
       </div>
     `;
     return;
@@ -141,15 +158,21 @@ function renderPortalTable() {
       <tbody>
         ${layers.map(l => {
           const m = l.metadata;
+          const catConfig = CATEGORIES[m.category] || {};
           return `
             <tr data-layer-id="${l.id}" class="${selectedLayerId === l.id ? 'selected' : ''}" style="cursor:pointer">
-              <td><strong>${m.name}</strong></td>
-              <td>${m.category}</td>
-              <td>${m.targets.join(', ')}</td>
-              <td>${m.realm}</td>
+              <td>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
+                  <strong>${m.name}</strong>
+                </div>
+              </td>
+              <td><span style="font-size:12px;color:var(--text-secondary)">${CATEGORIES[m.category]?.label || m.category}</span></td>
+              <td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td>
+              <td style="text-transform:capitalize">${m.realm}</td>
               <td>${m.featureCount}</td>
               <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
-              <td>${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
+              <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
               <td class="actions">
                 <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
                 <button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>
@@ -199,44 +222,50 @@ function renderLayerDetails(layerId) {
   const layer = state.layers.find(l => l.id === layerId);
 
   if (!layer) {
-    sidebar.innerHTML = '<p style="color:var(--text-light)">Layer not found</p>';
+    sidebar.innerHTML = '<div class="detail-placeholder"><p>Layer not found</p></div>';
     return;
   }
 
   const m = layer.metadata;
   const tor = validateTORCompliance(m, layer.geojson);
+  const catConfig = CATEGORIES[m.category] || {};
 
   sidebar.innerHTML = `
-    <h4 style="margin-bottom:12px">${m.name}</h4>
+    <div class="detail-header">
+      <span style="width:4px;height:28px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
+      <h4>${m.name}</h4>
+    </div>
 
-    <div class="card" style="margin-bottom:12px">
-      <div class="card-header">Metadata</div>
-      <div class="card-body" style="font-size:13px">
-        <table style="width:100%">
-          <tr><td style="padding:3px 0"><b>Original file:</b></td><td>${m.originalFilename}</td></tr>
-          <tr><td style="padding:3px 0"><b>Uploaded:</b></td><td>${new Date(m.uploadTimestamp).toLocaleString()}</td></tr>
-          <tr><td style="padding:3px 0"><b>Uploaded by:</b></td><td>${m.uploadedBy}</td></tr>
-          <tr><td style="padding:3px 0"><b>Category:</b></td><td>${m.category}</td></tr>
-          <tr><td style="padding:3px 0"><b>Targets:</b></td><td>${m.targets.join(', ')}</td></tr>
-          <tr><td style="padding:3px 0"><b>Realm:</b></td><td>${m.realm}</td></tr>
-          <tr><td style="padding:3px 0"><b>CRS:</b></td><td>${m.detectedCRS}</td></tr>
-          <tr><td style="padding:3px 0"><b>Features:</b></td><td>${m.featureCount}</td></tr>
-          <tr><td style="padding:3px 0"><b>Valid geometries:</b></td><td>${m.validGeometryCount}</td></tr>
-          <tr><td style="padding:3px 0"><b>Fixed:</b></td><td>${m.fixedCount}</td></tr>
-          <tr><td style="padding:3px 0"><b>Dropped:</b></td><td>${m.droppedCount}</td></tr>
-          <tr><td style="padding:3px 0"><b>Total area:</b></td><td>${m.totalAreaHa.toFixed(2)} ha</td></tr>
-          <tr><td style="padding:3px 0"><b>30x30:</b></td><td>${m.countsToward30x30 ? 'Yes' : 'No'}</td></tr>
-          <tr><td style="padding:3px 0"><b>Status:</b></td><td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td></tr>
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header">
+        <span>Metadata</span>
+        <span class="badge badge-${m.status.toLowerCase()}">${m.status}</span>
+      </div>
+      <div class="card-body">
+        <table class="metadata-table">
+          <tr><td>Original file</td><td>${m.originalFilename}</td></tr>
+          <tr><td>Uploaded</td><td>${new Date(m.uploadTimestamp).toLocaleString()}</td></tr>
+          <tr><td>Uploaded by</td><td>${m.uploadedBy}</td></tr>
+          <tr><td>Category</td><td>${CATEGORIES[m.category]?.label || m.category}</td></tr>
+          <tr><td>Targets</td><td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td></tr>
+          <tr><td>Realm</td><td style="text-transform:capitalize">${m.realm}</td></tr>
+          <tr><td>CRS</td><td><code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:12px">${m.detectedCRS}</code></td></tr>
+          <tr><td>Features</td><td>${m.featureCount}</td></tr>
+          <tr><td>Valid geometries</td><td>${m.validGeometryCount}</td></tr>
+          <tr><td>Fixed</td><td>${m.fixedCount}</td></tr>
+          <tr><td>Dropped</td><td>${m.droppedCount}</td></tr>
+          <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>
+          <tr><td>30x30</td><td>${m.countsToward30x30 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--text-secondary)">No</span>'}</td></tr>
         </table>
       </div>
     </div>
 
-    <div class="card" style="margin-bottom:12px">
+    <div class="card" style="margin-bottom:14px">
       <div class="card-header">TOR Compliance</div>
       <div class="card-body">
         ${tor.compliant
-          ? '<p style="color:var(--success);font-weight:600;font-size:13px">All checks passed</p>'
-          : tor.issues.map(i => `<p style="color:var(--warning);font-size:12px">- ${i}</p>`).join('')
+          ? '<div style="display:flex;align-items:center;gap:8px;color:var(--success);font-weight:600;font-size:13px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>All checks passed</div>'
+          : tor.issues.map(i => `<div style="display:flex;align-items:flex-start;gap:6px;color:var(--warning);font-size:12px;margin-bottom:4px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>${i}</div>`).join('')
         }
       </div>
     </div>
@@ -245,7 +274,7 @@ function renderLayerDetails(layerId) {
       <div class="card">
         <div class="card-header">Warnings (${m.warnings.length})</div>
         <div class="card-body">
-          ${m.warnings.map(w => `<p style="font-size:12px;color:var(--warning)">- ${w}</p>`).join('')}
+          ${m.warnings.map(w => `<div style="font-size:12px;color:var(--warning);margin-bottom:4px;display:flex;align-items:flex-start;gap:6px"><span style="flex-shrink:0">-</span>${w}</div>`).join('')}
         </div>
       </div>
     ` : ''}
@@ -286,8 +315,18 @@ async function removeLayerAction(layerId) {
   });
 
   selectedLayerId = null;
-  document.getElementById('portal-sidebar').innerHTML =
-    '<h4 style="margin-bottom:10px">Layer Details</h4><p style="color:var(--text-light);font-size:13px">Select a layer to view details</p>';
+  document.getElementById('portal-sidebar').innerHTML = `
+    <div class="detail-placeholder">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      <p><strong>Layer Details</strong></p>
+      <p>Select a layer to view metadata and compliance information</p>
+    </div>
+  `;
 
   renderPortalTable();
 }

@@ -125,7 +125,7 @@ async function loadDemoData() {
  * Sets up tab navigation.
  */
 function setupNavigation() {
-  document.querySelectorAll('.navbar-tab').forEach(tab => {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       showTab(tab.dataset.tab);
     });
@@ -139,7 +139,7 @@ function showTab(tabId) {
   activeTab = tabId;
 
   // Update tab buttons
-  document.querySelectorAll('.navbar-tab').forEach(tab => {
+  document.querySelectorAll('.nav-tab').forEach(tab => {
     tab.classList.toggle('active', tab.dataset.tab === tabId);
   });
 
@@ -160,11 +160,12 @@ function showTab(tabId) {
 function updateNavAuthBadge() {
   const badge = document.getElementById('auth-badge');
   if (badge) {
+    const span = badge.querySelector('span');
     if (isAdmin()) {
-      badge.textContent = 'Admin';
+      if (span) span.textContent = 'Admin';
       badge.classList.add('admin');
     } else {
-      badge.textContent = 'Public';
+      if (span) span.textContent = 'Public';
       badge.classList.remove('admin');
     }
   }
