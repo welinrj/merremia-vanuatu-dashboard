@@ -1,0 +1,29 @@
+# Docker Compose for future PostGIS backend (optional)
+# This does NOT need to run for the static build to work.
+
+version: '3.8'
+
+services:
+  postgis:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: nbsap
+      POSTGRES_USER: nbsap_admin
+      POSTGRES_PASSWORD: changeme_in_production
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - "3001:3001"
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgresql://nbsap_admin:changeme_in_production@postgis:5432/nbsap
+    depends_on:
+      - postgis
+
+volumes:
+  pgdata:

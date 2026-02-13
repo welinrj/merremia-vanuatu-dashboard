@@ -1,0 +1,105 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Aore Island MPA",
+        "type": "MPA",
+        "realm": "marine",
+        "province": "Sanma",
+        "year": 2012,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Coral reef and seagrass protected zone near Aore Island",
+        "targets": ["T3"],
+        "layer_id": "demo_mpa",
+        "area_ha": 4500
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.10, -15.55], [167.22, -15.55], [167.22, -15.47], [167.10, -15.47], [167.10, -15.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Hideaway Island Marine Sanctuary",
+        "type": "MPA",
+        "realm": "marine",
+        "province": "Shefa",
+        "year": 2005,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Small but highly biodiverse marine sanctuary near Port Vila",
+        "targets": ["T3"],
+        "layer_id": "demo_mpa",
+        "area_ha": 280
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.28, -17.72], [168.31, -17.72], [168.31, -17.70], [168.28, -17.70], [168.28, -17.72]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nguna-Pele MPA",
+        "type": "MPA",
+        "realm": "marine",
+        "province": "Shefa",
+        "year": 2008,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Large community-managed marine area between Nguna and Pele islands",
+        "targets": ["T3"],
+        "layer_id": "demo_mpa",
+        "area_ha": 12500
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.30, -17.45], [168.50, -17.45], [168.50, -17.30], [168.30, -17.30], [168.30, -17.45]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Maskelyne Islands MPA",
+        "type": "MPA",
+        "realm": "marine",
+        "province": "Malampa",
+        "year": 2014,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Marine protected area around the Maskelyne Islands south of Malekula",
+        "targets": ["T3"],
+        "layer_id": "demo_mpa",
+        "area_ha": 8200
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.60, -16.45], [167.78, -16.45], [167.78, -16.32], [167.60, -16.32], [167.60, -16.45]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Aneityum Marine Reserve",
+        "type": "MPA",
+        "realm": "marine",
+        "province": "Tafea",
+        "year": 2017,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Reef and deepwater conservation area around Aneityum Island",
+        "targets": ["T3"],
+        "layer_id": "demo_mpa",
+        "area_ha": 15800
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[169.70, -20.15], [169.95, -20.15], [169.95, -19.95], [169.70, -19.95], [169.70, -20.15]]]
+      }
+    }
+  ]
+}
