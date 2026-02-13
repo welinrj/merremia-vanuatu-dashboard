@@ -1,5 +1,5 @@
 import { useState, type FC, type FormEvent } from 'react'
-import vcap2Logo from '../../assets/vcap2-logo.svg'
+import vcap2Logo from '../../assets/vcap2-logo.png'
 
 const STAFF_PASSWORD = 'VC@P 2026'
 
