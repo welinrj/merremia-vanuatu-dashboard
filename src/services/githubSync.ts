@@ -187,11 +187,12 @@ export async function syncDatasets(
       remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
     )
 
-    // 2. Push local datasets that are NOT on GitHub
+    // 2. Push local datasets that are NOT on GitHub (requires token)
     const allLocal = await exportAllDatasets()
     for (const dataset of allLocal) {
       const remoteFile = remoteById.get(dataset.id)
       if (!remoteFile) {
+        if (!config.token) continue // Skip push when unauthenticated
         // New dataset — push to GitHub
         try {
           const sha = await pushDataset(dataset, config)
@@ -325,11 +326,12 @@ export async function syncProtectedAreas(
       remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
     )
 
-    // Push local areas not on GitHub
+    // Push local areas not on GitHub (requires token)
     const allLocal = await exportAllAreas()
     for (const area of allLocal) {
       const remoteFile = remoteById.get(area.id)
       if (!remoteFile) {
+        if (!config.token) continue // Skip push when unauthenticated
         try {
           const sha = await pushArea(area, config)
           await updateAreaGitHubSha(area.id, sha)
