@@ -2,13 +2,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, beforeEach } from 'vitest'
 import App from './App'
 
-// Helper: register a new account and land on the staff portal
-async function registerAndLogin(name: string) {
+// Helper: log in as Micky WELIN and land on the staff portal
+async function loginAsMicky() {
   fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-  fireEvent.click(screen.getByRole('button', { name: 'Create one' }))
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: name } })
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Micky WELIN' } })
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'VC@P 2026' } })
-  fireEvent.click(screen.getByRole('button', { name: 'Create Account' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
   await waitFor(() => {
     expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
   })
@@ -43,33 +42,36 @@ describe('App', () => {
   it('shows error for wrong password', () => {
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Test User' } })
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Micky WELIN' } })
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'wrong' } })
     fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
     expect(screen.getByRole('alert')).toHaveTextContent('Incorrect password')
   })
 
-  it('creates account and grants access', async () => {
+  it('rejects unknown account names', () => {
     render(<App />)
-    await registerAndLogin('New Staff')
+    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
+    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Unknown Person' } })
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'VC@P 2026' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
+    expect(screen.getByRole('alert')).toHaveTextContent('Account not found')
   })
 
-  it('logs in with existing account after registration', async () => {
+  it('logs in as Micky WELIN and grants access', async () => {
     render(<App />)
-    await registerAndLogin('Returning User')
+    await loginAsMicky()
+  })
+
+  it('logs in again after logout', async () => {
+    render(<App />)
+    await loginAsMicky()
 
     // Log out
     fireEvent.click(screen.getByRole('button', { name: 'Log Out' }))
     expect(screen.getByRole('button', { name: 'Datasets' })).toBeInTheDocument()
 
-    // Log back in with same name
-    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Returning User' } })
-    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'VC@P 2026' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
-    })
+    // Log back in
+    await loginAsMicky()
   })
 
   it('returns to public page when cancelling login', () => {
@@ -81,7 +83,7 @@ describe('App', () => {
 
   it('navigates staff sections after login', async () => {
     render(<App />)
-    await registerAndLogin('Nav User')
+    await loginAsMicky()
     fireEvent.click(screen.getByRole('button', { name: 'Data Portal' }))
     expect(screen.getByText('GIS Data Portal')).toBeInTheDocument()
   })
@@ -99,7 +101,7 @@ describe('App', () => {
 
   it('logs out and returns to public page', async () => {
     render(<App />)
-    await registerAndLogin('Logout Tester')
+    await loginAsMicky()
     fireEvent.click(screen.getByRole('button', { name: 'Log Out' }))
     expect(screen.getByRole('button', { name: 'Datasets' })).toBeInTheDocument()
   })
@@ -114,25 +116,25 @@ describe('App', () => {
 
   it('shows greeting with user name in header after login', async () => {
     render(<App />)
-    await registerAndLogin('Alice')
+    await loginAsMicky()
     await waitFor(() => {
-      expect(screen.getByText('Welcome, Alice')).toBeInTheDocument()
+      expect(screen.getByText('Welcome, Micky WELIN')).toBeInTheDocument()
     })
   })
 
   it('shows user name in sidebar after login', async () => {
     render(<App />)
-    await registerAndLogin('Bob')
+    await loginAsMicky()
     await waitFor(() => {
-      expect(screen.getByText('Bob')).toBeInTheDocument()
+      expect(screen.getByText('Micky WELIN')).toBeInTheDocument()
     })
   })
 
   it('shows avatar fallback initial when no picture uploaded', async () => {
     render(<App />)
-    await registerAndLogin('Carol')
+    await loginAsMicky()
     await waitFor(() => {
-      const fallbacks = screen.getAllByText('C')
+      const fallbacks = screen.getAllByText('M')
       expect(fallbacks.length).toBeGreaterThanOrEqual(1)
     })
   })
