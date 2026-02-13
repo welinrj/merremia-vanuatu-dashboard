@@ -2,13 +2,15 @@
   command = """
     npm ci && \
     npm run build && \
+    cd nbsap-portal && npm ci && npm run build && cd .. && \
     cp index.html dist/ && \
     cp dashboard.html dist/ && \
     cp dashboard-live.html dist/ && \
     cp merremia-connector.js dist/ && \
     cp -r assets dist/ && \
     cp -r field-collector dist/ && \
-    cp -r gis-portal dist/
+    cp -r gis-portal dist/ && \
+    cp -r nbsap-portal/dist dist/nbsap-portal
   """
   publish = "dist"
 
