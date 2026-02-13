@@ -28,6 +28,13 @@ jobs:
       - run: npm run build
       - run: npm test
 
+      # Build the NBSAP portal
+      - name: Build NBSAP portal
+        run: |
+          cd nbsap-portal
+          npm ci
+          npm run build
+
       # Copy static HTML portals into the deploy output
       - name: Copy static portals to dist
         run: |
@@ -38,6 +45,7 @@ jobs:
           cp -r assets dist/
           cp -r field-collector dist/
           cp -r gis-portal dist/
+          cp -r nbsap-portal/dist dist/nbsap-portal
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
