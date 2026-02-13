@@ -1,24 +1,15 @@
 import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import StatCard from './components/StatCard'
-import SightingsTable from './components/SightingsTable'
-import LocationList from './components/LocationList'
 import DataPortal from './components/portal/DataPortal'
 import GISDatabase from './components/portal/GISDatabase'
 import PublicDataPortal from './components/public/PublicDataPortal'
 import StaffLogin from './components/StaffLogin'
-import { stats, recentSightings, locationSummaries } from './data/sampleData'
 import './App.css'
 
 const sectionTitles: Record<string, string> = {
-  overview: 'Overview',
   'data-portal': 'Data Portal',
   'gis-database': 'GIS Database',
-  sightings: 'Sightings',
-  locations: 'Locations',
-  species: 'Species',
-  settings: 'Settings',
   datasets: 'Datasets',
   about: 'About',
 }
@@ -36,7 +27,7 @@ function App() {
       return
     }
     setActivePage(page)
-    setActiveSection(page === 'staff' ? 'overview' : 'datasets')
+    setActiveSection(page === 'staff' ? 'data-portal' : 'datasets')
   }
 
   const handleLogout = () => {
@@ -52,7 +43,7 @@ function App() {
       <StaffLogin
         onSuccess={() => {
           setStaffAuth(true)
-          setActiveSection('overview')
+          setActiveSection('data-portal')
         }}
         onCancel={() => {
           setActivePage('public')
@@ -76,40 +67,11 @@ function App() {
         <Header title={sectionTitles[activeSection] ?? activeSection} />
         <div className="dashboard-content">
           {/* Staff page sections */}
-          {activeSection === 'overview' && (
-            <>
-              <section className="stats-grid">
-                {stats.map((stat) => (
-                  <StatCard key={stat.title} data={stat} />
-                ))}
-              </section>
-              <div className="dashboard-panels">
-                <SightingsTable sightings={recentSightings} />
-                <LocationList locations={locationSummaries} />
-              </div>
-            </>
-          )}
           {activeSection === 'data-portal' && (
             <DataPortal onNavigate={setActiveSection} />
           )}
           {activeSection === 'gis-database' && (
             <GISDatabase onNavigate={setActiveSection} />
-          )}
-          {activeSection === 'sightings' && (
-            <SightingsTable sightings={recentSightings} />
-          )}
-          {activeSection === 'locations' && (
-            <LocationList locations={locationSummaries} />
-          )}
-          {activeSection === 'species' && (
-            <div className="placeholder-section">
-              <p>Species catalog coming soon.</p>
-            </div>
-          )}
-          {activeSection === 'settings' && (
-            <div className="placeholder-section">
-              <p>Settings page coming soon.</p>
-            </div>
           )}
 
           {/* Public page sections */}

@@ -40,7 +40,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'VC@P 2026' } })
     fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
-    expect(screen.getByText('Total Surveys')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
   })
 
   it('returns to public page when cancelling login', () => {
@@ -61,40 +61,6 @@ describe('App', () => {
     expect(screen.getByText('GIS Data Portal')).toBeInTheDocument()
   })
 
-  it('navigates to sightings section after login', () => {
-    sessionStorage.setItem('vcap2_staff_auth', '1')
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    const sightingsButtons = screen.getAllByText('Sightings')
-    fireEvent.click(sightingsButtons[0])
-    expect(screen.getByText('Recent Sightings')).toBeInTheDocument()
-  })
-
-  it('navigates to locations section after login', () => {
-    sessionStorage.setItem('vcap2_staff_auth', '1')
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    const locationsButtons = screen.getAllByText('Locations')
-    fireEvent.click(locationsButtons[0])
-    expect(screen.getByText('Efate Island')).toBeInTheDocument()
-  })
-
-  it('shows placeholder for species section', () => {
-    sessionStorage.setItem('vcap2_staff_auth', '1')
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Species' }))
-    expect(screen.getByText('Species catalog coming soon.')).toBeInTheDocument()
-  })
-
-  it('shows placeholder for settings section', () => {
-    sessionStorage.setItem('vcap2_staff_auth', '1')
-    render(<App />)
-    fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Settings' }))
-    expect(screen.getByText('Settings page coming soon.')).toBeInTheDocument()
-  })
-
   it('renders header with section title', () => {
     render(<App />)
     expect(screen.getByRole('banner')).toBeInTheDocument()
@@ -110,7 +76,7 @@ describe('App', () => {
     sessionStorage.setItem('vcap2_staff_auth', '1')
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    expect(screen.getByText('Total Surveys')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Log Out' }))
     expect(screen.getByRole('button', { name: 'Datasets' })).toBeInTheDocument()
   })
@@ -119,7 +85,7 @@ describe('App', () => {
     sessionStorage.setItem('vcap2_staff_auth', '1')
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    // Should go straight to staff overview without login
-    expect(screen.getByText('Total Surveys')).toBeInTheDocument()
+    // Should go straight to staff data portal without login
+    expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
   })
 })
