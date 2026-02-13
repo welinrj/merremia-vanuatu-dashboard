@@ -1,4 +1,5 @@
 import type { FC } from 'react'
+import type { UserProfile } from '../types/user'
 
 interface SidebarProps {
   activePage: 'staff' | 'public'
@@ -7,6 +8,7 @@ interface SidebarProps {
   onNavigate: (section: string) => void
   staffAuth: boolean
   onLogout: () => void
+  user: UserProfile | null
 }
 
 const staffNavItems = [
@@ -20,7 +22,7 @@ const publicNavItems = [
   { id: 'about', label: 'About' },
 ]
 
-const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, onNavigate, staffAuth, onLogout }) => {
+const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, onNavigate, staffAuth, onLogout, user }) => {
   const navItems = activePage === 'staff' ? staffNavItems : publicNavItems
 
   return (
@@ -62,9 +64,23 @@ const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, on
           <span className="public-badge">Read-Only Access</span>
         )}
         {activePage === 'staff' && staffAuth && (
-          <button className="nav-item logout-btn" onClick={onLogout}>
-            Log Out
-          </button>
+          <div className="sidebar-user-section">
+            {user && (
+              <div className="sidebar-user-info">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="sidebar-avatar" />
+                ) : (
+                  <span className="sidebar-avatar sidebar-avatar-fallback">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+                <span className="sidebar-user-name">{user.name}</span>
+              </div>
+            )}
+            <button className="nav-item logout-btn" onClick={onLogout}>
+              Log Out
+            </button>
+          </div>
         )}
       </div>
     </aside>

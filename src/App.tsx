@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DataPortal from './components/portal/DataPortal'
@@ -6,6 +6,8 @@ import GISDatabase from './components/portal/GISDatabase'
 import ProtectedAreas from './components/portal/ProtectedAreas'
 import PublicDataPortal from './components/public/PublicDataPortal'
 import StaffLogin from './components/StaffLogin'
+import { getUser } from './services/userStore'
+import type { UserProfile } from './types/user'
 import './App.css'
 
 const sectionTitles: Record<string, string> = {
@@ -22,6 +24,17 @@ function App() {
   const [staffAuth, setStaffAuth] = useState(
     () => sessionStorage.getItem('vcap2_staff_auth') === '1'
   )
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null)
+
+  // Restore user profile from session on mount
+  useEffect(() => {
+    const userId = sessionStorage.getItem('vcap2_user_id')
+    if (staffAuth && userId) {
+      getUser(userId).then((user) => {
+        if (user) setCurrentUser(user)
+      })
+    }
+  }, [staffAuth])
 
   const handlePageChange = (page: 'staff' | 'public') => {
     if (page === 'staff' && !staffAuth) {
@@ -34,7 +47,9 @@ function App() {
 
   const handleLogout = () => {
     sessionStorage.removeItem('vcap2_staff_auth')
+    sessionStorage.removeItem('vcap2_user_id')
     setStaffAuth(false)
+    setCurrentUser(null)
     setActivePage('public')
     setActiveSection('datasets')
   }
@@ -43,8 +58,9 @@ function App() {
   if (activePage === 'staff' && !staffAuth) {
     return (
       <StaffLogin
-        onSuccess={() => {
+        onSuccess={(user) => {
           setStaffAuth(true)
+          setCurrentUser(user)
           setActiveSection('data-portal')
         }}
         onCancel={() => {
@@ -64,9 +80,13 @@ function App() {
         onNavigate={setActiveSection}
         staffAuth={staffAuth}
         onLogout={handleLogout}
+        user={currentUser}
       />
       <main className="main-content">
-        <Header title={sectionTitles[activeSection] ?? activeSection} />
+        <Header
+          title={sectionTitles[activeSection] ?? activeSection}
+          user={activePage === 'staff' ? currentUser : null}
+        />
         <div className="dashboard-content">
           {/* Staff page sections */}
           {activeSection === 'data-portal' && (
