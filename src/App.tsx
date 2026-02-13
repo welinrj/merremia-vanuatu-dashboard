@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import DataPortal from './components/portal/DataPortal'
 import GISDatabase from './components/portal/GISDatabase'
+import ProtectedAreas from './components/portal/ProtectedAreas'
 import PublicDataPortal from './components/public/PublicDataPortal'
 import StaffLogin from './components/StaffLogin'
 import './App.css'
@@ -10,6 +11,7 @@ import './App.css'
 const sectionTitles: Record<string, string> = {
   'data-portal': 'Data Portal',
   'gis-database': 'GIS Database',
+  'protected-areas': 'CCAs & MPAs',
   datasets: 'Datasets',
   about: 'About',
 }
@@ -73,6 +75,7 @@ function App() {
           {activeSection === 'gis-database' && (
             <GISDatabase onNavigate={setActiveSection} />
           )}
+          {activeSection === 'protected-areas' && <ProtectedAreas />}
 
           {/* Public page sections */}
           {activeSection === 'datasets' && <PublicDataPortal />}
