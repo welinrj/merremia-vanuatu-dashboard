@@ -1,14 +1,15 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
-import DataPortal from './components/portal/DataPortal'
-import GISDatabase from './components/portal/GISDatabase'
-import ProtectedAreas from './components/portal/ProtectedAreas'
-import PublicDataPortal from './components/public/PublicDataPortal'
 import StaffLogin from './components/StaffLogin'
 import { getUser } from './services/userStore'
 import type { UserProfile } from './types/user'
 import './App.css'
+
+const DataPortal = lazy(() => import('./components/portal/DataPortal'))
+const GISDatabase = lazy(() => import('./components/portal/GISDatabase'))
+const ProtectedAreas = lazy(() => import('./components/portal/ProtectedAreas'))
+const PublicDataPortal = lazy(() => import('./components/public/PublicDataPortal'))
 
 const sectionTitles: Record<string, string> = {
   'data-portal': 'Data Portal',
@@ -88,6 +89,7 @@ function App() {
           user={activePage === 'staff' ? currentUser : null}
         />
         <div className="dashboard-content">
+          <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading...</div>}>
           {/* Staff page sections */}
           {activeSection === 'data-portal' && (
             <DataPortal onNavigate={setActiveSection} />
@@ -113,6 +115,7 @@ function App() {
               </p>
             </div>
           )}
+          </Suspense>
         </div>
       </main>
     </div>
