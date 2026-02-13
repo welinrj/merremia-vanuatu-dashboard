@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vanuatu NBSAP GIS Portal</title>
+  <meta name="description" content="National Biodiversity Strategy and Action Plan - GIS Data Portal & Dashboard for Vanuatu. Target 3 (30x30) monitoring.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+      <div class="navbar-brand">
+        Vanuatu NBSAP
+        <small>GIS Data Portal & Dashboard</small>
+      </div>
+      <div class="navbar-tabs">
+        <button class="navbar-tab active" data-tab="dashboard">Dashboard</button>
+        <button class="navbar-tab" data-tab="portal">Data Portal</button>
+        <button class="navbar-tab" data-tab="admin">Admin</button>
+        <button class="navbar-tab" data-tab="about">About / Help</button>
+      </div>
+      <div class="navbar-right">
+        <span class="auth-badge" id="auth-badge" title="Click Admin tab to login">Public</span>
+      </div>
+    </nav>
+
+    <!-- Page Containers -->
+    <div class="page-container">
+      <div id="page-dashboard" class="page active"></div>
+      <div id="page-portal" class="page"></div>
+      <div id="page-admin" class="page"></div>
+      <div id="page-about" class="page"></div>
+    </div>
+  </div>
+
+  <!-- Upload Wizard Modal -->
+  <div class="modal-overlay" id="upload-wizard-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>Upload Shapefile</h3>
+        <button class="modal-close" onclick="document.getElementById('upload-wizard-modal').classList.remove('active')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="wizard-steps" id="wizard-steps"></div>
+        <div id="wizard-body"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

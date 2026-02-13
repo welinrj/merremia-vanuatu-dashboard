@@ -1,0 +1,22 @@
+{
+  "name": "vanuatu-nbsap-portal",
+  "version": "1.0.0",
+  "description": "Vanuatu NBSAP GIS Data Portal & Dashboard for 30x30 monitoring",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "vite build && echo 'Deploy dist/ to GitHub Pages or server'"
+  },
+  "dependencies": {
+    "@turf/turf": "^7.1.0",
+    "leaflet": "^1.9.4",
+    "proj4": "^2.12.1",
+    "shpjs": "^4.0.4"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  },
+  "license": "MIT"
+}

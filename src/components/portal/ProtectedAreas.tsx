@@ -80,11 +80,9 @@ const ProtectedAreas: FC = () => {
     async function initialSync() {
       try {
         const config = getSyncSettings()
-        if (config.token) {
-          const result = await syncProtectedAreas(config)
-          if (!cancelled && (result.pulled > 0 || result.pushed > 0)) {
-            setLastSync(new Date().toISOString())
-          }
+        const result = await syncProtectedAreas(config)
+        if (!cancelled && (result.pulled > 0 || result.pushed > 0)) {
+          setLastSync(new Date().toISOString())
         }
       } catch {
         // silent — manual sync still available
@@ -144,11 +142,6 @@ const ProtectedAreas: FC = () => {
   async function handleSync() {
     const config = getSyncSettings()
 
-    if (!config.token) {
-      setSyncStatus('No GitHub token configured — cannot sync')
-      return
-    }
-
     setSyncing(true)
     setSyncStatus('Syncing with GitHub...')
 
@@ -161,6 +154,7 @@ const ProtectedAreas: FC = () => {
       if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
       if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
       if (parts.length === 0) parts.push('Already in sync')
+      if (!config.token) parts.push('(pull-only — no token)')
 
       setSyncStatus(parts.join(', '))
       setLastSync(new Date().toISOString())
