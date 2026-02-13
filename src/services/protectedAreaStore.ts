@@ -235,6 +235,77 @@ export async function removeAttachment(
   return area
 }
 
+// ── Sync helpers ──
+
+export async function exportAllAreas(): Promise<ProtectedArea[]> {
+  const db = await openDB()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_AREAS, 'readonly')
+    const req = tx.objectStore(STORE_AREAS).getAll()
+    req.onsuccess = () => resolve(req.result as ProtectedArea[])
+    req.onerror = () => reject(req.error)
+  })
+}
+
+export async function importAreas(
+  areas: ProtectedArea[],
+): Promise<{ imported: number; skipped: number }> {
+  let imported = 0
+  let skipped = 0
+  const db = await openDB()
+
+  for (const area of areas) {
+    const exists = await new Promise<boolean>((resolve, reject) => {
+      const tx = db.transaction(STORE_INDEX, 'readonly')
+      const req = tx.objectStore(STORE_INDEX).get(area.id)
+      req.onsuccess = () => resolve(req.result != null)
+      req.onerror = () => reject(req.error)
+    })
+
+    if (exists) {
+      skipped++
+      continue
+    }
+
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
+      tx.objectStore(STORE_AREAS).put(area)
+      tx.objectStore(STORE_INDEX).put(toSummary(area))
+      tx.oncomplete = () => resolve()
+      tx.onerror = () => reject(tx.error)
+    })
+    imported++
+  }
+
+  return { imported, skipped }
+}
+
+export async function updateAreaGitHubSha(
+  id: string,
+  sha: string,
+): Promise<void> {
+  const db = await openDB()
+
+  const area = await new Promise<ProtectedArea | null>((resolve, reject) => {
+    const tx = db.transaction(STORE_AREAS, 'readonly')
+    const req = tx.objectStore(STORE_AREAS).get(id)
+    req.onsuccess = () => resolve((req.result as ProtectedArea) ?? null)
+    req.onerror = () => reject(req.error)
+  })
+
+  if (!area) return
+
+  area.githubSha = sha
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
+    tx.objectStore(STORE_AREAS).put(area)
+    tx.objectStore(STORE_INDEX).put(toSummary(area))
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 export function downloadAttachment(attachment: ProtectedAreaAttachment): void {
   const a = document.createElement('a')
   a.href = attachment.data

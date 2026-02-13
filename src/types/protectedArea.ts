@@ -27,6 +27,7 @@ export interface ProtectedArea {
   attachments: ProtectedAreaAttachment[]
   createdAt: string
   updatedAt: string
+  githubSha?: string
 }
 
 export interface ProtectedAreaSummary {
