@@ -25,6 +25,8 @@ export interface GeoDataset {
   updatedAt: string
   sizeBytes: number
   data: FeatureCollection<Geometry, GeoJsonProperties>
+  /** SHA of the file on GitHub (set after sync) */
+  githubSha?: string
 }
 
 export interface DatasetSummary {
@@ -35,4 +37,6 @@ export interface DatasetSummary {
   createdAt: string
   updatedAt: string
   sizeBytes: number
+  /** SHA of the file on GitHub (set after sync) */
+  githubSha?: string
 }

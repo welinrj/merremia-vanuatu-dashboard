@@ -439,6 +439,45 @@ function parseKMLCoords(text: string): number[][] {
     .filter((c) => c.length >= 2)
 }
 
+/** Update the githubSha for a dataset after sync */
+export async function updateGitHubSha(
+  id: string,
+  sha: string,
+): Promise<void> {
+  const db = await openDB()
+
+  // Update in the datasets store
+  const dataset = await new Promise<GeoDataset | null>((resolve, reject) => {
+    const tx = db.transaction(STORE_DATASETS, 'readonly')
+    const req = tx.objectStore(STORE_DATASETS).get(id)
+    req.onsuccess = () => resolve((req.result as GeoDataset) ?? null)
+    req.onerror = () => reject(req.error)
+  })
+
+  if (!dataset) return
+
+  dataset.githubSha = sha
+
+  const summary: DatasetSummary = {
+    id: dataset.id,
+    metadata: dataset.metadata,
+    format: dataset.format,
+    featureCount: dataset.featureCount,
+    createdAt: dataset.createdAt,
+    updatedAt: dataset.updatedAt,
+    sizeBytes: dataset.sizeBytes,
+    githubSha: sha,
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
+    tx.objectStore(STORE_DATASETS).put(dataset)
+    tx.objectStore(STORE_INDEX).put(summary)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
 /** Export all datasets as a single JSON blob for backup */
 export async function exportAllDatasets(): Promise<GeoDataset[]> {
   const db = await openDB()
