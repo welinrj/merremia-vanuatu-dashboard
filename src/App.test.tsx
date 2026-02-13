@@ -85,7 +85,7 @@ describe('App', () => {
     render(<App />)
     await loginAsMicky()
     fireEvent.click(screen.getByRole('button', { name: 'Data Portal' }))
-    expect(screen.getByText('GIS Data Portal')).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText('GIS Data Portal')).toBeInTheDocument())
   })
 
   it('renders header with section title', () => {
