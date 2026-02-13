@@ -326,7 +326,7 @@ export async function syncProtectedAreas(
       remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
     )
 
-    // Push local areas not on GitHub (requires token)
+    // Push local areas not on GitHub or updated since last push (requires token)
     const allLocal = await exportAllAreas()
     for (const area of allLocal) {
       const remoteFile = remoteById.get(area.id)
@@ -342,7 +342,24 @@ export async function syncProtectedAreas(
           )
         }
       } else if (!area.githubSha || area.githubSha !== remoteFile.sha) {
-        await updateAreaGitHubSha(area.id, remoteFile.sha)
+        // Area exists on both — re-push if locally modified (local SHA stale)
+        if (config.token && area.githubSha && area.githubSha !== remoteFile.sha) {
+          // SHA mismatch but we have a tracked sha — could be remote update, skip push
+          await updateAreaGitHubSha(area.id, remoteFile.sha)
+        } else if (config.token && !area.githubSha) {
+          // Area exists on GitHub but we never tracked its SHA — re-push local version
+          try {
+            const sha = await pushArea(area, config, remoteFile.sha)
+            await updateAreaGitHubSha(area.id, sha)
+            result.pushed++
+          } catch (err) {
+            result.errors.push(
+              err instanceof Error ? err.message : `Push failed for ${area.id}`,
+            )
+          }
+        } else {
+          await updateAreaGitHubSha(area.id, remoteFile.sha)
+        }
       }
     }
 
