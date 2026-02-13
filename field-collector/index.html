@@ -474,7 +474,7 @@
     </div>
 
     <button class="btn btn-primary" onclick="saveRecord()" id="btn-save" disabled>Save Observation</button>
-    <p class="gps-hint" id="gps-hint">Waiting for GPS accuracy &lt; 8m before saving...</p>
+    <p class="gps-hint" id="gps-hint">Seeking satellites... need &lt; 8m accuracy to save</p>
   </div>
 
   <!-- ═══ RECORDS VIEW ═══ -->
@@ -581,12 +581,18 @@
         return;
       }
       if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
+      var bestAcc = Infinity;
       gpsWatchId = navigator.geolocation.watchPosition(
         function(pos) {
           if (manualGPSMode) return;
-          currentLat = pos.coords.latitude;
-          currentLng = pos.coords.longitude;
-          currentAcc = Math.round(pos.coords.accuracy);
+          var acc = Math.round(pos.coords.accuracy);
+          // Only update if this reading is at least as good as the best so far
+          if (acc <= bestAcc) {
+            bestAcc = acc;
+            currentLat = pos.coords.latitude;
+            currentLng = pos.coords.longitude;
+            currentAcc = acc;
+          }
           document.getElementById('gps-coords').textContent = currentLat.toFixed(6) + ', ' + currentLng.toFixed(6);
           var accEl = document.getElementById('gps-accuracy');
           accEl.textContent = '\u00b1' + currentAcc + 'm';
@@ -600,7 +606,7 @@
           } else {
             accEl.className = 'accuracy gps-accuracy-bad';
             btn.disabled = true;
-            hint.textContent = 'GPS accuracy ' + currentAcc + 'm — need < ' + GPS_ACC_THRESHOLD + 'm to save';
+            hint.textContent = 'Seeking satellites... ' + currentAcc + 'm accuracy (need < ' + GPS_ACC_THRESHOLD + 'm)';
             hint.className = 'gps-hint';
           }
         },
@@ -608,7 +614,7 @@
           document.getElementById('gps-coords').textContent = 'GPS error: ' + err.message;
           document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
         },
-        { enableHighAccuracy: true, maximumAge: 10000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
       );
     }
     startGPS();
@@ -630,7 +636,7 @@
         document.getElementById('gps-coords').textContent = 'Acquiring...';
         document.getElementById('gps-accuracy').textContent = '';
         document.getElementById('btn-save').disabled = true;
-        document.getElementById('gps-hint').textContent = 'Waiting for GPS accuracy < 8m before saving...';
+        document.getElementById('gps-hint').textContent = 'Seeking satellites... need < ' + GPS_ACC_THRESHOLD + 'm accuracy to save';
         document.getElementById('gps-hint').className = 'gps-hint';
         startGPS();
       }
