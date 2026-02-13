@@ -4,9 +4,9 @@ Web-based geographic information system for the Vanuatu Climate Adaptation Proje
 
 ## Live URLs
 
-- **Map Portal**: https://welinrj.github.io/gis-data-portal/
-- **Dashboard**: https://welinrj.github.io/gis-data-portal/dashboard.html
-- **Overview**: https://welinrj.github.io/gis-data-portal/dashboard-overview.html
+- **Map Portal**: https://vcap2-gis-portal.netlify.app/
+- **Dashboard**: https://vcap2-gis-portal.netlify.app/dashboard.html
+- **Overview**: https://vcap2-gis-portal.netlify.app/dashboard-overview.html
 
 ## Features
 
@@ -29,8 +29,7 @@ gis-data-portal/
   data/
     index.json            - Dataset catalog
     sample-marine-areas.geojson - Sample data
-  .github/workflows/
-    deploy.yml            - GitHub Pages deployment
+  netlify.toml            - Netlify deployment config
 ```
 
 ## Data
