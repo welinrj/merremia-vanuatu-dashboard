@@ -1,4 +1,5 @@
 import { useState, type FC, type FormEvent } from 'react'
+import vcap2Logo from '../../assets/vcap2-logo.svg'
 
 const STAFF_PASSWORD = 'VC@P 2026'
 
@@ -25,6 +26,9 @@ const StaffLogin: FC<StaffLoginProps> = ({ onSuccess, onCancel }) => {
   return (
     <div className="login-container">
       <form className="login-form" onSubmit={handleSubmit}>
+        <div className="login-logo">
+          <img src={vcap2Logo} alt="VCAP2 - Adaptation to Climate Change in the Coastal Zone of Vanuatu Phase II" />
+        </div>
         <h2>Staff Login</h2>
         <p className="login-description">
           Enter the staff password to access the VCAP2 management portal.
