@@ -8,7 +8,7 @@ import {
 
 // ── Configuration ──
 
-const SETTINGS_KEY = 'merremia_settings'
+const SETTINGS_KEY = 'vcap2_github_settings'
 const SYNC_STATE_KEY = 'vcap2_github_sync'
 const DATASETS_DIR = 'gis-datasets'
 const API_BASE = 'https://api.github.com'
@@ -42,7 +42,7 @@ export function getSyncSettings(): GitHubSyncConfig | null {
     if (!settings.token && !settings.owner) return null
     return {
       owner: settings.owner || 'welinrj',
-      repo: settings.repo || 'merremia-field-data',
+      repo: settings.repo || '',
       token: settings.token || '',
       branch: settings.branch || 'main',
     }
