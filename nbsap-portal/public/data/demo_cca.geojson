@@ -1,0 +1,125 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Vatthe Conservation Area",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Sanma",
+        "year": 2008,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Community-managed forest conservation area in East Santo",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 3655
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.05, -15.25], [167.15, -15.25], [167.15, -15.15], [167.05, -15.15], [167.05, -15.25]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Loru Rainforest",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Sanma",
+        "year": 2006,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Lowland rainforest conservation area managed by Ser-Thiac community",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 2200
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.02, -15.38], [167.09, -15.38], [167.09, -15.32], [167.02, -15.32], [167.02, -15.38]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nagha mo Pineia Conservation Area",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Malampa",
+        "year": 2016,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Upland forest CCA on Malekula",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 1850
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.35, -16.15], [167.42, -16.15], [167.42, -16.09], [167.35, -16.09], [167.35, -16.15]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Nekapa Conservation Area",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Shefa",
+        "year": 2018,
+        "status": "Proposed",
+        "source": "DEPC Vanuatu",
+        "notes": "Community area on north Efate",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 980
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.25, -17.55], [168.32, -17.55], [168.32, -17.49], [168.25, -17.49], [168.25, -17.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "North Efate CCA",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Shefa",
+        "year": 2020,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Forest and coastal CCA",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 1450
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.35, -17.52], [168.44, -17.52], [168.44, -17.44], [168.35, -17.44], [168.35, -17.52]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Tafea Forest CCA",
+        "type": "CCA",
+        "realm": "terrestrial",
+        "province": "Tafea",
+        "year": 2019,
+        "status": "Designated",
+        "source": "DEPC Vanuatu",
+        "notes": "Kauri forest CCA on Erromango",
+        "targets": ["T3"],
+        "layer_id": "demo_cca",
+        "area_ha": 3800
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[169.05, -18.85], [169.20, -18.85], [169.20, -18.72], [169.05, -18.72], [169.05, -18.85]]]
+      }
+    }
+  ]
+}

@@ -34,9 +34,10 @@ let activeTab = 'dashboard';
  * Bootstraps the application.
  */
 async function init() {
-  // Load provinces boundary data
+  // Load provinces boundary data (served from public/data/)
   try {
-    const resp = await fetch(new URL('../data/provinces.geojson', import.meta.url));
+    const base = import.meta.env.BASE_URL || './';
+    const resp = await fetch(`${base}data/provinces.geojson`);
     const provinces = await resp.json();
     setProvincesGeojson(provinces);
   } catch (err) {
@@ -82,14 +83,15 @@ async function init() {
  * Loads demo CCA and MPA layers.
  */
 async function loadDemoData() {
+  const base = import.meta.env.BASE_URL || './';
   const demos = [
-    { url: new URL('../data/demo_cca.geojson', import.meta.url), name: 'Demo CCAs', category: 'CCA', realm: 'terrestrial' },
-    { url: new URL('../data/demo_mpa.geojson', import.meta.url), name: 'Demo MPAs', category: 'MPA', realm: 'marine' }
+    { file: 'demo_cca.geojson', name: 'Demo CCAs', category: 'CCA', realm: 'terrestrial' },
+    { file: 'demo_mpa.geojson', name: 'Demo MPAs', category: 'MPA', realm: 'marine' }
   ];
 
   for (const demo of demos) {
     try {
-      const resp = await fetch(demo.url);
+      const resp = await fetch(`${base}data/${demo.file}`);
       const geojson = await resp.json();
 
       // Compute areas
@@ -97,7 +99,7 @@ async function loadDemoData() {
 
       const meta = createLayerMetadata({
         name: demo.name,
-        originalFilename: demo.url.pathname.split('/').pop(),
+        originalFilename: demo.file,
         category: demo.category,
         targets: ['T3'],
         realm: demo.realm,
