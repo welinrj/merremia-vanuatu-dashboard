@@ -19,9 +19,7 @@ import {
 import {
   syncProtectedAreas,
   getSyncSettings,
-  saveSyncSettings,
   getPaSyncState,
-  type GitHubSyncConfig,
 } from '../../services/githubSync'
 import { parseGeoJSON } from '../../services/datasetStore'
 import MapViewer from './MapViewer'
@@ -63,19 +61,9 @@ const ProtectedAreas: FC = () => {
   // GitHub sync state
   const [syncing, setSyncing] = useState(false)
   const [syncStatus, setSyncStatus] = useState('')
-  const [showSyncSettings, setShowSyncSettings] = useState(false)
-  const [syncToken, setSyncToken] = useState('')
-  const [syncOwner, setSyncOwner] = useState('welinrj')
-  const [syncRepo, setSyncRepo] = useState('')
   const [lastSync, setLastSync] = useState<string | null>(null)
 
   useEffect(() => {
-    const config = getSyncSettings()
-    if (config) {
-      setSyncToken(config.token)
-      setSyncOwner(config.owner)
-      setSyncRepo(config.repo)
-    }
     const state = getPaSyncState()
     setLastSync(state.lastSync)
   }, [])
@@ -117,19 +105,8 @@ const ProtectedAreas: FC = () => {
   }
 
   async function handleSync() {
-    const config: GitHubSyncConfig = {
-      owner: syncOwner,
-      repo: syncRepo,
-      token: syncToken,
-    }
+    const config = getSyncSettings()
 
-    if (!config.token) {
-      setShowSyncSettings(true)
-      setSyncStatus('Please configure your GitHub token to sync.')
-      return
-    }
-
-    saveSyncSettings(config)
     setSyncing(true)
     setSyncStatus('Syncing with GitHub...')
 
@@ -150,12 +127,6 @@ const ProtectedAreas: FC = () => {
     } finally {
       setSyncing(false)
     }
-  }
-
-  function handleSaveSyncSettings() {
-    saveSyncSettings({ owner: syncOwner, repo: syncRepo, token: syncToken })
-    setShowSyncSettings(false)
-    setSyncStatus('Settings saved.')
   }
 
   const filtered = areas.filter((a) => {
@@ -234,12 +205,6 @@ const ProtectedAreas: FC = () => {
             </div>
             <div className="db-sync-actions">
               <button
-                className="btn btn-sm"
-                onClick={() => setShowSyncSettings(!showSyncSettings)}
-              >
-                Settings
-              </button>
-              <button
                 className="btn btn-sm btn-primary"
                 onClick={handleSync}
                 disabled={syncing}
@@ -254,48 +219,6 @@ const ProtectedAreas: FC = () => {
               <button className="db-dismiss" onClick={() => setSyncStatus('')} aria-label="Dismiss">
                 &times;
               </button>
-            </div>
-          )}
-          {showSyncSettings && (
-            <div className="db-sync-settings">
-              <div className="db-sync-field">
-                <label htmlFor="pa-sync-token">GitHub Token</label>
-                <input
-                  id="pa-sync-token"
-                  type="password"
-                  value={syncToken}
-                  onChange={(e) => setSyncToken(e.target.value)}
-                  placeholder="ghp_... (Personal Access Token)"
-                />
-              </div>
-              <div className="db-sync-field-row">
-                <div className="db-sync-field">
-                  <label htmlFor="pa-sync-owner">Owner</label>
-                  <input
-                    id="pa-sync-owner"
-                    type="text"
-                    value={syncOwner}
-                    onChange={(e) => setSyncOwner(e.target.value)}
-                  />
-                </div>
-                <div className="db-sync-field">
-                  <label htmlFor="pa-sync-repo">Repository</label>
-                  <input
-                    id="pa-sync-repo"
-                    type="text"
-                    value={syncRepo}
-                    onChange={(e) => setSyncRepo(e.target.value)}
-                  />
-                </div>
-              </div>
-              <div className="db-sync-field-actions">
-                <button className="btn btn-sm btn-primary" onClick={handleSaveSyncSettings}>
-                  Save Settings
-                </button>
-                <button className="btn btn-sm" onClick={() => setShowSyncSettings(false)}>
-                  Cancel
-                </button>
-              </div>
             </div>
           )}
         </div>
