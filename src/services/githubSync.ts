@@ -42,21 +42,13 @@ export interface SyncState {
 
 // ── Settings helpers ──
 
-/** Read GitHub sync settings, falling back to Field Collector's shared token */
-export function getSyncSettings(): GitHubSyncConfig | null {
-  try {
-    const raw = localStorage.getItem(SETTINGS_KEY)
-    if (!raw) return null
-    const settings = JSON.parse(raw)
-    if (!settings.token && !settings.owner) return null
-    return {
-      owner: settings.owner || 'welinrj',
-      repo: settings.repo || '',
-      token: settings.token || '',
-      branch: settings.branch || 'main',
-    }
-  } catch {
-    return null
+/** Read GitHub sync settings (pre-configured, token from env) */
+export function getSyncSettings(): GitHubSyncConfig {
+  return {
+    owner: 'welinrj',
+    repo: 'merremia-vanuatu-dashboard',
+    token: import.meta.env.VITE_GITHUB_TOKEN || '',
+    branch: 'main',
   }
 }
 
