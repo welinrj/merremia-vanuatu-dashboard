@@ -10,6 +10,13 @@ import {
   formatBytes,
   migrateFromLocalStorage,
 } from '../../services/datasetStore'
+import {
+  syncDatasets,
+  getSyncSettings,
+  saveSyncSettings,
+  getSyncState,
+  type GitHubSyncConfig,
+} from '../../services/githubSync'
 import DatasetUpload from './DatasetUpload'
 import MapViewer from './MapViewer'
 import './DataPortal.css'
@@ -31,6 +38,27 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
   const [preview, setPreview] = useState<GeoDataset | null>(null)
   const [importStatus, setImportStatus] = useState('')
   const backupInputRef = useRef<HTMLInputElement>(null)
+
+  // GitHub sync state
+  const [syncing, setSyncing] = useState(false)
+  const [syncStatus, setSyncStatus] = useState('')
+  const [showSyncSettings, setShowSyncSettings] = useState(false)
+  const [syncToken, setSyncToken] = useState('')
+  const [syncOwner, setSyncOwner] = useState('welinrj')
+  const [syncRepo, setSyncRepo] = useState('merremia-field-data')
+  const [lastSync, setLastSync] = useState<string | null>(null)
+
+  // Load sync settings on mount
+  useEffect(() => {
+    const config = getSyncSettings()
+    if (config) {
+      setSyncToken(config.token)
+      setSyncOwner(config.owner)
+      setSyncRepo(config.repo)
+    }
+    const state = getSyncState()
+    setLastSync(state.lastSync)
+  }, [])
 
   const refresh = useCallback(async () => {
     const list = await listDatasets()
@@ -131,6 +159,48 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     a.download = `${ds.metadata.name.replace(/\s+/g, '_')}.geojson`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  async function handleSync() {
+    const config: GitHubSyncConfig = {
+      owner: syncOwner,
+      repo: syncRepo,
+      token: syncToken,
+    }
+
+    if (!config.token) {
+      setShowSyncSettings(true)
+      setSyncStatus('Please configure your GitHub token to sync.')
+      return
+    }
+
+    saveSyncSettings(config)
+    setSyncing(true)
+    setSyncStatus('Syncing with GitHub...')
+
+    try {
+      const result = await syncDatasets(config)
+      await refresh()
+
+      const parts: string[] = []
+      if (result.pushed > 0) parts.push(`${result.pushed} pushed`)
+      if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
+      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}`)
+      if (parts.length === 0) parts.push('Already in sync')
+
+      setSyncStatus(parts.join(', '))
+      setLastSync(new Date().toISOString())
+    } catch (err) {
+      setSyncStatus(err instanceof Error ? err.message : 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
+
+  function handleSaveSyncSettings() {
+    saveSyncSettings({ owner: syncOwner, repo: syncRepo, token: syncToken })
+    setShowSyncSettings(false)
+    setSyncStatus('Settings saved.')
   }
 
   if (loading) {
@@ -244,6 +314,85 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
           </span>
         </div>
       )}
+
+      {/* GitHub Sync */}
+      <div className="db-sync-section">
+        <div className="db-sync-row">
+          <div className="db-sync-info">
+            <strong>GitHub Sync</strong>
+            {lastSync && (
+              <span className="db-sync-last">
+                Last sync: {new Date(lastSync).toLocaleString()}
+              </span>
+            )}
+          </div>
+          <div className="db-sync-actions">
+            <button
+              className="btn btn-sm"
+              onClick={() => setShowSyncSettings(!showSyncSettings)}
+            >
+              Settings
+            </button>
+            <button
+              className="btn btn-sm btn-primary"
+              onClick={handleSync}
+              disabled={syncing}
+            >
+              {syncing ? 'Syncing...' : 'Sync Now'}
+            </button>
+          </div>
+        </div>
+        {syncStatus && (
+          <div className="db-sync-status" role="status">
+            {syncStatus}
+            <button className="db-dismiss" onClick={() => setSyncStatus('')} aria-label="Dismiss">
+              &times;
+            </button>
+          </div>
+        )}
+        {showSyncSettings && (
+          <div className="db-sync-settings">
+            <div className="db-sync-field">
+              <label htmlFor="sync-token">GitHub Token</label>
+              <input
+                id="sync-token"
+                type="password"
+                value={syncToken}
+                onChange={(e) => setSyncToken(e.target.value)}
+                placeholder="ghp_... (Personal Access Token)"
+              />
+            </div>
+            <div className="db-sync-field-row">
+              <div className="db-sync-field">
+                <label htmlFor="sync-owner">Owner</label>
+                <input
+                  id="sync-owner"
+                  type="text"
+                  value={syncOwner}
+                  onChange={(e) => setSyncOwner(e.target.value)}
+                />
+              </div>
+              <div className="db-sync-field">
+                <label htmlFor="sync-repo">Repository</label>
+                <input
+                  id="sync-repo"
+                  type="text"
+                  value={syncRepo}
+                  onChange={(e) => setSyncRepo(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="db-sync-field-actions">
+              <button className="btn btn-sm btn-primary" onClick={handleSaveSyncSettings}>
+                Save Settings
+              </button>
+              <button className="btn btn-sm" onClick={() => setShowSyncSettings(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Dataset table */}
       {datasets.length === 0 ? (
