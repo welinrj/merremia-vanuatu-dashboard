@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { resolve } from 'path'
 
 export default defineConfig({
-  base: '/merremia-vanuatu-dashboard/',
+  base: '/',
   plugins: [react()],
   build: {
     rollupOptions: {
