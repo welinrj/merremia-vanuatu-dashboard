@@ -45,7 +45,7 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
   const [showSyncSettings, setShowSyncSettings] = useState(false)
   const [syncToken, setSyncToken] = useState('')
   const [syncOwner, setSyncOwner] = useState('welinrj')
-  const [syncRepo, setSyncRepo] = useState('merremia-field-data')
+  const [syncRepo, setSyncRepo] = useState('')
   const [lastSync, setLastSync] = useState<string | null>(null)
 
   // Load sync settings on mount
