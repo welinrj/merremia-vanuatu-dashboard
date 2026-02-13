@@ -1,16 +1,25 @@
 import type { GeoDataset } from '../types/geospatial'
+import type { ProtectedArea } from '../types/protectedArea'
 import {
   listDatasets,
   exportAllDatasets,
   importDatasets,
   updateGitHubSha,
 } from './datasetStore'
+import {
+  listProtectedAreas,
+  exportAllAreas,
+  importAreas,
+  updateAreaGitHubSha,
+} from './protectedAreaStore'
 
 // ── Configuration ──
 
 const SETTINGS_KEY = 'vcap2_github_settings'
 const SYNC_STATE_KEY = 'vcap2_github_sync'
+const PA_SYNC_STATE_KEY = 'vcap2_github_pa_sync'
 const DATASETS_DIR = 'gis-datasets'
+const PA_DIR = 'protected-areas'
 const API_BASE = 'https://api.github.com'
 
 export interface GitHubSyncConfig {
@@ -229,6 +238,171 @@ export async function syncDatasets(
   }
 
   return result
+}
+
+// ── Protected Areas sync ──
+
+export function getPaSyncState(): SyncState {
+  try {
+    const raw = localStorage.getItem(PA_SYNC_STATE_KEY)
+    return raw ? JSON.parse(raw) : { lastSync: null, syncing: false }
+  } catch {
+    return { lastSync: null, syncing: false }
+  }
+}
+
+function savePaSyncState(state: SyncState): void {
+  try {
+    localStorage.setItem(PA_SYNC_STATE_KEY, JSON.stringify(state))
+  } catch {
+    // ignore
+  }
+}
+
+/** List all protected area files in the protected-areas/ directory */
+async function listRemoteAreas(
+  config: GitHubSyncConfig,
+): Promise<Array<{ name: string; sha: string; download_url: string }>> {
+  const resp = await ghFetch(PA_DIR, config)
+  if (resp.status === 404) return []
+  if (!resp.ok) {
+    throw new Error(`GitHub API error ${resp.status}: ${await resp.text()}`)
+  }
+  const files = await resp.json()
+  if (!Array.isArray(files)) return []
+  return files
+    .filter((f: { name: string }) => f.name.endsWith('.json'))
+    .map((f: { name: string; sha: string; download_url: string }) => ({
+      name: f.name,
+      sha: f.sha,
+      download_url: f.download_url,
+    }))
+}
+
+/** Push a protected area to GitHub */
+async function pushArea(
+  area: ProtectedArea,
+  config: GitHubSyncConfig,
+  existingSha?: string,
+): Promise<string> {
+  const path = `${PA_DIR}/${area.id}.json`
+  const content = btoa(unescape(encodeURIComponent(JSON.stringify(area, null, 2))))
+
+  const body: Record<string, string> = {
+    message: `Sync protected area: ${area.name}`,
+    content,
+    branch: config.branch || 'main',
+  }
+  if (existingSha) {
+    body.sha = existingSha
+  }
+
+  const resp = await ghFetch(path, config, {
+    method: 'PUT',
+    body: JSON.stringify(body),
+  })
+
+  if (!resp.ok) {
+    const err = await resp.text()
+    throw new Error(`Failed to push area "${area.name}": ${resp.status} ${err}`)
+  }
+
+  const result = await resp.json()
+  return result.content.sha
+}
+
+/**
+ * Two-way sync for protected areas: push local-only to GitHub, pull remote-only to local.
+ */
+export async function syncProtectedAreas(
+  config: GitHubSyncConfig,
+): Promise<SyncResult> {
+  const result: SyncResult = { pushed: 0, pulled: 0, errors: [] }
+
+  savePaSyncState({ lastSync: getPaSyncState().lastSync, syncing: true })
+
+  try {
+    const localSummaries = await listProtectedAreas()
+    const localIds = new Set(localSummaries.map((a) => a.id))
+
+    const remoteFiles = await listRemoteAreas(config)
+    const remoteById = new Map(
+      remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
+    )
+
+    // Push local areas not on GitHub
+    const allLocal = await exportAllAreas()
+    for (const area of allLocal) {
+      const remoteFile = remoteById.get(area.id)
+      if (!remoteFile) {
+        try {
+          const sha = await pushArea(area, config)
+          await updateAreaGitHubSha(area.id, sha)
+          result.pushed++
+        } catch (err) {
+          result.errors.push(
+            err instanceof Error ? err.message : `Push failed for ${area.id}`,
+          )
+        }
+      } else if (!area.githubSha || area.githubSha !== remoteFile.sha) {
+        await updateAreaGitHubSha(area.id, remoteFile.sha)
+      }
+    }
+
+    // Pull remote areas not in local IndexedDB
+    for (const [remoteId, remoteFile] of remoteById) {
+      if (!localIds.has(remoteId)) {
+        try {
+          const resp = await fetch(remoteFile.download_url)
+          if (!resp.ok) throw new Error(`Failed to download area: ${resp.status}`)
+          const area: ProtectedArea = await resp.json()
+          area.githubSha = remoteFile.sha
+          const { imported } = await importAreas([area])
+          if (imported > 0) result.pulled++
+        } catch (err) {
+          result.errors.push(
+            err instanceof Error ? err.message : `Pull failed for ${remoteId}`,
+          )
+        }
+      }
+    }
+
+    savePaSyncState({ lastSync: new Date().toISOString(), syncing: false })
+  } catch (err) {
+    savePaSyncState({ lastSync: getPaSyncState().lastSync, syncing: false })
+    result.errors.push(
+      err instanceof Error ? err.message : 'Sync failed',
+    )
+  }
+
+  return result
+}
+
+/** Delete a protected area from GitHub */
+export async function deleteRemoteArea(
+  areaId: string,
+  config: GitHubSyncConfig,
+): Promise<void> {
+  const path = `${PA_DIR}/${areaId}.json`
+
+  const resp = await ghFetch(path, config)
+  if (resp.status === 404) return
+  if (!resp.ok) throw new Error(`GitHub API error: ${resp.status}`)
+
+  const file = await resp.json()
+
+  const deleteResp = await ghFetch(path, config, {
+    method: 'DELETE',
+    body: JSON.stringify({
+      message: `Delete protected area: ${areaId}`,
+      sha: file.sha,
+      branch: config.branch || 'main',
+    }),
+  })
+
+  if (!deleteResp.ok && deleteResp.status !== 404) {
+    throw new Error(`Failed to delete remote area: ${deleteResp.status}`)
+  }
 }
 
 /** Delete a dataset from GitHub */
