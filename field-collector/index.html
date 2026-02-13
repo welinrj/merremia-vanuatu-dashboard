@@ -572,21 +572,15 @@
 
     // ── GPS ──
     var manualGPSMode = false;
-    var gpsWatchId = null;
+    var gpsIntervalId = null;
     var GPS_ACC_THRESHOLD = 8;
-    function startGPS() {
-      if (!navigator.geolocation) {
-        document.getElementById('gps-coords').textContent = 'GPS not available';
-        document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
-        return;
-      }
-      if (gpsWatchId !== null) navigator.geolocation.clearWatch(gpsWatchId);
-      var bestAcc = Infinity;
-      gpsWatchId = navigator.geolocation.watchPosition(
+    var bestAcc = Infinity;
+
+    function pollGPS() {
+      navigator.geolocation.getCurrentPosition(
         function(pos) {
           if (manualGPSMode) return;
           var acc = Math.round(pos.coords.accuracy);
-          // Only update if this reading is at least as good as the best so far
           if (acc <= bestAcc) {
             bestAcc = acc;
             currentLat = pos.coords.latitude;
@@ -603,6 +597,7 @@
             btn.disabled = false;
             hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
             hint.className = 'gps-hint ready';
+            stopGPS();
           } else {
             accEl.className = 'accuracy gps-accuracy-bad';
             btn.disabled = true;
@@ -611,11 +606,28 @@
           }
         },
         function(err) {
+          if (manualGPSMode) return;
           document.getElementById('gps-coords').textContent = 'GPS error: ' + err.message;
           document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
         },
-        { enableHighAccuracy: true, maximumAge: 0, timeout: 30000 }
+        { enableHighAccuracy: true, maximumAge: 0, timeout: 10000 }
       );
+    }
+
+    function stopGPS() {
+      if (gpsIntervalId !== null) { clearInterval(gpsIntervalId); gpsIntervalId = null; }
+    }
+
+    function startGPS() {
+      if (!navigator.geolocation) {
+        document.getElementById('gps-coords').textContent = 'GPS not available';
+        document.getElementById('gps-hint').textContent = 'Use manual entry below to set coordinates';
+        return;
+      }
+      stopGPS();
+      bestAcc = Infinity;
+      pollGPS();
+      gpsIntervalId = setInterval(pollGPS, 1000);
     }
     startGPS();
 
@@ -624,7 +636,7 @@
       var toggle = document.querySelector('.gps-manual-toggle');
       manualGPSMode = !manualGPSMode;
       if (manualGPSMode) {
-        if (gpsWatchId !== null) { navigator.geolocation.clearWatch(gpsWatchId); gpsWatchId = null; }
+        stopGPS();
         panel.classList.add('active');
         toggle.textContent = 'Use automatic GPS';
         document.getElementById('manual-lat').oninput = applyManualGPS;
