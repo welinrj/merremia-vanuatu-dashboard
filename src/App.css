@@ -310,11 +310,23 @@
   max-width: 400px;
 }
 
+.login-logo {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.login-logo img {
+  width: 96px;
+  height: 96px;
+}
+
 .login-form h2 {
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--color-primary);
   margin-bottom: 0.5rem;
+  text-align: center;
 }
 
 .login-description {
