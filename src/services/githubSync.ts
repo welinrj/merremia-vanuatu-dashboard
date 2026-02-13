@@ -187,7 +187,7 @@ export async function syncDatasets(
       remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
     )
 
-    // 2. Push local datasets that are NOT on GitHub (requires token)
+    // 2. Push local datasets not on GitHub or updated since last push (requires token)
     const allLocal = await exportAllDatasets()
     for (const dataset of allLocal) {
       const remoteFile = remoteById.get(dataset.id)
@@ -204,8 +204,23 @@ export async function syncDatasets(
           )
         }
       } else if (!dataset.githubSha || dataset.githubSha !== remoteFile.sha) {
-        // Already on GitHub — update local SHA tracking
-        await updateGitHubSha(dataset.id, remoteFile.sha)
+        if (config.token && dataset.githubSha && dataset.githubSha !== remoteFile.sha) {
+          // SHA mismatch but we have a tracked sha — could be remote update, skip push
+          await updateGitHubSha(dataset.id, remoteFile.sha)
+        } else if (config.token && !dataset.githubSha) {
+          // Exists on GitHub but we never tracked its SHA — re-push local version
+          try {
+            const sha = await pushDataset(dataset, config, remoteFile.sha)
+            await updateGitHubSha(dataset.id, sha)
+            result.pushed++
+          } catch (err) {
+            result.errors.push(
+              err instanceof Error ? err.message : `Push failed for ${dataset.id}`,
+            )
+          }
+        } else {
+          await updateGitHubSha(dataset.id, remoteFile.sha)
+        }
       }
     }
 
@@ -326,7 +341,7 @@ export async function syncProtectedAreas(
       remoteFiles.map((f) => [f.name.replace('.json', ''), f]),
     )
 
-    // Push local areas not on GitHub (requires token)
+    // Push local areas not on GitHub or updated since last push (requires token)
     const allLocal = await exportAllAreas()
     for (const area of allLocal) {
       const remoteFile = remoteById.get(area.id)
@@ -342,7 +357,24 @@ export async function syncProtectedAreas(
           )
         }
       } else if (!area.githubSha || area.githubSha !== remoteFile.sha) {
-        await updateAreaGitHubSha(area.id, remoteFile.sha)
+        // Area exists on both — re-push if locally modified (local SHA stale)
+        if (config.token && area.githubSha && area.githubSha !== remoteFile.sha) {
+          // SHA mismatch but we have a tracked sha — could be remote update, skip push
+          await updateAreaGitHubSha(area.id, remoteFile.sha)
+        } else if (config.token && !area.githubSha) {
+          // Area exists on GitHub but we never tracked its SHA — re-push local version
+          try {
+            const sha = await pushArea(area, config, remoteFile.sha)
+            await updateAreaGitHubSha(area.id, sha)
+            result.pushed++
+          } catch (err) {
+            result.errors.push(
+              err instanceof Error ? err.message : `Push failed for ${area.id}`,
+            )
+          }
+        } else {
+          await updateAreaGitHubSha(area.id, remoteFile.sha)
+        }
       }
     }
 

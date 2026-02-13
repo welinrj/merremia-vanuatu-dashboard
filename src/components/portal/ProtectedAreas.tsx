@@ -20,6 +20,7 @@ import {
   syncProtectedAreas,
   getSyncSettings,
   getPaSyncState,
+  deleteRemoteArea,
 } from '../../services/githubSync'
 import { parseGeoJSON } from '../../services/datasetStore'
 import MapViewer from './MapViewer'
@@ -73,9 +74,40 @@ const ProtectedAreas: FC = () => {
     setAreas(list)
   }, [])
 
+  // Auto-sync on mount: pull any new records from GitHub, then refresh
   useEffect(() => {
-    refresh().finally(() => setLoading(false))
+    let cancelled = false
+    async function initialSync() {
+      try {
+        const config = getSyncSettings()
+        if (config.token) {
+          const result = await syncProtectedAreas(config)
+          if (!cancelled && (result.pulled > 0 || result.pushed > 0)) {
+            setLastSync(new Date().toISOString())
+          }
+        }
+      } catch {
+        // silent — manual sync still available
+      }
+      if (!cancelled) {
+        await refresh()
+        setLoading(false)
+      }
+    }
+    initialSync()
+    return () => { cancelled = true }
   }, [refresh])
+
+  // Fire-and-forget push to GitHub after local mutation
+  function backgroundSync() {
+    const config = getSyncSettings()
+    if (!config.token) return
+    syncProtectedAreas(config)
+      .then((r) => {
+        if (r.pushed > 0 || r.pulled > 0) setLastSync(new Date().toISOString())
+      })
+      .catch(() => { /* silent — manual sync still available */ })
+  }
 
   async function handleViewArea(id: string) {
     const area = await getProtectedArea(id)
@@ -97,6 +129,11 @@ const ProtectedAreas: FC = () => {
     const area = areas.find((a) => a.id === id)
     if (!window.confirm(`Delete "${area?.name}"? This cannot be undone.`)) return
     await deleteProtectedArea(id)
+    // Also delete from GitHub
+    const config = getSyncSettings()
+    if (config.token) {
+      deleteRemoteArea(id, config).catch(() => { /* silent */ })
+    }
     if (activeArea?.id === id) {
       setActiveArea(null)
       setView('dashboard')
@@ -106,6 +143,11 @@ const ProtectedAreas: FC = () => {
 
   async function handleSync() {
     const config = getSyncSettings()
+
+    if (!config.token) {
+      setSyncStatus('No GitHub token configured — cannot sync')
+      return
+    }
 
     setSyncing(true)
     setSyncStatus('Syncing with GitHub...')
@@ -117,7 +159,7 @@ const ProtectedAreas: FC = () => {
       const parts: string[] = []
       if (result.pushed > 0) parts.push(`${result.pushed} pushed`)
       if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
-      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}`)
+      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
       if (parts.length === 0) parts.push('Already in sync')
 
       setSyncStatus(parts.join(', '))
@@ -356,6 +398,7 @@ const ProtectedAreas: FC = () => {
           } else {
             await createProtectedArea(data)
           }
+          backgroundSync()
           await refresh()
           setActiveArea(null)
           setView('dashboard')
