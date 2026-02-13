@@ -10,13 +10,8 @@ interface SidebarProps {
 }
 
 const staffNavItems = [
-  { id: 'overview', label: 'Overview' },
   { id: 'data-portal', label: 'Data Portal' },
   { id: 'gis-database', label: 'GIS Database' },
-  { id: 'sightings', label: 'Sightings' },
-  { id: 'locations', label: 'Locations' },
-  { id: 'species', label: 'Species' },
-  { id: 'settings', label: 'Settings' },
 ]
 
 const publicNavItems = [
