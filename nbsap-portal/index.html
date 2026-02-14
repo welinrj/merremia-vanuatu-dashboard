@@ -10,24 +10,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
-  <script type="importmap">
-  {
-    "imports": {
-      "leaflet": "https://esm.sh/leaflet@1.9.4",
-      "leaflet/": "https://unpkg.com/leaflet@1.9.4/",
-      "@turf/turf": "https://esm.sh/@turf/turf@7.1.0",
-      "proj4": "https://esm.sh/proj4@2.12.1",
-      "shpjs": "https://esm.sh/shpjs@4.0.4",
-      "buffer": "https://esm.sh/buffer@6.0.3",
-      "buffer/": "https://esm.sh/buffer@6.0.3/"
-    }
-  }
-  </script>
-  <script type="module" crossorigin src="./assets/index-Bk8kC8zS.js"></script>
+  <script type="module" crossorigin src="./assets/index-CEFEtWLn.js"></script>
   <link rel="modulepreload" crossorigin href="./assets/turf-DoSnX_XS.js">
   <link rel="modulepreload" crossorigin href="./assets/leaflet-CUUxycQw.js">
-  <link rel="stylesheet" crossorigin href="./assets/index-TeKGVS7R.css">
+  <link rel="stylesheet" crossorigin href="./assets/index-r7tAeIe8.css">
 </head>
 <body>
   <div class="app-container">
@@ -74,12 +60,32 @@
       </nav>
     </header>
 
-    <!-- Page Containers -->
+    <!-- Page Containers (pre-populated with loading states) -->
     <div class="page-container">
-      <div id="page-dashboard" class="page active"></div>
-      <div id="page-portal" class="page"></div>
-      <div id="page-admin" class="page"></div>
-      <div id="page-about" class="page"></div>
+      <div id="page-dashboard" class="page active">
+        <div class="loading-state" id="loading-dashboard">
+          <div class="loading-spinner"></div>
+          <p>Loading dashboard...</p>
+        </div>
+      </div>
+      <div id="page-portal" class="page">
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading data portal...</p>
+        </div>
+      </div>
+      <div id="page-admin" class="page">
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading admin panel...</p>
+        </div>
+      </div>
+      <div id="page-about" class="page">
+        <div class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>Loading...</p>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -101,17 +107,26 @@
   </div>
 
   <script>
-    window.addEventListener('error', function(e) {
-      var msg = e.message || 'Unknown error';
+    // Catch both sync errors and unhandled promise rejections
+    window.__nbsapLoaded = false;
+    function showLoadError(msg) {
       var el = document.getElementById('page-dashboard');
-      if (el && !el.innerHTML.trim()) {
+      if (el && !window.__nbsapLoaded) {
         el.innerHTML = '<div style="padding:40px;max-width:600px;margin:0 auto">' +
-          '<h2 style="color:var(--primary,#065f46);margin-bottom:12px">Loading Error</h2>' +
+          '<h2 style="color:#065f46;margin-bottom:12px">Loading Error</h2>' +
           '<p style="color:#64748b;font-size:14px;line-height:1.6;margin-bottom:16px">' + msg + '</p>' +
-          '<p style="color:#94a3b8;font-size:13px">If you are running this locally, start the dev server with <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">npm run dev</code> from the <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">nbsap-portal</code> directory.</p>' +
+          '<p style="color:#94a3b8;font-size:13px">Try refreshing the page. If this persists, the app may need to be built first: run <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">npm run dev</code> from the <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">nbsap-portal</code> directory.</p>' +
           '</div>';
       }
-    });
+    }
+    window.addEventListener('error', function(e) { showLoadError(e.message || 'Unknown error'); });
+    window.addEventListener('unhandledrejection', function(e) { showLoadError(e.reason ? (e.reason.message || String(e.reason)) : 'Module loading failed'); });
+    // Timeout fallback: if app hasn't loaded in 10s, show help
+    setTimeout(function() {
+      if (!window.__nbsapLoaded) {
+        showLoadError('Application failed to load within 10 seconds. This may indicate a network or build issue.');
+      }
+    }, 10000);
   </script>
 </body>
 </html>
