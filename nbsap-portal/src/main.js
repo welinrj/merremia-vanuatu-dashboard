@@ -32,42 +32,19 @@ let activeTab = 'dashboard';
 
 /**
  * Bootstraps the application.
+ * Pages render FIRST (synchronous), then data loads asynchronously.
  */
 async function init() {
-  // Load provinces boundary data (served from public/data/)
-  try {
-    const base = import.meta.env.BASE_URL || './';
-    const resp = await fetch(`${base}data/provinces.geojson`);
-    const provinces = await resp.json();
-    setProvincesGeojson(provinces);
-  } catch (err) {
-    console.warn('Failed to load provinces data:', err);
-  }
-
-  // Load layers from IndexedDB
-  try {
-    const stored = await listLayers();
-    if (stored.length > 0) {
-      setLayers(stored);
-    } else {
-      // Load demo data on first run
-      await loadDemoData();
-    }
-  } catch (err) {
-    console.warn('Failed to load stored layers:', err);
-    await loadDemoData();
-  }
-
-  // Initialize all pages
+  // 1. Initialize all pages immediately so UI is visible
   initDashboard();
   initDataPortal();
   initAdmin();
   initAbout();
 
-  // Wire up tab navigation
+  // 2. Wire up tab navigation
   setupNavigation();
 
-  // Listen for refresh events
+  // 3. Listen for refresh events
   window.addEventListener('nbsap:refresh', () => {
     if (activeTab === 'dashboard') refreshDashboard();
     if (activeTab === 'portal') refreshPortal();
@@ -75,8 +52,60 @@ async function init() {
     updateNavAuthBadge();
   });
 
-  // Show dashboard by default
+  // 4. Show dashboard by default
   showTab('dashboard');
+
+  // 5. Load data asynchronously (UI already visible)
+  await loadAppData();
+}
+
+/**
+ * Loads provinces and layer data, then refreshes the UI.
+ */
+async function loadAppData() {
+  // Load provinces boundary data
+  try {
+    const base = import.meta.env.BASE_URL || './';
+    const resp = await fetch(`${base}data/provinces.geojson`);
+    if (resp.ok) {
+      const provinces = await resp.json();
+      setProvincesGeojson(provinces);
+    }
+  } catch (err) {
+    console.warn('Failed to load provinces data:', err);
+  }
+
+  // Load layers from IndexedDB (with timeout to prevent hanging)
+  try {
+    const stored = await withTimeout(listLayers(), 3000);
+    if (stored.length > 0) {
+      setLayers(stored);
+    } else {
+      await loadDemoData();
+    }
+  } catch (err) {
+    console.warn('Failed to load stored layers:', err);
+    try {
+      await loadDemoData();
+    } catch (demoErr) {
+      console.warn('Failed to load demo data:', demoErr);
+    }
+  }
+
+  // Refresh all visible components with loaded data
+  refreshDashboard();
+}
+
+/**
+ * Wraps a promise with a timeout. Rejects if it doesn't resolve within ms.
+ */
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('Operation timed out')), ms)
+    )
+  ]);
 }
 
 /**

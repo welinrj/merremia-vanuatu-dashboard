@@ -2,6 +2,11 @@ import { defineConfig } from 'vite';
 
 export default defineConfig({
   base: './',
+  resolve: {
+    alias: {
+      buffer: 'buffer/'
+    }
+  },
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -10,8 +15,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           turf: ['@turf/turf'],
-          leaflet: ['leaflet'],
-          shpjs: ['shpjs']
+          leaflet: ['leaflet']
         }
       }
     }
