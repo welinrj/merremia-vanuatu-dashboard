@@ -11,6 +11,16 @@ import { saveLayer, addAuditEntry, setSetting } from '../../services/storage/ind
 import { getAppState, addLayer, trackLayer } from '../state.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
+let wizardOpen = false;
+
+/** Returns true while the upload wizard modal is active. */
+export function isWizardOpen() { return wizardOpen; }
+
+/** Warn user before leaving the page while upload wizard is active. */
+function beforeUnloadGuard(e) {
+  e.preventDefault();
+  e.returnValue = '';
+}
 
 /**
  * Opens the upload wizard modal.
@@ -19,8 +29,15 @@ let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {},
  */
 export function openUploadWizard(options = {}) {
   wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: options.expectedLayer || null };
+  wizardOpen = true;
+  window.addEventListener('beforeunload', beforeUnloadGuard);
   const overlay = document.getElementById('upload-wizard-modal');
   overlay.classList.add('active');
+
+  // Wire modal X button to use closeUploadWizard (cleans up beforeunload guard)
+  const closeBtn = document.getElementById('wizard-modal-close-btn');
+  if (closeBtn) closeBtn.onclick = () => closeUploadWizard();
+
   renderWizardStep();
 }
 
@@ -28,6 +45,8 @@ export function openUploadWizard(options = {}) {
  * Closes the upload wizard modal.
  */
 export function closeUploadWizard() {
+  wizardOpen = false;
+  window.removeEventListener('beforeunload', beforeUnloadGuard);
   document.getElementById('upload-wizard-modal').classList.remove('active');
 }
 
@@ -349,7 +368,7 @@ function renderStep1(body) {
     </div>
     <div id="wizard-file-status" style="margin-top:10px"></div>
     <div style="margin-top:16px;text-align:right">
-      <button class="btn btn-outline" onclick="document.getElementById('upload-wizard-modal').classList.remove('active')">Cancel</button>
+      <button class="btn btn-outline" id="wizard-cancel-btn">Cancel</button>
       <button class="btn btn-primary" id="wizard-next-1" disabled>Next</button>
     </div>
   `;
@@ -357,6 +376,8 @@ function renderStep1(body) {
   const fileInput = body.querySelector('#wizard-file-input');
   const nextBtn = body.querySelector('#wizard-next-1');
   const statusEl = body.querySelector('#wizard-file-status');
+
+  body.querySelector('#wizard-cancel-btn').addEventListener('click', () => closeUploadWizard());
 
   fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -603,8 +624,9 @@ function renderStep3(body) {
     addLog(`FATAL: ${err.message}`, 'log-error');
     statusEl.innerHTML = `
       <p style="color:var(--danger)">Pipeline failed: ${err.message}</p>
-      <button class="btn btn-outline" onclick="document.getElementById('upload-wizard-modal').classList.remove('active')">Close</button>
+      <button class="btn btn-outline" id="wizard-error-close-btn">Close</button>
     `;
+    body.querySelector('#wizard-error-close-btn').addEventListener('click', () => closeUploadWizard());
   });
 }
 

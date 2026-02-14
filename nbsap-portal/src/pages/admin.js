@@ -357,8 +357,8 @@ async function renderAdminDashboard(page) {
         notes: `${result.added} added, ${result.updated} updated, ${result.skippedAudit} audit entries skipped`
       });
 
-      statusEl.textContent = `Sync complete: ${result.added} new layers, ${result.updated} updated. Reloading...`;
-      setTimeout(() => window.location.reload(), 1000);
+      statusEl.textContent = `Sync complete: ${result.added} new layers, ${result.updated} updated.`;
+      window.dispatchEvent(new CustomEvent('nbsap:refresh'));
     } catch (err) {
       statusEl.textContent = `Sync failed: ${err.message}`;
     }
@@ -389,8 +389,8 @@ async function renderAdminDashboard(page) {
         notes: `${result.layersImported} layers imported`
       });
 
-      statusEl.textContent = `Restored ${result.layersImported} layers. Reloading...`;
-      setTimeout(() => window.location.reload(), 1000);
+      statusEl.textContent = `Restored ${result.layersImported} layers.`;
+      window.dispatchEvent(new CustomEvent('nbsap:refresh'));
     } catch (err) {
       statusEl.textContent = `Restore failed: ${err.message}`;
     }

@@ -39,6 +39,9 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     if (onProgress) onProgress(step, msg);
   };
 
+  /** Yield to the main thread so the browser stays responsive during heavy processing. */
+  const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
+
   // STEP 1: Basic validation
   progress(1, 'Validating geometries...');
   const { cleaned: step1, stats, warnings: w1 } = basicValidation(rawGeojson);
@@ -53,6 +56,8 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
       report
     };
   }
+
+  await yieldToMain();
 
   // STEP 2: Detect CRS and reproject if needed
   progress(2, 'Checking CRS...');
@@ -71,11 +76,15 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     if (reprojected) progress(2, 'Reprojection successful');
   }
 
+  await yieldToMain();
+
   // STEP 3: Fix geometries
   progress(3, 'Fixing geometry issues...');
   const { cleaned: step3, fixedCount, droppedCount, warnings: w3 } = fixGeometries(step2);
   report.warnings.push(...w3);
   progress(3, `Fixed: ${fixedCount}, Dropped: ${droppedCount}`);
+
+  await yieldToMain();
 
   // STEP 4: Map fields to standard schema
   progress(4, 'Standardizing attributes...');
@@ -101,6 +110,8 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
   });
   progress(4, `Mapped ${step4.features.length} features to standard schema`);
 
+  await yieldToMain();
+
   // STEP 5: Assign provinces via spatial join
   progress(5, 'Assigning provinces...');
   let step5 = step4;
@@ -112,6 +123,8 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     report.warnings.push('No provinces boundary data — province assignment skipped');
     progress(5, 'Skipped — no provinces data');
   }
+
+  await yieldToMain();
 
   // STEP 6: Compute areas
   progress(6, 'Computing areas...');

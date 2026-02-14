@@ -8,6 +8,7 @@ import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
 import { initAdmin, renderAdminPage } from './pages/admin.js';
+import { isWizardOpen } from './ui/components/uploadWizard.js';
 import { initAbout } from './pages/about.js';
 import { computeFeatureAreas } from './gis/areaCalc.js';
 import { createLayerMetadata } from './core/schema.js';
@@ -50,11 +51,11 @@ async function init() {
   // 2. Wire up tab navigation
   setupNavigation();
 
-  // 3. Listen for refresh events
+  // 3. Listen for refresh events (skip admin re-render while upload wizard is open)
   window.addEventListener('nbsap:refresh', () => {
     if (activeTab === 'dashboard') refreshDashboard();
     if (activeTab === 'portal') refreshPortal();
-    if (activeTab === 'admin') renderAdminPage();
+    if (activeTab === 'admin' && !isWizardOpen()) renderAdminPage();
     updateNavAuthBadge();
   });
 
@@ -193,10 +194,10 @@ function showTab(tabId) {
     page.classList.toggle('active', page.id === `page-${tabId}`);
   });
 
-  // Trigger page-specific activation
+  // Trigger page-specific activation (skip admin re-render while upload wizard is open)
   if (tabId === 'dashboard') onDashboardShow();
   if (tabId === 'portal') refreshPortal();
-  if (tabId === 'admin') renderAdminPage();
+  if (tabId === 'admin' && !isWizardOpen()) renderAdminPage();
 }
 
 /**
