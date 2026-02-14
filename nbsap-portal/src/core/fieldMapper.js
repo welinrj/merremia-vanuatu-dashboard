@@ -3,7 +3,7 @@
  * Maps uploaded shapefile attribute names to the standard schema
  * using config-driven mappings from /src/config/field_mappings.json.
  */
-import fieldMappings from '../config/field_mappings.json';
+import fieldMappings from '../config/fieldMappings.js';
 
 /**
  * Finds the value for a standard field from raw feature properties.

@@ -3,7 +3,7 @@
  * Renders target, province, category, realm, and year filters.
  * Dispatches filter change events to update map, KPIs, tables, and exports.
  */
-import targetsConfig from '../../config/targets.json';
+import targetsConfig from '../../config/targets.js';
 import { CATEGORIES } from '../../config/categories.js';
 import { getAppState, updateFilters } from '../state.js';
 
