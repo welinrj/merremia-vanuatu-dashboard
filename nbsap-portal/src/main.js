@@ -2,9 +2,6 @@
  * Main application entry point.
  * Initializes the app shell, loads demo data, and wires up tab navigation.
  */
-import 'leaflet/dist/leaflet.css';
-import './ui/styles/main.css';
-
 import { listLayers, saveLayer } from './services/storage/index.js';
 import { getAppState, setLayers, setProvincesGeojson, addLayer } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
@@ -16,16 +13,13 @@ import { computeFeatureAreas } from './gis/areaCalc.js';
 import { createLayerMetadata } from './core/schema.js';
 import ENV from './config/env.js';
 
-// Fix Leaflet default icon paths for bundled builds
+// Fix Leaflet default icon paths (use CDN URLs for universal compatibility)
 import L from 'leaflet';
-import markerIcon from 'leaflet/dist/images/marker-icon.png';
-import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
-import markerShadow from 'leaflet/dist/images/marker-shadow.png';
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
-  iconUrl: markerIcon,
-  iconRetinaUrl: markerIcon2x,
-  shadowUrl: markerShadow
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
 });
 
 let activeTab = 'dashboard';

@@ -9,6 +9,21 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="./src/ui/styles/main.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "leaflet": "https://esm.sh/leaflet@1.9.4",
+      "leaflet/": "https://unpkg.com/leaflet@1.9.4/",
+      "@turf/turf": "https://esm.sh/@turf/turf@7.1.0",
+      "proj4": "https://esm.sh/proj4@2.12.1",
+      "shpjs": "https://esm.sh/shpjs@4.0.4",
+      "buffer": "https://esm.sh/buffer@6.0.3",
+      "buffer/": "https://esm.sh/buffer@6.0.3/"
+    }
+  }
+  </script>
 </head>
 <body>
   <div class="app-container">
@@ -86,7 +101,11 @@
       var msg = e.message || 'Unknown error';
       var el = document.getElementById('page-dashboard');
       if (el && !el.innerHTML.trim()) {
-        el.innerHTML = '<div style="padding:20px;color:#c00;font-size:14px">JS Error: ' + msg + '</div>';
+        el.innerHTML = '<div style="padding:40px;max-width:600px;margin:0 auto">' +
+          '<h2 style="color:var(--primary,#065f46);margin-bottom:12px">Loading Error</h2>' +
+          '<p style="color:#64748b;font-size:14px;line-height:1.6;margin-bottom:16px">' + msg + '</p>' +
+          '<p style="color:#94a3b8;font-size:13px">If you are running this locally, start the dev server with <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">npm run dev</code> from the <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">nbsap-portal</code> directory.</p>' +
+          '</div>';
       }
     });
   </script>
