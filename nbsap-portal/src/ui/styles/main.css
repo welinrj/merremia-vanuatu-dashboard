@@ -149,25 +149,6 @@ html, body {
   gap: 12px;
 }
 
-.header-back-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: rgba(255,255,255,0.8);
-  text-decoration: none;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.2);
-  transition: all var(--transition-fast);
-}
-
-.header-back-link:hover {
-  color: white;
-  background: rgba(255,255,255,0.1);
-  border-color: rgba(255,255,255,0.3);
-}
 
 .auth-badge {
   display: inline-flex;
@@ -237,18 +218,23 @@ html, body {
 /* ── Page Container ──────────────────────────────────────── */
 .page-container {
   flex: 1;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   padding: 0;
+  min-height: 0;
 }
 
 .page {
   display: none;
-  height: 100%;
+  min-height: 0;
 }
 
 .page.active {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 /* ── Dashboard Layout ────────────────────────────────────── */
@@ -1368,9 +1354,6 @@ html, body {
   }
   .about-layout {
     padding: 20px;
-  }
-  .header-back-link span {
-    display: none;
   }
 }
 
