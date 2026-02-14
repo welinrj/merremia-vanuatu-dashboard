@@ -10,7 +10,7 @@ import { getAppState } from '../state.js';
 
 let map = null;
 let baseLayers = {};
-let overlayGroup = L.layerGroup();
+let overlayGroup = null;
 let provincesLayer = null;
 
 /**
@@ -42,7 +42,8 @@ export function initMap(containerId) {
   const defaultBase = Object.values(baseLayers)[0];
   if (defaultBase) defaultBase.addTo(map);
 
-  // Layer control
+  // Layer control (deferred from module scope to avoid calling L.layerGroup() before Leaflet is ready)
+  overlayGroup = L.layerGroup();
   overlayGroup.addTo(map);
 
   L.control.layers(baseLayers, {}, { position: 'topright' }).addTo(map);

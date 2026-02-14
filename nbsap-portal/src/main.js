@@ -24,6 +24,15 @@ L.Icon.Default.mergeOptions({
 
 let activeTab = 'dashboard';
 
+/** Safe accessor for Vite's BASE_URL (returns './' outside Vite) */
+function getBaseUrl() {
+  try {
+    return (import.meta.env && import.meta.env.BASE_URL) || './';
+  } catch {
+    return './';
+  }
+}
+
 /**
  * Bootstraps the application.
  * Pages render FIRST (synchronous), then data loads asynchronously.
@@ -34,6 +43,9 @@ async function init() {
   initDataPortal();
   initAdmin();
   initAbout();
+
+  // Signal that the app JS has loaded (clears timeout fallback)
+  window.__nbsapLoaded = true;
 
   // 2. Wire up tab navigation
   setupNavigation();
@@ -57,9 +69,10 @@ async function init() {
  * Loads provinces and layer data, then refreshes the UI.
  */
 async function loadAppData() {
+  const base = getBaseUrl();
+
   // Load provinces boundary data
   try {
-    const base = import.meta.env.BASE_URL || './';
     const resp = await fetch(`${base}data/provinces.geojson`);
     if (resp.ok) {
       const provinces = await resp.json();
@@ -75,12 +88,12 @@ async function loadAppData() {
     if (stored.length > 0) {
       setLayers(stored);
     } else {
-      await loadDemoData();
+      await loadDemoData(base);
     }
   } catch (err) {
     console.warn('Failed to load stored layers:', err);
     try {
-      await loadDemoData();
+      await loadDemoData(base);
     } catch (demoErr) {
       console.warn('Failed to load demo data:', demoErr);
     }
@@ -105,8 +118,8 @@ function withTimeout(promise, ms) {
 /**
  * Loads demo CCA and MPA layers.
  */
-async function loadDemoData() {
-  const base = import.meta.env.BASE_URL || './';
+async function loadDemoData(base) {
+  if (!base) base = getBaseUrl();
   const demos = [
     { file: 'demo_cca.geojson', name: 'Demo CCAs', category: 'CCA', realm: 'terrestrial' },
     { file: 'demo_mpa.geojson', name: 'Demo MPAs', category: 'MPA', realm: 'marine' }
@@ -115,6 +128,7 @@ async function loadDemoData() {
   for (const demo of demos) {
     try {
       const resp = await fetch(`${base}data/${demo.file}`);
+      if (!resp.ok) continue;
       const geojson = await resp.json();
 
       // Compute areas
@@ -197,8 +211,11 @@ function updateNavAuthBadge() {
 // Start the app
 init().catch(err => {
   console.error('App initialization failed:', err);
-  document.body.innerHTML = `<div style="padding:40px;text-align:center">
-    <h2>Failed to initialize</h2>
-    <p>${err.message}</p>
-  </div>`;
+  const el = document.getElementById('page-dashboard');
+  if (el) {
+    el.innerHTML = `<div style="padding:40px;max-width:600px;margin:0 auto">
+      <h2 style="color:#065f46;margin-bottom:12px">Failed to initialize</h2>
+      <p style="color:#64748b;font-size:14px">${err.message}</p>
+    </div>`;
+  }
 });

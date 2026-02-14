@@ -11,7 +11,7 @@
 
 // Default passphrase: "vanuatu2024" — SHA-256 hash
 // To change: compute SHA-256 of your desired passphrase and replace this value
-const DEFAULT_HASH = '7a92f1b582a6cde7e41f2f5ed6e89a9d1f5a8d3b9c0e7f2a4b6c8d0e1f3a5b7c';
+const DEFAULT_HASH = 'fcc1682b158fe80d089f1627dd31cf5fa6bf2162058ac3e688d24fe03cc538f8';
 
 let isAuthenticated = false;
 let currentUser = null;

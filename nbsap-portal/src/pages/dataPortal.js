@@ -68,13 +68,14 @@ export function initDataPortal() {
   // Populate target filter
   import('../config/targets.json').then(mod => {
     const sel = document.getElementById('portal-filter-target');
-    for (const t of mod.default.targets) {
+    const targets = (mod.default || mod)?.targets || [];
+    for (const t of targets) {
       const opt = document.createElement('option');
       opt.value = t.code;
       opt.textContent = t.code;
       sel.appendChild(opt);
     }
-  });
+  }).catch(err => console.warn('Failed to load targets config:', err));
 
   // Bind events
   document.getElementById('portal-search').addEventListener('input', (e) => {
