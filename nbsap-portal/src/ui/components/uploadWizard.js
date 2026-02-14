@@ -4,7 +4,7 @@
  * Steps: File Select → Configure → Processing → Results
  */
 import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
-import targetsConfig from '../../config/targets.json';
+import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
 import { saveLayer, addAuditEntry } from '../../services/storage/index.js';
 import { getAppState, addLayer } from '../state.js';

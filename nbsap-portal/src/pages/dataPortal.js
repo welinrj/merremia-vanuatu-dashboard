@@ -66,7 +66,7 @@ export function initDataPortal() {
   }
 
   // Populate target filter
-  import('../config/targets.json').then(mod => {
+  import('../config/targets.js').then(mod => {
     const sel = document.getElementById('portal-filter-target');
     const targets = (mod.default || mod)?.targets || [];
     for (const t of targets) {
