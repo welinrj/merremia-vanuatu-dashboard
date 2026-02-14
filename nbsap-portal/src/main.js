@@ -2,8 +2,8 @@
  * Main application entry point.
  * Initializes the app shell, loads demo data, and wires up tab navigation.
  */
-import { listLayers, saveLayer } from './services/storage/index.js';
-import { getAppState, setLayers, setProvincesGeojson, addLayer } from './ui/state.js';
+import { listLayers, saveLayer, getSetting } from './services/storage/index.js';
+import { getAppState, setLayers, setProvincesGeojson, addLayer, setLayerTracker } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
@@ -80,6 +80,14 @@ async function loadAppData() {
     }
   } catch (err) {
     console.warn('Failed to load provinces data:', err);
+  }
+
+  // Load layer tracker state
+  try {
+    const tracker = await withTimeout(getSetting('layerTracker'), 2000);
+    if (tracker) setLayerTracker(tracker);
+  } catch (err) {
+    console.warn('Failed to load layer tracker:', err);
   }
 
   // Load layers from IndexedDB (with timeout to prevent hanging)

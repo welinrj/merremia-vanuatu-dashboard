@@ -6,7 +6,7 @@
 import L from 'leaflet';
 import ENV from '../../config/env.js';
 import { CATEGORIES } from '../../config/categories.js';
-import { getAppState } from '../state.js';
+import { getAppState, getDashboardLayers } from '../state.js';
 
 let map = null;
 let baseLayers = {};
@@ -68,7 +68,7 @@ export function updateMapLayers() {
 
   const state = getAppState();
   const filters = state.filters;
-  const layers = state.layers || [];
+  const layers = getDashboardLayers();
 
   // Render provinces boundary
   if (state.provincesGeojson) {

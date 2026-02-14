@@ -5,7 +5,7 @@
  */
 import targetsConfig from '../../config/targets.js';
 import { CATEGORIES } from '../../config/categories.js';
-import { getAppState, updateFilters } from '../state.js';
+import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
 
 /**
  * Renders the filter panel into a container element.
@@ -121,7 +121,7 @@ export function renderFilterPanel(container) {
 
 function populateYearFilter(select, state) {
   const years = new Set();
-  for (const layer of (state.layers || [])) {
+  for (const layer of getDashboardLayers()) {
     for (const f of (layer.geojson?.features || [])) {
       if (f.properties.year) years.add(f.properties.year);
     }

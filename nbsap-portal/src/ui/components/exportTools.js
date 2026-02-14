@@ -2,7 +2,7 @@
  * Export tools component.
  * Provides CSV, JSON, and optional PNG export of filtered data.
  */
-import { getAppState } from '../state.js';
+import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
 
 /**
@@ -10,7 +10,7 @@ import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.j
  */
 export function exportCSV() {
   const state = getAppState();
-  const layers = state.layers || [];
+  const layers = getDashboardLayers();
   const filters = state.filters;
   const t3Active = filters.targets.length === 0 || filters.targets.includes('T3');
 
@@ -52,7 +52,7 @@ export function exportCSV() {
 export function exportTORSnapshot() {
   const state = getAppState();
   const filters = state.filters;
-  const layers = state.layers || [];
+  const layers = getDashboardLayers();
   const t3Active = filters.targets.length === 0 || filters.targets.includes('T3');
 
   const snapshot = {

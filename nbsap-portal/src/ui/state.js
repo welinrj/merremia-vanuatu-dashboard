@@ -25,7 +25,13 @@ const appState = {
   },
 
   /** Auth state */
-  isAdmin: false
+  isAdmin: false,
+
+  /**
+   * Layer tracker: maps expected layer IDs to uploaded layer info.
+   * { [expectedLayerId]: { layerId, uploadedAt } }
+   */
+  layerTracker: {}
 };
 
 /**
@@ -99,6 +105,66 @@ export function setProvincesGeojson(geojson) {
 export function setAdminState(isAdmin) {
   appState.isAdmin = isAdmin;
   dispatchRefresh();
+}
+
+/**
+ * Sets the layer tracker state (loaded from storage on init).
+ * @param {object} tracker - { [expectedLayerId]: { layerId, uploadedAt } }
+ */
+export function setLayerTracker(tracker) {
+  appState.layerTracker = tracker || {};
+}
+
+/**
+ * Links an expected layer to an uploaded layer.
+ * @param {string} expectedLayerId
+ * @param {string} layerId - The uploaded layer's ID
+ */
+export function trackLayer(expectedLayerId, layerId) {
+  appState.layerTracker[expectedLayerId] = {
+    layerId,
+    uploadedAt: new Date().toISOString()
+  };
+  dispatchRefresh();
+}
+
+/**
+ * Unlinks an expected layer from its uploaded layer.
+ * @param {string} expectedLayerId
+ */
+export function untrackLayer(expectedLayerId) {
+  delete appState.layerTracker[expectedLayerId];
+  dispatchRefresh();
+}
+
+/**
+ * Returns only user-uploaded layers (excludes demo/system layers).
+ * A layer is considered user-uploaded if it is linked in the tracker.
+ */
+export function getUserLayers() {
+  const trackedLayerIds = new Set(
+    Object.values(appState.layerTracker).map(t => t.layerId)
+  );
+  return appState.layers.filter(l => trackedLayerIds.has(l.id));
+}
+
+/**
+ * Returns true if any layers have been uploaded by the user via the tracker.
+ */
+export function hasUserLayers() {
+  return Object.keys(appState.layerTracker).length > 0;
+}
+
+/**
+ * Returns layers for the dashboard display.
+ * When any tracked layers exist, returns only those (user-uploaded data).
+ * Otherwise falls back to all layers (demo data).
+ */
+export function getDashboardLayers() {
+  if (hasUserLayers()) {
+    return getUserLayers();
+  }
+  return appState.layers;
 }
 
 /**

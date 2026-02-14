@@ -1,11 +1,13 @@
 /**
  * Admin page.
- * Auth gate, data upload, sync, audit log, backup/restore, and settings.
+ * Auth gate, data upload, layer tracker, sync, audit log, backup/restore, and settings.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
-import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry } from '../services/storage/index.js';
-import { setAdminState } from '../ui/state.js';
+import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting } from '../services/storage/index.js';
+import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
+import EXPECTED_LAYERS from '../config/expectedLayers.js';
+import { CATEGORIES } from '../config/categories.js';
 
 /**
  * Initializes the Admin page.
@@ -79,6 +81,10 @@ function renderLoginForm(page) {
 
 async function renderAdminDashboard(page) {
   const auditLog = await getAuditLog();
+  const state = getAppState();
+  const tracker = state.layerTracker;
+  const submittedCount = Object.keys(tracker).length;
+  const totalExpected = EXPECTED_LAYERS.length;
 
   page.innerHTML = `
     <div class="admin-layout">
@@ -96,15 +102,86 @@ async function renderAdminDashboard(page) {
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            Data Layer Tracker
+          </div>
+          <span style="font-size:13px;color:var(--text-secondary)">${submittedCount} / ${totalExpected} submitted</span>
+        </div>
+        <div class="card-body" style="padding:0">
+          <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border)">
+            <div class="progress-bar-container" style="height:8px">
+              <div class="progress-bar-fill terrestrial" style="width:${totalExpected > 0 ? (submittedCount / totalExpected * 100).toFixed(0) : 0}%;transition:width 0.3s"></div>
+            </div>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-top:6px">Upload each required GIS data layer. Only submitted layers appear on the dashboard.</p>
+          </div>
+          <table class="data-table" id="tracker-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Layer</th>
+                <th>Category</th>
+                <th>Target</th>
+                <th>Realm</th>
+                <th>Uploaded</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${EXPECTED_LAYERS.map(el => {
+                const tracked = tracker[el.id];
+                const isSubmitted = !!tracked;
+                const uploadedLayer = isSubmitted ? state.layers.find(l => l.id === tracked.layerId) : null;
+                const catConfig = CATEGORIES[el.category] || {};
+                return `
+                  <tr>
+                    <td>
+                      ${isSubmitted
+                        ? '<span class="badge badge-success">Submitted</span>'
+                        : '<span class="badge" style="background:var(--warning-light);color:var(--warning)">Pending</span>'}
+                    </td>
+                    <td>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
+                        <div>
+                          <strong style="font-size:13px">${el.name}</strong>
+                          <div style="font-size:11px;color:var(--text-tertiary)">${el.description}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td style="font-size:12px">${catConfig.label || el.category}</td>
+                    <td><span class="badge badge-info">${el.target}</span></td>
+                    <td style="text-transform:capitalize;font-size:12px">${el.realm}</td>
+                    <td style="font-size:12px;color:var(--text-secondary)">
+                      ${isSubmitted
+                        ? `${new Date(tracked.uploadedAt).toLocaleDateString()}<br><span style="font-size:11px;color:var(--text-tertiary)">${uploadedLayer?.metadata?.originalFilename || ''}</span>`
+                        : '<span style="color:var(--text-tertiary)">--</span>'}
+                    </td>
+                    <td>
+                      ${isSubmitted
+                        ? `<button class="btn btn-sm btn-outline tracker-reupload" data-expected-id="${el.id}">Replace</button>
+                           <button class="btn btn-sm btn-danger tracker-remove" data-expected-id="${el.id}" style="margin-left:4px">Unlink</button>`
+                        : `<button class="btn btn-sm btn-primary tracker-upload" data-expected-id="${el.id}">Upload</button>`}
+                    </td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:8px">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload Data
+            Upload Other Data
           </div>
         </div>
         <div class="card-body">
-          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Upload zipped shapefiles (.zip) to add new GIS layers to the portal.</p>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Upload additional GIS data not listed in the tracker above.</p>
           <button class="btn btn-primary" id="btn-admin-upload">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload Shapefile
+            Upload File
           </button>
         </div>
       </div>
@@ -212,8 +289,32 @@ async function renderAdminDashboard(page) {
     updateNavAuthBadge(false);
   });
 
-  // Upload shapefile
-  page.querySelector('#btn-admin-upload').addEventListener('click', openUploadWizard);
+  // Upload shapefile (generic)
+  page.querySelector('#btn-admin-upload').addEventListener('click', () => openUploadWizard());
+
+  // Tracker: Upload buttons
+  page.querySelectorAll('.tracker-upload, .tracker-reupload').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const expectedId = btn.dataset.expectedId;
+      const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
+      if (expected) {
+        openUploadWizard({ expectedLayer: expected });
+      }
+    });
+  });
+
+  // Tracker: Unlink buttons
+  page.querySelectorAll('.tracker-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const expectedId = btn.dataset.expectedId;
+      const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
+      if (!confirm(`Unlink "${expected?.name || expectedId}" from its uploaded data? The uploaded layer will remain in storage but won't appear on the dashboard.`)) return;
+
+      untrackLayer(expectedId);
+      await setSetting('layerTracker', getAppState().layerTracker);
+      renderAdminPage();
+    });
+  });
 
   // Export backup
   page.querySelector('#btn-export-backup').addEventListener('click', async () => {
