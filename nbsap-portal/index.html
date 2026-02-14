@@ -9,10 +9,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-BnmLanvD.js"></script>
-  <link rel="modulepreload" crossorigin href="./assets/turf-HURJS1Ob.js">
-  <link rel="modulepreload" crossorigin href="./assets/leaflet-PIA1V00n.js">
-  <link rel="modulepreload" crossorigin href="./assets/shpjs-BI7bz8Wd.js">
+  <script type="module" crossorigin src="./assets/index-CA76UW2U.js"></script>
+  <link rel="modulepreload" crossorigin href="./assets/turf-DoSnX_XS.js">
+  <link rel="modulepreload" crossorigin href="./assets/leaflet-CUUxycQw.js">
   <link rel="stylesheet" crossorigin href="./assets/index-DyUe9y3V.css">
 </head>
 <body>
@@ -86,5 +85,14 @@
     </div>
   </div>
 
+  <script>
+    window.addEventListener('error', function(e) {
+      var msg = e.message || 'Unknown error';
+      var el = document.getElementById('page-dashboard');
+      if (el && !el.innerHTML.trim()) {
+        el.innerHTML = '<div style="padding:20px;color:#c00;font-size:14px">JS Error: ' + msg + '</div>';
+      }
+    });
+  </script>
 </body>
 </html>
