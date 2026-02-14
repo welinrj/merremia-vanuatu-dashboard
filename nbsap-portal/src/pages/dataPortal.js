@@ -5,7 +5,6 @@
 import { CATEGORIES } from '../config/categories.js';
 import { getAppState, removeLayer } from '../ui/state.js';
 import { deleteLayer, addAuditEntry } from '../services/storage/index.js';
-import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import { isAdmin } from '../services/auth/index.js';
 import { validateTORCompliance } from '../core/schema.js';
 
@@ -38,10 +37,6 @@ export function initDataPortal() {
             <option value="Warnings">Warnings</option>
             <option value="Failed">Failed</option>
           </select>
-          <button class="btn btn-primary" id="btn-upload-layer" style="display:none">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Upload Layer
-          </button>
         </div>
         <div id="portal-table-container"></div>
       </div>
@@ -59,11 +54,6 @@ export function initDataPortal() {
       </div>
     </div>
   `;
-
-  // Show upload button for admin
-  if (isAdmin()) {
-    document.getElementById('btn-upload-layer').style.display = '';
-  }
 
   // Populate target filter
   import('../config/targets.js').then(mod => {
@@ -97,8 +87,6 @@ export function initDataPortal() {
     portalFilterStatus = e.target.value;
     renderPortalTable();
   });
-
-  document.getElementById('btn-upload-layer').addEventListener('click', openUploadWizard);
 
   renderPortalTable();
 }
@@ -136,7 +124,7 @@ function renderPortalTable() {
           </svg>
         </div>
         <div class="empty-state-title">No layers found</div>
-        <div class="empty-state-text">${isAdmin() ? 'Upload a shapefile to get started' : 'No data available yet'}</div>
+        <div class="empty-state-text">${isAdmin() ? 'Go to the Admin tab to upload shapefiles' : 'No data available yet'}</div>
       </div>
     `;
     return;
@@ -336,9 +324,5 @@ async function removeLayerAction(layerId) {
  * Refreshes the portal when data changes.
  */
 export function refreshPortal() {
-  if (isAdmin()) {
-    const btn = document.getElementById('btn-upload-layer');
-    if (btn) btn.style.display = '';
-  }
   renderPortalTable();
 }

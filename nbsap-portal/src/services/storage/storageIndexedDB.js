@@ -215,3 +215,55 @@ export async function importBackup(backup) {
 
   return { layersImported: (backup.layers || []).length };
 }
+
+/**
+ * Merge-based sync import: adds/updates layers by ID without clearing existing data.
+ * Layers with the same ID are updated (upsert). New layers are added.
+ * Audit log entries are deduped by timestamp+action+layer_id.
+ * @param {object} backup - Backup object with version, layers, auditLog, metrics
+ * @returns {Promise<{ added: number, updated: number, skippedAudit: number }>}
+ */
+export async function syncImport(backup) {
+  if (!backup || backup.version !== 1) {
+    throw new Error('Invalid backup format');
+  }
+
+  let added = 0;
+  let updated = 0;
+
+  // Merge layers by ID (put = upsert)
+  const existingLayers = await listLayers();
+  const existingIds = new Set(existingLayers.map(l => l.id));
+
+  for (const layer of (backup.layers || [])) {
+    if (!layer.id) continue;
+    if (existingIds.has(layer.id)) {
+      updated++;
+    } else {
+      added++;
+    }
+    await saveLayer(layer);
+  }
+
+  // Merge audit log: dedup by timestamp + action + layer_id
+  const existingAudit = await getAuditLog();
+  const auditKeys = new Set(existingAudit.map(e =>
+    `${e.timestamp}|${e.action}|${e.layer_id || ''}`
+  ));
+
+  let skippedAudit = 0;
+  for (const entry of (backup.auditLog || [])) {
+    const key = `${entry.timestamp}|${entry.action}|${entry.layer_id || ''}`;
+    if (auditKeys.has(key)) {
+      skippedAudit++;
+      continue;
+    }
+    await withStore('auditLog', 'readwrite', (store) => {
+      const { id, ...rest } = entry;
+      return store.add(rest);
+    });
+    auditKeys.add(key);
+  }
+
+  return { added, updated, skippedAudit };
+}

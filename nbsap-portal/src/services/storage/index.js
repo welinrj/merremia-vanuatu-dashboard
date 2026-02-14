@@ -22,5 +22,6 @@ export const {
   getSetting,
   setSetting,
   exportBackup,
-  importBackup
+  importBackup,
+  syncImport
 } = indexedDBStorage;
