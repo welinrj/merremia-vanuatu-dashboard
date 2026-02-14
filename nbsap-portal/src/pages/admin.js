@@ -1,10 +1,11 @@
 /**
  * Admin page.
- * Auth gate, audit log, backup/restore, and settings.
+ * Auth gate, data upload, sync, audit log, backup/restore, and settings.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
-import { getAuditLog, exportBackup, importBackup, addAuditEntry } from '../services/storage/index.js';
+import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry } from '../services/storage/index.js';
 import { setAdminState } from '../ui/state.js';
+import { openUploadWizard } from '../ui/components/uploadWizard.js';
 
 /**
  * Initializes the Admin page.
@@ -95,21 +96,45 @@ async function renderAdminDashboard(page) {
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:8px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Backup & Restore
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Upload Data
           </div>
         </div>
-        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <button class="btn btn-primary" id="btn-export-backup">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            Export Backup
-          </button>
-          <label class="btn btn-secondary" style="cursor:pointer">
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Upload zipped shapefiles (.zip) to add new GIS layers to the portal.</p>
+          <button class="btn btn-primary" id="btn-admin-upload">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            Import Backup
-            <input type="file" id="btn-import-backup" accept=".json" style="display:none">
-          </label>
-          <span id="backup-status" style="font-size:13px;color:var(--text-secondary);margin-left:4px"></span>
+            Upload Shapefile
+          </button>
+        </div>
+      </div>
+
+      <div class="card" style="margin-bottom:20px">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+            Sync & Backup
+          </div>
+        </div>
+        <div class="card-body">
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Export data to sync to another device. Import merges by layer ID — re-syncing does not create duplicates.</p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary" id="btn-export-backup">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Data
+            </button>
+            <label class="btn btn-secondary" style="cursor:pointer">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Sync / Import
+              <input type="file" id="btn-sync-import" accept=".json" style="display:none">
+            </label>
+            <label class="btn btn-outline" style="cursor:pointer" title="Destructive: clears all data before importing">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              Full Restore
+              <input type="file" id="btn-import-backup" accept=".json" style="display:none">
+            </label>
+            <span id="backup-status" style="font-size:13px;color:var(--text-secondary);margin-left:4px"></span>
+          </div>
         </div>
       </div>
 
@@ -187,6 +212,9 @@ async function renderAdminDashboard(page) {
     updateNavAuthBadge(false);
   });
 
+  // Upload shapefile
+  page.querySelector('#btn-admin-upload').addEventListener('click', openUploadWizard);
+
   // Export backup
   page.querySelector('#btn-export-backup').addEventListener('click', async () => {
     const statusEl = page.querySelector('#backup-status');
@@ -209,13 +237,45 @@ async function renderAdminDashboard(page) {
     }
   });
 
-  // Import backup
-  page.querySelector('#btn-import-backup').addEventListener('change', async (e) => {
+  // Sync / Import (merge-based, ID dedup)
+  page.querySelector('#btn-sync-import').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     const statusEl = page.querySelector('#backup-status');
-    statusEl.textContent = 'Importing...';
+    statusEl.textContent = 'Syncing...';
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+      const result = await syncImport(backup);
+
+      await addAuditEntry({
+        action: 'sync_import',
+        result: 'success',
+        notes: `${result.added} added, ${result.updated} updated, ${result.skippedAudit} audit entries skipped`
+      });
+
+      statusEl.textContent = `Sync complete: ${result.added} new layers, ${result.updated} updated. Reloading...`;
+      setTimeout(() => window.location.reload(), 1000);
+    } catch (err) {
+      statusEl.textContent = `Sync failed: ${err.message}`;
+    }
+    e.target.value = '';
+  });
+
+  // Full Restore (destructive import)
+  page.querySelector('#btn-import-backup').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (!confirm('Full Restore will clear ALL existing data and replace it with the backup. Continue?')) {
+      e.target.value = '';
+      return;
+    }
+
+    const statusEl = page.querySelector('#backup-status');
+    statusEl.textContent = 'Restoring...';
 
     try {
       const text = await file.text();
@@ -228,11 +288,12 @@ async function renderAdminDashboard(page) {
         notes: `${result.layersImported} layers imported`
       });
 
-      statusEl.textContent = `Imported ${result.layersImported} layers. Reloading...`;
+      statusEl.textContent = `Restored ${result.layersImported} layers. Reloading...`;
       setTimeout(() => window.location.reload(), 1000);
     } catch (err) {
-      statusEl.textContent = `Import failed: ${err.message}`;
+      statusEl.textContent = `Restore failed: ${err.message}`;
     }
+    e.target.value = '';
   });
 
   // Export audit log as CSV
