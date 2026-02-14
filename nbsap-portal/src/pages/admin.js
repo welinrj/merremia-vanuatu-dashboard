@@ -30,23 +30,27 @@ export function renderAdminPage() {
 function renderLoginForm(page) {
   page.innerHTML = `
     <div class="admin-layout">
-      <div style="max-width:400px;margin:60px auto">
-        <div class="card">
-          <div class="card-header">Admin Login</div>
-          <div class="card-body">
-            <p style="font-size:13px;color:var(--text-light);margin-bottom:16px">
-              Enter the admin passphrase to access upload, management, and settings features.
-            </p>
+      <div class="login-container">
+        <div class="login-card">
+          <div class="login-card-header">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+            </svg>
+            <h3>Admin Login</h3>
+            <p>Enter your passphrase to access management features</p>
+          </div>
+          <div class="login-card-body">
             <div class="form-group">
               <label>Passphrase</label>
-              <input type="password" id="admin-passphrase" placeholder="Enter passphrase">
+              <input type="password" id="admin-passphrase" placeholder="Enter admin passphrase">
             </div>
-            <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:10px;display:none"></div>
-            <button class="btn btn-primary" id="btn-admin-login" style="width:100%">Login</button>
+            <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none;padding:8px 12px;background:var(--danger-light);border-radius:var(--radius-sm)"></div>
+            <button class="btn btn-primary" id="btn-admin-login" style="width:100%;justify-content:center;padding:10px">Login</button>
           </div>
         </div>
-        <p style="font-size:11px;color:var(--text-light);margin-top:12px;text-align:center">
-          Default passphrase for demo: <code>vanuatu2024</code>
+        <p style="font-size:11px;color:var(--text-tertiary);margin-top:16px;text-align:center">
+          Default passphrase for demo: <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:11px">vanuatu2024</code>
         </p>
       </div>
     </div>
@@ -77,33 +81,52 @@ async function renderAdminDashboard(page) {
 
   page.innerHTML = `
     <div class="admin-layout">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <h2 style="font-size:20px">Admin Panel</h2>
-        <button class="btn btn-outline" id="btn-admin-logout">Logout</button>
+      <div class="admin-header">
+        <div>
+          <h2>Admin Panel</h2>
+          <p style="font-size:13px;color:var(--text-secondary);margin-top:2px">Manage data, backups, and system settings</p>
+        </div>
+        <button class="btn btn-outline" id="btn-admin-logout">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          Logout
+        </button>
       </div>
 
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
-          Backup & Restore
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Backup & Restore
+          </div>
         </div>
-        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap">
-          <button class="btn btn-primary" id="btn-export-backup">Export Backup</button>
+        <div class="card-body" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-primary" id="btn-export-backup">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export Backup
+          </button>
           <label class="btn btn-secondary" style="cursor:pointer">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             Import Backup
             <input type="file" id="btn-import-backup" accept=".json" style="display:none">
           </label>
-          <span id="backup-status" style="font-size:13px;color:var(--text-light);align-self:center"></span>
+          <span id="backup-status" style="font-size:13px;color:var(--text-secondary);margin-left:4px"></span>
         </div>
       </div>
 
       <div class="card" style="margin-bottom:20px">
         <div class="card-header">
-          <span>Audit Log</span>
-          <button class="btn btn-sm btn-outline" id="btn-export-audit">Export CSV</button>
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            Audit Log
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-export-audit">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Export CSV
+          </button>
         </div>
-        <div class="card-body" style="max-height:400px;overflow-y:auto">
+        <div class="card-body" style="max-height:400px;overflow-y:auto;padding:0">
           ${auditLog.length === 0
-            ? '<p style="color:var(--text-light);font-size:13px">No actions recorded yet</p>'
+            ? '<div class="empty-state" style="padding:32px"><div class="empty-state-title">No actions recorded</div><div class="empty-state-text">Audit log entries will appear here as actions are performed</div></div>'
             : `
               <table class="data-table">
                 <thead>
@@ -119,11 +142,11 @@ async function renderAdminDashboard(page) {
                 <tbody>
                   ${auditLog.map(e => `
                     <tr>
-                      <td style="font-size:12px">${new Date(e.timestamp).toLocaleString()}</td>
-                      <td>${e.action || ''}</td>
+                      <td style="font-size:12px;color:var(--text-secondary)">${new Date(e.timestamp).toLocaleString()}</td>
+                      <td style="text-transform:capitalize;font-weight:500">${e.action || ''}</td>
                       <td style="font-size:12px">${e.filename || e.layer_id || ''}</td>
                       <td>${e.category || ''}</td>
-                      <td>${(e.targets || []).join(', ')}</td>
+                      <td>${(e.targets || []).map(t => `<span class="badge badge-info" style="margin-right:2px">${t}</span>`).join('')}</td>
                       <td><span class="badge badge-${(e.result || '').toLowerCase()}">${e.result || ''}</span></td>
                     </tr>
                   `).join('')}
@@ -135,13 +158,20 @@ async function renderAdminDashboard(page) {
       </div>
 
       <div class="card">
-        <div class="card-header">Auth Status</div>
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Auth Status
+          </div>
+        </div>
         <div class="card-body" style="font-size:13px">
-          <p><b>Provider:</b> Local Passphrase</p>
-          <p><b>Status:</b> Authenticated as admin</p>
-          <p><b>Session:</b> Active (clears on page reload)</p>
-          <p style="margin-top:8px;color:var(--text-light);font-size:12px">
-            To change passphrase, update the hash in localStorage key <code>nbsap_admin_hash</code>
+          <table class="metadata-table">
+            <tr><td>Provider</td><td>Local Passphrase</td></tr>
+            <tr><td>Status</td><td><span class="badge badge-success">Authenticated</span></td></tr>
+            <tr><td>Session</td><td>Active (clears on page reload)</td></tr>
+          </table>
+          <p style="margin-top:12px;color:var(--text-tertiary);font-size:12px">
+            To change passphrase, update the hash in localStorage key <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:11px">nbsap_admin_hash</code>
             or use the auth provider API.
           </p>
         </div>
@@ -237,11 +267,12 @@ async function renderAdminDashboard(page) {
 function updateNavAuthBadge(authenticated) {
   const badge = document.getElementById('auth-badge');
   if (badge) {
+    const span = badge.querySelector('span');
     if (authenticated) {
-      badge.textContent = 'Admin';
+      if (span) span.textContent = 'Admin';
       badge.classList.add('admin');
     } else {
-      badge.textContent = 'Public';
+      if (span) span.textContent = 'Public';
       badge.classList.remove('admin');
     }
   }
