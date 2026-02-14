@@ -81,6 +81,15 @@
     </div>
   </div>
 
+  <script>
+    window.addEventListener('error', function(e) {
+      var msg = e.message || 'Unknown error';
+      var el = document.getElementById('page-dashboard');
+      if (el && !el.innerHTML.trim()) {
+        el.innerHTML = '<div style="padding:20px;color:#c00;font-size:14px">JS Error: ' + msg + '</div>';
+      }
+    });
+  </script>
   <script type="module" src="./src/main.js"></script>
 </body>
 </html>

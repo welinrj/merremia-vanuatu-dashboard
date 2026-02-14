@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@turf/turf": "^7.1.0",
+    "buffer": "^6.0.3",
     "leaflet": "^1.9.4",
     "proj4": "^2.12.1",
     "shpjs": "^4.0.4"

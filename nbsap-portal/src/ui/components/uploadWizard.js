@@ -3,7 +3,6 @@
  * Multi-step wizard for uploading zipped shapefiles.
  * Steps: File Select → Configure → Processing → Results
  */
-import shp from 'shpjs';
 import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.json';
 import { runPipeline } from '../../core/pipeline.js';
@@ -79,6 +78,7 @@ function renderStep1(body) {
     statusEl.innerHTML = '<p>Parsing shapefile...</p>';
     try {
       const arrayBuffer = await file.arrayBuffer();
+      const { default: shp } = await import('shpjs');
       const geojson = await shp(arrayBuffer);
 
       // Handle shpjs returning a single FeatureCollection or array
