@@ -42,8 +42,8 @@ export function initMap(containerId) {
   const defaultBase = Object.values(baseLayers)[0];
   if (defaultBase) defaultBase.addTo(map);
 
-  // Layer control (deferred from module scope to avoid calling L.layerGroup() before Leaflet is ready)
-  overlayGroup = L.layerGroup();
+  // featureGroup (not layerGroup) so getBounds() is available for fitBounds
+  overlayGroup = L.featureGroup();
   overlayGroup.addTo(map);
 
   L.control.layers(baseLayers, {}, { position: 'topright' }).addTo(map);
@@ -146,10 +146,12 @@ export function updateMapLayers() {
     overlayGroup.addLayer(geojsonLayer);
   }
 
-  // Fit bounds to visible features
-  const bounds = overlayGroup.getBounds();
-  if (bounds.isValid()) {
-    map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+  // Fit bounds to visible features (only when overlayGroup has layers)
+  if (overlayGroup.getLayers().length > 0) {
+    const bounds = overlayGroup.getBounds();
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
+    }
   }
 }
 
