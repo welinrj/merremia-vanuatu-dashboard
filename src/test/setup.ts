@@ -84,6 +84,7 @@ vi.mock('firebase/app', () => ({
 
 vi.mock('firebase/firestore', () => ({
   getFirestore: () => ({}),
+  enableMultiTabIndexedDbPersistence: () => Promise.resolve(),
   collection: mockCollection,
   doc: mockDoc,
   getDocs: mockGetDocs,
@@ -93,4 +94,17 @@ vi.mock('firebase/firestore', () => ({
   deleteDoc: mockDeleteDoc,
   query: mockQuery,
   orderBy: mockOrderBy,
+  onSnapshot: (_query: { collectionPath: string }, callback: (snapshot: { docs: Array<{ data: () => Record<string, unknown> }> }) => void) => {
+    // Fire once immediately with current data for tests
+    const prefix = _query.collectionPath + '/'
+    const docs: Array<{ data: () => Record<string, unknown> }> = []
+    for (const [key, value] of store.entries()) {
+      if (key.startsWith(prefix)) {
+        docs.push({ data: () => value })
+      }
+    }
+    callback({ docs })
+    // Return unsubscribe function
+    return () => {}
+  },
 }))

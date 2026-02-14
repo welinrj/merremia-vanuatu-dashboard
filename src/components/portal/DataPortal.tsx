@@ -7,6 +7,7 @@ import {
   updateDatasetMetadata,
   addDataset,
   migrateFromLocalStorage,
+  onDatasetsChanged,
 } from '../../services/datasetStore'
 import {
   vanuatuSurveyPoints,
@@ -36,17 +37,26 @@ const DataPortal: FC<DataPortalProps> = ({ onNavigate }) => {
     setDatasets(list)
   }, [])
 
+  // Initial migration + real-time listener for cross-device sync
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | undefined
+
     migrateFromLocalStorage()
-      .then(async () => {
+      .then(() => {
         if (cancelled) return
-        const list = await listDatasets()
-        if (!cancelled) setDatasets(list)
+        // Subscribe to real-time updates so changes from other devices appear instantly
+        unsubscribe = onDatasetsChanged((list) => {
+          if (!cancelled) setDatasets(list)
+        })
       })
       .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [refresh])
+
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
+  }, [])
 
   async function handleView(id: string) {
     const ds = await getDataset(id)

@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore } from 'firebase/firestore'
+import { getFirestore, enableMultiTabIndexedDbPersistence } from 'firebase/firestore'
 
 const firebaseConfig = {
   apiKey: 'AIzaSyB2OGgiXUUhyt1aKdHsqIaMS3NDN-tZOdU',
@@ -12,3 +12,12 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 export const db = getFirestore(app)
+
+// Enable offline persistence so data is cached locally and syncs across tabs/devices
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  if (err.code === 'failed-precondition') {
+    console.warn('Firestore persistence unavailable: multiple tabs open')
+  } else if (err.code === 'unimplemented') {
+    console.warn('Firestore persistence not supported in this browser')
+  }
+})

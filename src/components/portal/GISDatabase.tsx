@@ -9,6 +9,7 @@ import {
   getStorageEstimate,
   formatBytes,
   migrateFromLocalStorage,
+  onDatasetsChanged,
 } from '../../services/datasetStore'
 import {
   syncDatasets,
@@ -59,9 +60,11 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     }
   }, [])
 
-  // Auto-sync on mount: migrate, pull from GitHub, then refresh
+  // Auto-sync on mount: migrate, pull from GitHub, then subscribe to real-time updates
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | undefined
+
     async function initialLoad() {
       await migrateFromLocalStorage()
       try {
@@ -74,13 +77,19 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
         // silent — manual sync still available
       }
       if (!cancelled) {
-        await refresh()
+        // Subscribe to real-time updates for cross-device sync
+        unsubscribe = onDatasetsChanged((list) => {
+          if (!cancelled) setDatasets(list)
+        })
         setLoading(false)
       }
     }
     initialLoad()
-    return () => { cancelled = true }
-  }, [refresh])
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
+  }, [])
 
   const totalFeatures = datasets.reduce((sum, d) => sum + d.featureCount, 0)
   const totalSize = datasets.reduce((sum, d) => sum + d.sizeBytes, 0)
