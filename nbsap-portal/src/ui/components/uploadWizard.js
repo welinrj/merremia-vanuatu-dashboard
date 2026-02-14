@@ -1,6 +1,7 @@
 /**
  * Upload Wizard component.
- * Multi-step wizard for uploading zipped shapefiles.
+ * Multi-step wizard for uploading geospatial data.
+ * Supports: Zipped Shapefiles (.zip), KML (.kml), CSV (.csv), GeoJSON (.geojson/.json)
  * Steps: File Select → Configure → Processing → Results
  */
 import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
@@ -52,13 +53,289 @@ function renderWizardStep() {
   }
 }
 
+/**
+ * Detects file format from extension.
+ */
+function detectFormat(filename) {
+  const ext = filename.toLowerCase().split('.').pop();
+  if (ext === 'zip') return 'shapefile';
+  if (ext === 'kml') return 'kml';
+  if (ext === 'csv') return 'csv';
+  if (ext === 'geojson' || ext === 'json') return 'geojson';
+  return null;
+}
+
+/**
+ * Parses a zipped shapefile into GeoJSON using shpjs.
+ */
+async function parseShapefile(arrayBuffer) {
+  // Polyfill Buffer for shpjs/JSZip before importing
+  if (typeof globalThis.Buffer === 'undefined') {
+    const bufferModule = await import('buffer');
+    globalThis.Buffer = bufferModule.Buffer;
+  }
+  const { default: shp } = await import('shpjs');
+  const geojson = await shp(arrayBuffer);
+  // shpjs may return a single FeatureCollection or an array
+  return Array.isArray(geojson) ? geojson[0] : geojson;
+}
+
+/**
+ * Parses a KML file into GeoJSON.
+ */
+function parseKML(text) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(text, 'text/xml');
+
+  const parseError = doc.querySelector('parsererror');
+  if (parseError) throw new Error('Invalid KML: XML parsing failed');
+
+  const features = [];
+  const placemarks = doc.querySelectorAll('Placemark');
+
+  for (const pm of placemarks) {
+    const props = {};
+
+    // Extract name
+    const nameEl = pm.querySelector('name');
+    if (nameEl) props.name = nameEl.textContent.trim();
+
+    // Extract description
+    const descEl = pm.querySelector('description');
+    if (descEl) props.notes = descEl.textContent.trim();
+
+    // Extract ExtendedData / SimpleData fields
+    const simpleDataEls = pm.querySelectorAll('SimpleData');
+    for (const sd of simpleDataEls) {
+      const fieldName = sd.getAttribute('name');
+      if (fieldName) props[fieldName] = sd.textContent.trim();
+    }
+
+    // Extract Data elements
+    const dataEls = pm.querySelectorAll('Data');
+    for (const d of dataEls) {
+      const fieldName = d.getAttribute('name');
+      const valueEl = d.querySelector('value');
+      if (fieldName && valueEl) props[fieldName] = valueEl.textContent.trim();
+    }
+
+    // Parse geometry
+    const geometry = parseKMLGeometry(pm);
+    if (!geometry) continue;
+
+    features.push({ type: 'Feature', properties: props, geometry });
+  }
+
+  return { type: 'FeatureCollection', features };
+}
+
+/**
+ * Parses KML geometry elements into GeoJSON geometry.
+ */
+function parseKMLGeometry(placemark) {
+  const point = placemark.querySelector('Point');
+  if (point) {
+    const coords = parseKMLCoords(point.querySelector('coordinates'));
+    if (coords.length > 0) return { type: 'Point', coordinates: coords[0] };
+  }
+
+  const lineString = placemark.querySelector('LineString');
+  if (lineString) {
+    const coords = parseKMLCoords(lineString.querySelector('coordinates'));
+    if (coords.length > 0) return { type: 'LineString', coordinates: coords };
+  }
+
+  const polygon = placemark.querySelector('Polygon');
+  if (polygon) {
+    return parseKMLPolygon(polygon);
+  }
+
+  const multiGeom = placemark.querySelector('MultiGeometry');
+  if (multiGeom) {
+    const geometries = [];
+    for (const child of multiGeom.children) {
+      const tag = child.tagName;
+      if (tag === 'Point') {
+        const coords = parseKMLCoords(child.querySelector('coordinates'));
+        if (coords.length > 0) geometries.push({ type: 'Point', coordinates: coords[0] });
+      } else if (tag === 'LineString') {
+        const coords = parseKMLCoords(child.querySelector('coordinates'));
+        if (coords.length > 0) geometries.push({ type: 'LineString', coordinates: coords });
+      } else if (tag === 'Polygon') {
+        const pg = parseKMLPolygon(child);
+        if (pg) geometries.push(pg);
+      }
+    }
+    if (geometries.length === 0) return null;
+    if (geometries.length === 1) return geometries[0];
+    return { type: 'GeometryCollection', geometries };
+  }
+
+  return null;
+}
+
+function parseKMLPolygon(polygonEl) {
+  const rings = [];
+  const outerBoundary = polygonEl.querySelector('outerBoundaryIs');
+  if (outerBoundary) {
+    const coords = parseKMLCoords(outerBoundary.querySelector('coordinates'));
+    if (coords.length > 0) rings.push(coords);
+  }
+  const innerBoundaries = polygonEl.querySelectorAll('innerBoundaryIs');
+  for (const ib of innerBoundaries) {
+    const coords = parseKMLCoords(ib.querySelector('coordinates'));
+    if (coords.length > 0) rings.push(coords);
+  }
+  if (rings.length === 0) return null;
+  return { type: 'Polygon', coordinates: rings };
+}
+
+/**
+ * Parses a KML <coordinates> element into an array of [lon, lat] or [lon, lat, alt].
+ */
+function parseKMLCoords(coordsEl) {
+  if (!coordsEl) return [];
+  const text = coordsEl.textContent.trim();
+  if (!text) return [];
+
+  return text.split(/\s+/).map(tuple => {
+    const parts = tuple.split(',').map(Number);
+    if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+      return parts.length >= 3 ? [parts[0], parts[1], parts[2]] : [parts[0], parts[1]];
+    }
+    return null;
+  }).filter(Boolean);
+}
+
+/**
+ * Parses a CSV file into GeoJSON point features.
+ * Detects lat/lon columns by common naming conventions.
+ */
+function parseCSV(text) {
+  const lines = text.trim().split(/\r?\n/);
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row');
+
+  const headers = parseCSVRow(lines[0]);
+  const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+
+  // Detect latitude column
+  const latNames = ['latitude', 'lat', 'y', 'lat_dd', 'latitude_dd', 'decimallatitude'];
+  const lonNames = ['longitude', 'lon', 'lng', 'long', 'x', 'lon_dd', 'longitude_dd', 'decimallongitude'];
+
+  const latIdx = lowerHeaders.findIndex(h => latNames.includes(h));
+  const lonIdx = lowerHeaders.findIndex(h => lonNames.includes(h));
+
+  if (latIdx === -1 || lonIdx === -1) {
+    throw new Error(
+      `Could not detect latitude/longitude columns. ` +
+      `Found headers: ${headers.join(', ')}. ` +
+      `Expected column names like: latitude/lat/y and longitude/lon/lng/x`
+    );
+  }
+
+  const features = [];
+  for (let i = 1; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    const values = parseCSVRow(lines[i]);
+    const lat = parseFloat(values[latIdx]);
+    const lon = parseFloat(values[lonIdx]);
+
+    if (isNaN(lat) || isNaN(lon)) continue;
+
+    const props = {};
+    for (let j = 0; j < headers.length; j++) {
+      if (j === latIdx || j === lonIdx) continue;
+      props[headers[j].trim()] = values[j]?.trim() || '';
+    }
+
+    features.push({
+      type: 'Feature',
+      properties: props,
+      geometry: { type: 'Point', coordinates: [lon, lat] }
+    });
+  }
+
+  if (features.length === 0) throw new Error('No valid features found in CSV (no rows with valid lat/lon)');
+
+  return { type: 'FeatureCollection', features };
+}
+
+/**
+ * Simple CSV row parser that handles quoted fields.
+ */
+function parseCSVRow(row) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < row.length; i++) {
+    const ch = row[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (i + 1 < row.length && row[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += ch;
+      }
+    } else {
+      if (ch === '"') {
+        inQuotes = true;
+      } else if (ch === ',') {
+        result.push(current);
+        current = '';
+      } else {
+        current += ch;
+      }
+    }
+  }
+  result.push(current);
+  return result;
+}
+
+/**
+ * Parses a GeoJSON file.
+ */
+function parseGeoJSON(text) {
+  const data = JSON.parse(text);
+
+  // Handle FeatureCollection
+  if (data.type === 'FeatureCollection' && Array.isArray(data.features)) {
+    return data;
+  }
+
+  // Handle single Feature
+  if (data.type === 'Feature' && data.geometry) {
+    return { type: 'FeatureCollection', features: [data] };
+  }
+
+  // Handle bare geometry
+  if (data.type && data.coordinates) {
+    return {
+      type: 'FeatureCollection',
+      features: [{ type: 'Feature', properties: {}, geometry: data }]
+    };
+  }
+
+  throw new Error('Invalid GeoJSON: must be a FeatureCollection, Feature, or Geometry object');
+}
+
 // Step 1: File selection
 function renderStep1(body) {
   body.innerHTML = `
     <div class="form-group">
-      <label>Upload Zipped Shapefile (.zip)</label>
-      <input type="file" id="wizard-file-input" accept=".zip">
-      <div class="form-hint">Must contain .shp, .shx, .dbf, .prj (optionally .cpg)</div>
+      <label>Upload Data Layer</label>
+      <input type="file" id="wizard-file-input" accept=".zip,.kml,.csv,.geojson,.json">
+      <div class="form-hint">
+        Supported formats:
+        <strong>Shapefile</strong> (.zip with .shp, .shx, .dbf, .prj),
+        <strong>KML</strong> (.kml),
+        <strong>CSV</strong> (.csv with lat/lon columns),
+        <strong>GeoJSON</strong> (.geojson, .json)
+      </div>
     </div>
     <div id="wizard-file-status" style="margin-top:10px"></div>
     <div style="margin-top:16px;text-align:right">
@@ -75,31 +352,48 @@ function renderStep1(body) {
     const file = e.target.files[0];
     if (!file) return;
 
-    statusEl.innerHTML = '<p>Parsing shapefile...</p>';
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const { default: shp } = await import('shpjs');
-      const geojson = await shp(arrayBuffer);
+    const format = detectFormat(file.name);
+    if (!format) {
+      statusEl.innerHTML = '<p style="color:var(--danger)">Unsupported file format. Please upload .zip, .kml, .csv, .geojson, or .json</p>';
+      return;
+    }
 
-      // Handle shpjs returning a single FeatureCollection or array
-      const fc = Array.isArray(geojson) ? geojson[0] : geojson;
+    statusEl.innerHTML = `<p>Parsing ${format} file...</p>`;
+    nextBtn.disabled = true;
+
+    try {
+      let fc;
+
+      if (format === 'shapefile') {
+        const arrayBuffer = await file.arrayBuffer();
+        fc = await parseShapefile(arrayBuffer);
+      } else {
+        const text = await file.text();
+        if (format === 'kml') {
+          fc = parseKML(text);
+        } else if (format === 'csv') {
+          fc = parseCSV(text);
+        } else if (format === 'geojson') {
+          fc = parseGeoJSON(text);
+        }
+      }
 
       if (!fc || !fc.features || fc.features.length === 0) {
-        statusEl.innerHTML = '<p style="color:var(--danger)">No features found in shapefile</p>';
+        statusEl.innerHTML = '<p style="color:var(--danger)">No features found in file</p>';
         return;
       }
 
       wizardState.file = file;
       wizardState.geojson = fc;
       wizardState.opts.originalFilename = file.name;
-
-      // shpjs doesn't expose the .prj text directly; we attempt to detect CRS from data
       wizardState.prjText = null;
+
+      const geomTypes = [...new Set(fc.features.map(f => f.geometry?.type).filter(Boolean))];
 
       statusEl.innerHTML = `
         <p style="color:var(--success)">Parsed successfully: ${fc.features.length} features</p>
         <p style="font-size:12px;color:var(--text-light)">
-          Geometry types: ${[...new Set(fc.features.map(f => f.geometry?.type).filter(Boolean))].join(', ')}
+          Format: ${format.toUpperCase()} | Geometry types: ${geomTypes.join(', ')}
         </p>
       `;
       nextBtn.disabled = false;
@@ -116,10 +410,13 @@ function renderStep1(body) {
 
 // Step 2: Configure metadata
 function renderStep2(body) {
+  const defaultName = (wizardState.opts.originalFilename || '')
+    .replace(/\.(zip|kml|csv|geojson|json)$/i, '');
+
   body.innerHTML = `
     <div class="form-group">
       <label>Layer Name</label>
-      <input type="text" id="wizard-name" value="${wizardState.opts.originalFilename?.replace('.zip', '') || ''}">
+      <input type="text" id="wizard-name" value="${defaultName}">
     </div>
 
     <div class="form-group">
