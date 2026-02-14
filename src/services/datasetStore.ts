@@ -5,49 +5,24 @@ import type {
   DatasetFormat,
 } from '../types/geospatial'
 import type { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson'
+import { db } from './firebase'
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore'
 
-const DB_NAME = 'vcap2-gis'
-const DB_VERSION = 1
-const STORE_DATASETS = 'datasets'
-const STORE_INDEX = 'index'
+const COLLECTION = 'datasets'
 
-// Legacy localStorage keys for one-time migration
-const LEGACY_STORAGE_KEY = 'vcap2-datasets'
-const LEGACY_INDEX_KEY = 'vcap2-datasets-index'
-
-let dbInstance: IDBDatabase | null = null
-
-function openDB(): Promise<IDBDatabase> {
-  if (dbInstance) return Promise.resolve(dbInstance)
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      if (!db.objectStoreNames.contains(STORE_DATASETS)) {
-        db.createObjectStore(STORE_DATASETS, { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains(STORE_INDEX)) {
-        db.createObjectStore(STORE_INDEX, { keyPath: 'id' })
-      }
-    }
-
-    request.onsuccess = () => {
-      dbInstance = request.result
-      resolve(dbInstance)
-    }
-
-    request.onerror = () => reject(request.error)
-  })
-}
-
-/** Reset cached DB connection — used by tests only */
+/** No-op — kept for backward compatibility with tests */
 export function _resetForTests(): void {
-  if (dbInstance) {
-    dbInstance.close()
-    dbInstance = null
-  }
+  // Firestore has no local connection to reset
 }
 
 function generateId(): string {
@@ -101,11 +76,14 @@ function extractPropertyNames(fc: FeatureCollection): string[] {
 }
 
 /**
- * Migrate any existing localStorage data to IndexedDB (runs once).
- * Safe to call multiple times — skips if IndexedDB already has data.
+ * Migrate any existing localStorage data to Firestore (runs once).
+ * Safe to call multiple times — skips if data already exists.
  */
 export async function migrateFromLocalStorage(): Promise<void> {
   try {
+    const LEGACY_INDEX_KEY = 'vcap2-datasets-index'
+    const LEGACY_STORAGE_KEY = 'vcap2-datasets'
+
     const raw = localStorage.getItem(LEGACY_INDEX_KEY)
     if (!raw) return
 
@@ -115,37 +93,16 @@ export async function migrateFromLocalStorage(): Promise<void> {
       return
     }
 
-    const db = await openDB()
-
-    // Check if IndexedDB already has data
-    const existingCount = await new Promise<number>((resolve, reject) => {
-      const tx = db.transaction(STORE_INDEX, 'readonly')
-      const req = tx.objectStore(STORE_INDEX).count()
-      req.onsuccess = () => resolve(req.result)
-      req.onerror = () => reject(req.error)
-    })
-
-    if (existingCount > 0) {
-      // Already migrated — clean up localStorage
-      localStorage.removeItem(LEGACY_INDEX_KEY)
-      for (const s of legacyIndex) {
-        localStorage.removeItem(`${LEGACY_STORAGE_KEY}:${s.id}`)
-      }
-      return
-    }
-
-    // Migrate each dataset
+    // Migrate each dataset to Firestore
     for (const summary of legacyIndex) {
       const dataRaw = localStorage.getItem(`${LEGACY_STORAGE_KEY}:${summary.id}`)
       if (dataRaw) {
         const dataset: GeoDataset = JSON.parse(dataRaw)
-        await new Promise<void>((resolve, reject) => {
-          const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-          tx.objectStore(STORE_DATASETS).put(dataset)
-          tx.objectStore(STORE_INDEX).put(summary)
-          tx.oncomplete = () => resolve()
-          tx.onerror = () => reject(tx.error)
-        })
+        const ref = doc(db, COLLECTION, dataset.id)
+        const existing = await getDoc(ref)
+        if (!existing.exists()) {
+          await setDoc(ref, dataset)
+        }
       }
     }
 
@@ -155,35 +112,33 @@ export async function migrateFromLocalStorage(): Promise<void> {
       localStorage.removeItem(`${LEGACY_STORAGE_KEY}:${s.id}`)
     }
   } catch {
-    // Migration failure is non-fatal — data stays in localStorage
+    // Migration failure is non-fatal
   }
 }
 
 export async function listDatasets(): Promise<DatasetSummary[]> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_INDEX, 'readonly')
-    const req = tx.objectStore(STORE_INDEX).getAll()
-    req.onsuccess = () => {
-      const results = req.result as DatasetSummary[]
-      results.sort(
-        (a, b) =>
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-      )
-      resolve(results)
-    }
-    req.onerror = () => reject(req.error)
+  const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((d) => {
+    const data = d.data() as GeoDataset
+    return {
+      id: data.id,
+      metadata: data.metadata,
+      format: data.format,
+      featureCount: data.featureCount,
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+      sizeBytes: data.sizeBytes,
+      githubSha: data.githubSha,
+    } as DatasetSummary
   })
 }
 
 export async function getDataset(id: string): Promise<GeoDataset | null> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_DATASETS, 'readonly')
-    const req = tx.objectStore(STORE_DATASETS).get(id)
-    req.onsuccess = () => resolve((req.result as GeoDataset) ?? null)
-    req.onerror = () => reject(req.error)
-  })
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return null
+  return snapshot.data() as GeoDataset
 }
 
 export async function addDataset(
@@ -218,25 +173,7 @@ export async function addDataset(
     data,
   }
 
-  const summary: DatasetSummary = {
-    id: dataset.id,
-    metadata: dataset.metadata,
-    format: dataset.format,
-    featureCount: dataset.featureCount,
-    createdAt: dataset.createdAt,
-    updatedAt: dataset.updatedAt,
-    sizeBytes: dataset.sizeBytes,
-  }
-
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_DATASETS).put(dataset)
-    tx.objectStore(STORE_INDEX).put(summary)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await setDoc(doc(db, COLLECTION, id), dataset)
   return dataset
 }
 
@@ -250,49 +187,20 @@ export async function updateDatasetMetadata(
   dataset.metadata = { ...dataset.metadata, ...updates }
   dataset.updatedAt = new Date().toISOString()
 
-  const summary: DatasetSummary = {
-    id: dataset.id,
+  await updateDoc(doc(db, COLLECTION, id), {
     metadata: dataset.metadata,
-    format: dataset.format,
-    featureCount: dataset.featureCount,
-    createdAt: dataset.createdAt,
     updatedAt: dataset.updatedAt,
-    sizeBytes: dataset.sizeBytes,
-  }
-
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_DATASETS).put(dataset)
-    tx.objectStore(STORE_INDEX).put(summary)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
   })
 
   return dataset
 }
 
 export async function deleteDataset(id: string): Promise<boolean> {
-  const db = await openDB()
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return false
 
-  // Check if the dataset exists in the index
-  const exists = await new Promise<boolean>((resolve, reject) => {
-    const tx = db.transaction(STORE_INDEX, 'readonly')
-    const req = tx.objectStore(STORE_INDEX).get(id)
-    req.onsuccess = () => resolve(req.result != null)
-    req.onerror = () => reject(req.error)
-  })
-
-  if (!exists) return false
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_DATASETS).delete(id)
-    tx.objectStore(STORE_INDEX).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await deleteDoc(ref)
   return true
 }
 
@@ -444,49 +352,17 @@ export async function updateGitHubSha(
   id: string,
   sha: string,
 ): Promise<void> {
-  const db = await openDB()
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return
 
-  // Update in the datasets store
-  const dataset = await new Promise<GeoDataset | null>((resolve, reject) => {
-    const tx = db.transaction(STORE_DATASETS, 'readonly')
-    const req = tx.objectStore(STORE_DATASETS).get(id)
-    req.onsuccess = () => resolve((req.result as GeoDataset) ?? null)
-    req.onerror = () => reject(req.error)
-  })
-
-  if (!dataset) return
-
-  dataset.githubSha = sha
-
-  const summary: DatasetSummary = {
-    id: dataset.id,
-    metadata: dataset.metadata,
-    format: dataset.format,
-    featureCount: dataset.featureCount,
-    createdAt: dataset.createdAt,
-    updatedAt: dataset.updatedAt,
-    sizeBytes: dataset.sizeBytes,
-    githubSha: sha,
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_DATASETS).put(dataset)
-    tx.objectStore(STORE_INDEX).put(summary)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+  await updateDoc(ref, { githubSha: sha })
 }
 
 /** Export all datasets as a single JSON blob for backup */
 export async function exportAllDatasets(): Promise<GeoDataset[]> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_DATASETS, 'readonly')
-    const req = tx.objectStore(STORE_DATASETS).getAll()
-    req.onsuccess = () => resolve(req.result as GeoDataset[])
-    req.onerror = () => reject(req.error)
-  })
+  const snapshot = await getDocs(collection(db, COLLECTION))
+  return snapshot.docs.map((d) => d.data() as GeoDataset)
 }
 
 /** Import datasets from a backup, skipping any that already exist */
@@ -495,54 +371,29 @@ export async function importDatasets(
 ): Promise<{ imported: number; skipped: number }> {
   let imported = 0
   let skipped = 0
-  const db = await openDB()
 
   for (const dataset of datasets) {
-    // Check if already exists
-    const exists = await new Promise<boolean>((resolve, reject) => {
-      const tx = db.transaction(STORE_INDEX, 'readonly')
-      const req = tx.objectStore(STORE_INDEX).get(dataset.id)
-      req.onsuccess = () => resolve(req.result != null)
-      req.onerror = () => reject(req.error)
-    })
+    const ref = doc(db, COLLECTION, dataset.id)
+    const existing = await getDoc(ref)
 
-    if (exists) {
+    if (existing.exists()) {
       skipped++
       continue
     }
 
-    const summary: DatasetSummary = {
-      id: dataset.id,
-      metadata: dataset.metadata,
-      format: dataset.format,
-      featureCount: dataset.featureCount,
-      createdAt: dataset.createdAt,
-      updatedAt: dataset.updatedAt,
-      sizeBytes: dataset.sizeBytes,
-    }
-
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([STORE_DATASETS, STORE_INDEX], 'readwrite')
-      tx.objectStore(STORE_DATASETS).put(dataset)
-      tx.objectStore(STORE_INDEX).put(summary)
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
+    await setDoc(ref, dataset)
     imported++
   }
 
   return { imported, skipped }
 }
 
-/** Get storage estimate (where supported) */
+/** Get storage estimate (not applicable for Firestore) */
 export async function getStorageEstimate(): Promise<{
   used: number
   quota: number
 } | null> {
-  if (navigator.storage && navigator.storage.estimate) {
-    const est = await navigator.storage.estimate()
-    return { used: est.usage ?? 0, quota: est.quota ?? 0 }
-  }
+  // Firestore is cloud-hosted — no local quota to report
   return null
 }
 

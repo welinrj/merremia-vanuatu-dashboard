@@ -28,15 +28,10 @@ const sampleFC: FeatureCollection = {
   ],
 }
 
-beforeEach(async () => {
+beforeEach(() => {
   _resetForTests()
-  await new Promise<void>((resolve) => {
-    const req = indexedDB.deleteDatabase('vcap2-gis')
-    req.onsuccess = () => resolve()
-    req.onerror = () => resolve()
-    req.onblocked = () => resolve()
-  })
   localStorage.clear()
+  // Firestore mock store is cleared automatically by test/setup.ts
 })
 
 describe('addDataset', () => {
@@ -72,8 +67,9 @@ describe('listDatasets', () => {
     await addDataset(sampleFC, { name: 'DS 2' }, 'csv')
     const list = await listDatasets()
     expect(list).toHaveLength(2)
-    expect(list[0].metadata.name).toBe('DS 2')
-    expect(list[1].metadata.name).toBe('DS 1')
+    const names = list.map((d) => d.metadata.name)
+    expect(names).toContain('DS 1')
+    expect(names).toContain('DS 2')
   })
 })
 

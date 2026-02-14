@@ -6,38 +6,20 @@ import type {
   ProtectedAreaAttachment,
 } from '../types/protectedArea'
 import type { FeatureCollection } from 'geojson'
+import { db } from './firebase'
+import {
+  collection,
+  doc,
+  getDocs,
+  getDoc,
+  setDoc,
+  updateDoc,
+  deleteDoc,
+  query,
+  orderBy,
+} from 'firebase/firestore'
 
-const DB_NAME = 'vcap2-protected-areas'
-const DB_VERSION = 1
-const STORE_AREAS = 'areas'
-const STORE_INDEX = 'index'
-
-let dbInstance: IDBDatabase | null = null
-
-function openDB(): Promise<IDBDatabase> {
-  if (dbInstance) return Promise.resolve(dbInstance)
-
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION)
-
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result
-      if (!db.objectStoreNames.contains(STORE_AREAS)) {
-        db.createObjectStore(STORE_AREAS, { keyPath: 'id' })
-      }
-      if (!db.objectStoreNames.contains(STORE_INDEX)) {
-        db.createObjectStore(STORE_INDEX, { keyPath: 'id' })
-      }
-    }
-
-    request.onsuccess = () => {
-      dbInstance = request.result
-      resolve(dbInstance)
-    }
-
-    request.onerror = () => reject(request.error)
-  })
-}
+const COLLECTION = 'protectedAreas'
 
 function generateId(): string {
   return `pa_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
@@ -58,32 +40,18 @@ function toSummary(area: ProtectedArea): ProtectedAreaSummary {
 }
 
 export async function listProtectedAreas(): Promise<ProtectedAreaSummary[]> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_INDEX, 'readonly')
-    const req = tx.objectStore(STORE_INDEX).getAll()
-    req.onsuccess = () => {
-      const results = req.result as ProtectedAreaSummary[]
-      results.sort(
-        (a, b) =>
-          new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-      )
-      resolve(results)
-    }
-    req.onerror = () => reject(req.error)
-  })
+  const q = query(collection(db, COLLECTION), orderBy('updatedAt', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((d) => toSummary(d.data() as ProtectedArea))
 }
 
 export async function getProtectedArea(
   id: string,
 ): Promise<ProtectedArea | null> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_AREAS, 'readonly')
-    const req = tx.objectStore(STORE_AREAS).get(id)
-    req.onsuccess = () => resolve((req.result as ProtectedArea) ?? null)
-    req.onerror = () => reject(req.error)
-  })
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return null
+  return snapshot.data() as ProtectedArea
 }
 
 export async function createProtectedArea(input: {
@@ -118,15 +86,7 @@ export async function createProtectedArea(input: {
     updatedAt: now,
   }
 
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).put(area)
-    tx.objectStore(STORE_INDEX).put(toSummary(area))
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await setDoc(doc(db, COLLECTION, id), area)
   return area
 }
 
@@ -142,38 +102,16 @@ export async function updateProtectedArea(
   Object.assign(area, updates)
   area.updatedAt = new Date().toISOString()
 
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).put(area)
-    tx.objectStore(STORE_INDEX).put(toSummary(area))
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await setDoc(doc(db, COLLECTION, id), area)
   return area
 }
 
 export async function deleteProtectedArea(id: string): Promise<boolean> {
-  const db = await openDB()
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return false
 
-  const exists = await new Promise<boolean>((resolve, reject) => {
-    const tx = db.transaction(STORE_INDEX, 'readonly')
-    const req = tx.objectStore(STORE_INDEX).get(id)
-    req.onsuccess = () => resolve(req.result != null)
-    req.onerror = () => reject(req.error)
-  })
-
-  if (!exists) return false
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).delete(id)
-    tx.objectStore(STORE_INDEX).delete(id)
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await deleteDoc(ref)
   return true
 }
 
@@ -201,15 +139,7 @@ export async function addAttachment(
   area.attachments.push(attachment)
   area.updatedAt = new Date().toISOString()
 
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).put(area)
-    tx.objectStore(STORE_INDEX).put(toSummary(area))
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await setDoc(doc(db, COLLECTION, areaId), area)
   return area
 }
 
@@ -223,28 +153,15 @@ export async function removeAttachment(
   area.attachments = area.attachments.filter((a) => a.id !== attachmentId)
   area.updatedAt = new Date().toISOString()
 
-  const db = await openDB()
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).put(area)
-    tx.objectStore(STORE_INDEX).put(toSummary(area))
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
-
+  await setDoc(doc(db, COLLECTION, areaId), area)
   return area
 }
 
 // ── Sync helpers ──
 
 export async function exportAllAreas(): Promise<ProtectedArea[]> {
-  const db = await openDB()
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE_AREAS, 'readonly')
-    const req = tx.objectStore(STORE_AREAS).getAll()
-    req.onsuccess = () => resolve(req.result as ProtectedArea[])
-    req.onerror = () => reject(req.error)
-  })
+  const snapshot = await getDocs(collection(db, COLLECTION))
+  return snapshot.docs.map((d) => d.data() as ProtectedArea)
 }
 
 export async function importAreas(
@@ -252,28 +169,17 @@ export async function importAreas(
 ): Promise<{ imported: number; skipped: number }> {
   let imported = 0
   let skipped = 0
-  const db = await openDB()
 
   for (const area of areas) {
-    const exists = await new Promise<boolean>((resolve, reject) => {
-      const tx = db.transaction(STORE_INDEX, 'readonly')
-      const req = tx.objectStore(STORE_INDEX).get(area.id)
-      req.onsuccess = () => resolve(req.result != null)
-      req.onerror = () => reject(req.error)
-    })
+    const ref = doc(db, COLLECTION, area.id)
+    const existing = await getDoc(ref)
 
-    if (exists) {
+    if (existing.exists()) {
       skipped++
       continue
     }
 
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-      tx.objectStore(STORE_AREAS).put(area)
-      tx.objectStore(STORE_INDEX).put(toSummary(area))
-      tx.oncomplete = () => resolve()
-      tx.onerror = () => reject(tx.error)
-    })
+    await setDoc(ref, area)
     imported++
   }
 
@@ -284,26 +190,11 @@ export async function updateAreaGitHubSha(
   id: string,
   sha: string,
 ): Promise<void> {
-  const db = await openDB()
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) return
 
-  const area = await new Promise<ProtectedArea | null>((resolve, reject) => {
-    const tx = db.transaction(STORE_AREAS, 'readonly')
-    const req = tx.objectStore(STORE_AREAS).get(id)
-    req.onsuccess = () => resolve((req.result as ProtectedArea) ?? null)
-    req.onerror = () => reject(req.error)
-  })
-
-  if (!area) return
-
-  area.githubSha = sha
-
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction([STORE_AREAS, STORE_INDEX], 'readwrite')
-    tx.objectStore(STORE_AREAS).put(area)
-    tx.objectStore(STORE_INDEX).put(toSummary(area))
-    tx.oncomplete = () => resolve()
-    tx.onerror = () => reject(tx.error)
-  })
+  await updateDoc(ref, { githubSha: sha })
 }
 
 export function downloadAttachment(attachment: ProtectedAreaAttachment): void {
