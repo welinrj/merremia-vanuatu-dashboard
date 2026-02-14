@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, type FC } from 'react'
 import type { DatasetSummary, GeoDataset } from '../../types/geospatial'
-import { listDatasets, getDataset, migrateFromLocalStorage } from '../../services/datasetStore'
+import { listDatasets, getDataset, migrateFromLocalStorage, onDatasetsChanged } from '../../services/datasetStore'
 import PublicDatasetList from './PublicDatasetList'
 import PublicDatasetDetail from './PublicDatasetDetail'
 import './PublicPortal.css'
@@ -14,19 +14,26 @@ const PublicDataPortal: FC = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  const loadDatasets = useCallback(async () => {
-    const all = await listDatasets()
-    setDatasets(all.filter((ds) => ds.metadata.status === 'active'))
-  }, [])
-
+  // Real-time listener for cross-device sync
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | undefined
+
     migrateFromLocalStorage()
-      .then(() => loadDatasets())
+      .then(() => {
+        if (cancelled) return
+        unsubscribe = onDatasetsChanged((all) => {
+          if (!cancelled) setDatasets(all.filter((ds) => ds.metadata.status === 'active'))
+        })
+      })
       .catch(() => { if (!cancelled) setError('Unable to load datasets. Please try refreshing the page.') })
       .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [loadDatasets])
+
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
+  }, [])
 
   const handleView = useCallback(async (id: string) => {
     const ds = await getDataset(id)

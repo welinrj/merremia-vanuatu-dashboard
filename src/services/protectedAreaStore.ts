@@ -17,6 +17,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
 } from 'firebase/firestore'
 
 const COLLECTION = 'protectedAreas'
@@ -43,6 +44,19 @@ export async function listProtectedAreas(): Promise<ProtectedAreaSummary[]> {
   const q = query(collection(db, COLLECTION), orderBy('updatedAt', 'desc'))
   const snapshot = await getDocs(q)
   return snapshot.docs.map((d) => toSummary(d.data() as ProtectedArea))
+}
+
+/**
+ * Subscribe to real-time protected area list updates.
+ * Returns an unsubscribe function.
+ */
+export function onProtectedAreasChanged(
+  callback: (areas: ProtectedAreaSummary[]) => void,
+): () => void {
+  const q = query(collection(db, COLLECTION), orderBy('updatedAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.docs.map((d) => toSummary(d.data() as ProtectedArea)))
+  })
 }
 
 export async function getProtectedArea(

@@ -15,6 +15,7 @@ import {
   removeAttachment,
   downloadAttachment,
   formatArea,
+  onProtectedAreasChanged,
 } from '../../services/protectedAreaStore'
 import {
   syncProtectedAreas,
@@ -74,9 +75,11 @@ const ProtectedAreas: FC = () => {
     setAreas(list)
   }, [])
 
-  // Auto-sync on mount: pull any new records from GitHub, then refresh
+  // Auto-sync on mount: pull from GitHub, then subscribe to real-time updates
   useEffect(() => {
     let cancelled = false
+    let unsubscribe: (() => void) | undefined
+
     async function initialSync() {
       try {
         const config = getSyncSettings()
@@ -88,13 +91,19 @@ const ProtectedAreas: FC = () => {
         // silent — manual sync still available
       }
       if (!cancelled) {
-        await refresh()
+        // Subscribe to real-time updates for cross-device sync
+        unsubscribe = onProtectedAreasChanged((list) => {
+          if (!cancelled) setAreas(list)
+        })
         setLoading(false)
       }
     }
     initialSync()
-    return () => { cancelled = true }
-  }, [refresh])
+    return () => {
+      cancelled = true
+      unsubscribe?.()
+    }
+  }, [])
 
   // Fire-and-forget push to GitHub after local mutation
   function backgroundSync() {

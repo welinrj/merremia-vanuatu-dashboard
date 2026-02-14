@@ -16,6 +16,7 @@ import {
   deleteDoc,
   query,
   orderBy,
+  onSnapshot,
 } from 'firebase/firestore'
 
 const COLLECTION = 'datasets'
@@ -119,8 +120,12 @@ export async function migrateFromLocalStorage(): Promise<void> {
 export async function listDatasets(): Promise<DatasetSummary[]> {
   const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'))
   const snapshot = await getDocs(q)
+  return snapshotToSummaries(snapshot)
+}
+
+function snapshotToSummaries(snapshot: { docs: Array<{ data: () => Record<string, unknown> }> }): DatasetSummary[] {
   return snapshot.docs.map((d) => {
-    const data = d.data() as GeoDataset
+    const data = d.data() as unknown as GeoDataset
     return {
       id: data.id,
       metadata: data.metadata,
@@ -131,6 +136,19 @@ export async function listDatasets(): Promise<DatasetSummary[]> {
       sizeBytes: data.sizeBytes,
       githubSha: data.githubSha,
     } as DatasetSummary
+  })
+}
+
+/**
+ * Subscribe to real-time dataset list updates.
+ * Returns an unsubscribe function.
+ */
+export function onDatasetsChanged(
+  callback: (datasets: DatasetSummary[]) => void,
+): () => void {
+  const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'))
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshotToSummaries(snapshot))
   })
 }
 
