@@ -4,7 +4,7 @@
  * or general summary metrics otherwise.
  */
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
-import { getAppState } from '../state.js';
+import { getAppState, getDashboardLayers } from '../state.js';
 
 /**
  * Renders KPI widgets into a container.
@@ -13,7 +13,7 @@ import { getAppState } from '../state.js';
 export function renderKPIWidgets(container) {
   const state = getAppState();
   const filters = state.filters;
-  const layers = state.layers || [];
+  const layers = getDashboardLayers();
 
   const t3Active = filters.targets.length === 0 || filters.targets.includes('T3');
 

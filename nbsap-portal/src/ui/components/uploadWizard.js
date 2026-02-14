@@ -7,16 +7,18 @@
 import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
-import { saveLayer, addAuditEntry } from '../../services/storage/index.js';
-import { getAppState, addLayer } from '../state.js';
+import { saveLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
+import { getAppState, addLayer, trackLayer } from '../state.js';
 
-let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {} };
+let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
 
 /**
  * Opens the upload wizard modal.
+ * @param {object} [options] - Optional config
+ * @param {object} [options.expectedLayer] - If uploading for a tracked expected layer, pre-populates fields
  */
-export function openUploadWizard() {
-  wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {} };
+export function openUploadWizard(options = {}) {
+  wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: options.expectedLayer || null };
   const overlay = document.getElementById('upload-wizard-modal');
   overlay.classList.add('active');
   renderWizardStep();
@@ -325,7 +327,15 @@ function parseGeoJSON(text) {
 
 // Step 1: File selection
 function renderStep1(body) {
+  const el = wizardState.expectedLayer;
+  const trackerHint = el
+    ? `<div style="padding:10px 14px;background:var(--primary-lighter);border:1px solid var(--primary);border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px">
+         Uploading for: <strong>${el.name}</strong> (${el.category} / ${el.target})
+       </div>`
+    : '';
+
   body.innerHTML = `
+    ${trackerHint}
     <div class="form-group">
       <label>Upload Data Layer</label>
       <input type="file" id="wizard-file-input" accept=".zip,.kml,.csv,.geojson,.json">
@@ -410,10 +420,19 @@ function renderStep1(body) {
 
 // Step 2: Configure metadata
 function renderStep2(body) {
-  const defaultName = (wizardState.opts.originalFilename || '')
-    .replace(/\.(zip|kml|csv|geojson|json)$/i, '');
+  const el = wizardState.expectedLayer;
+  const defaultName = el
+    ? el.name
+    : (wizardState.opts.originalFilename || '').replace(/\.(zip|kml|csv|geojson|json)$/i, '');
+  const defaultCategory = el ? el.category : CATEGORY_KEYS[0];
+  const defaultRealm = el ? el.realm : 'terrestrial';
+  const defaultTarget = el ? el.target : null;
+  const default30x30 = el ? el.countsToward30x30 : false;
 
   body.innerHTML = `
+    ${el ? `<div style="padding:10px 14px;background:var(--primary-lighter);border:1px solid var(--primary);border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px">
+      Uploading for: <strong>${el.name}</strong> &mdash; fields have been pre-filled.
+    </div>` : ''}
     <div class="form-group">
       <label>Layer Name</label>
       <input type="text" id="wizard-name" value="${defaultName}">
@@ -422,33 +441,35 @@ function renderStep2(body) {
     <div class="form-group">
       <label>Category</label>
       <select id="wizard-category">
-        ${CATEGORY_KEYS.map(k => `<option value="${k}">${CATEGORIES[k].label}</option>`).join('')}
+        ${CATEGORY_KEYS.map(k => `<option value="${k}" ${k === defaultCategory ? 'selected' : ''}>${CATEGORIES[k].label}</option>`).join('')}
       </select>
     </div>
 
     <div class="form-group">
       <label>Targets (select at least one)</label>
       <div id="wizard-targets" class="target-checkboxes">
-        ${targetsConfig.targets.map(t => `
-          <label class="target-checkbox" data-code="${t.code}">
-            <input type="checkbox" value="${t.code}">
+        ${targetsConfig.targets.map(t => {
+          const preselected = defaultTarget === t.code;
+          return `
+          <label class="target-checkbox ${preselected ? 'selected' : ''}" data-code="${t.code}">
+            <input type="checkbox" value="${t.code}" ${preselected ? 'checked' : ''}>
             ${t.code}
           </label>
-        `).join('')}
+        `;}).join('')}
       </div>
     </div>
 
     <div class="form-group">
       <label>Realm</label>
       <select id="wizard-realm">
-        <option value="terrestrial">Terrestrial</option>
-        <option value="marine">Marine</option>
+        <option value="terrestrial" ${defaultRealm === 'terrestrial' ? 'selected' : ''}>Terrestrial</option>
+        <option value="marine" ${defaultRealm === 'marine' ? 'selected' : ''}>Marine</option>
       </select>
     </div>
 
     <div class="form-group">
       <label class="toggle-switch">
-        <input type="checkbox" id="wizard-30x30">
+        <input type="checkbox" id="wizard-30x30" ${default30x30 ? 'checked' : ''}>
         <span class="toggle-track"></span>
         Counts toward 30x30 (Target 3 only)
       </label>
@@ -560,6 +581,13 @@ function renderStep3(body) {
       category: result.metadata.category,
       result: result.metadata.status
     });
+
+    // Track layer if uploading for an expected layer
+    if (wizardState.expectedLayer) {
+      trackLayer(wizardState.expectedLayer.id, result.metadata.id);
+      await setSetting('layerTracker', getAppState().layerTracker);
+      addLog(`Tracked as: ${wizardState.expectedLayer.name}`);
+    }
 
     statusEl.innerHTML = `
       <p style="color:var(--success);font-weight:600">Pipeline complete. Status: ${result.metadata.status}</p>

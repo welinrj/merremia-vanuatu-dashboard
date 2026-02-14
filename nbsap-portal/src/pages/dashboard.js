@@ -8,7 +8,7 @@ import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
 import { compute30x30Metrics } from '../gis/areaCalc.js';
-import { getAppState } from '../ui/state.js';
+import { getAppState, getDashboardLayers } from '../ui/state.js';
 
 /**
  * Initializes the Dashboard page.
@@ -99,7 +99,8 @@ export function refreshDashboard() {
   const chartContainer = document.getElementById('province-chart-container');
 
   if (t3Active) {
-    const metrics = compute30x30Metrics(state.layers, filters);
+    const dashLayers = getDashboardLayers();
+    const metrics = compute30x30Metrics(dashLayers, filters);
     if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
     if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
   } else {
