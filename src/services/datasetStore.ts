@@ -21,6 +21,24 @@ import {
 
 const COLLECTION = 'datasets'
 
+/**
+ * Firestore does not support nested arrays (e.g. GeoJSON Polygon coordinates).
+ * Serialize the FeatureCollection `data` field as a JSON string for storage
+ * and deserialize it on read.
+ */
+function toFirestore(dataset: GeoDataset): Record<string, unknown> {
+  const { data, ...rest } = dataset
+  return { ...rest, _geoData: JSON.stringify(data) }
+}
+
+function fromFirestore(raw: Record<string, unknown>): GeoDataset {
+  const { _geoData, ...rest } = raw
+  return {
+    ...rest,
+    data: typeof _geoData === 'string' ? JSON.parse(_geoData) : (raw.data as FeatureCollection),
+  } as GeoDataset
+}
+
 /** No-op — kept for backward compatibility with tests */
 export function _resetForTests(): void {
   // Firestore has no local connection to reset
@@ -102,7 +120,7 @@ export async function migrateFromLocalStorage(): Promise<void> {
         const ref = doc(db, COLLECTION, dataset.id)
         const existing = await getDoc(ref)
         if (!existing.exists()) {
-          await setDoc(ref, dataset)
+          await setDoc(ref, toFirestore(dataset))
         }
       }
     }
@@ -156,7 +174,7 @@ export async function getDataset(id: string): Promise<GeoDataset | null> {
   const ref = doc(db, COLLECTION, id)
   const snapshot = await getDoc(ref)
   if (!snapshot.exists()) return null
-  return snapshot.data() as GeoDataset
+  return fromFirestore(snapshot.data() as Record<string, unknown>)
 }
 
 export async function addDataset(
@@ -191,7 +209,7 @@ export async function addDataset(
     data,
   }
 
-  await setDoc(doc(db, COLLECTION, id), dataset)
+  await setDoc(doc(db, COLLECTION, id), toFirestore(dataset))
   return dataset
 }
 
@@ -380,7 +398,7 @@ export async function updateGitHubSha(
 /** Export all datasets as a single JSON blob for backup */
 export async function exportAllDatasets(): Promise<GeoDataset[]> {
   const snapshot = await getDocs(collection(db, COLLECTION))
-  return snapshot.docs.map((d) => d.data() as GeoDataset)
+  return snapshot.docs.map((d) => fromFirestore(d.data() as Record<string, unknown>))
 }
 
 /** Import datasets from a backup, skipping any that already exist */
@@ -399,7 +417,7 @@ export async function importDatasets(
       continue
     }
 
-    await setDoc(ref, dataset)
+    await setDoc(ref, toFirestore(dataset))
     imported++
   }
 
