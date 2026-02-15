@@ -22,13 +22,9 @@ import MapViewer from './MapViewer'
 import './DataPortal.css'
 import './GISDatabase.css'
 
-interface GISDatabaseProps {
-  onNavigate?: (section: string) => void
-}
-
 type DbView = 'browse' | 'upload'
 
-const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
+const GISDatabase: FC = () => {
   const [view, setView] = useState<DbView>('browse')
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [loading, setLoading] = useState(true)

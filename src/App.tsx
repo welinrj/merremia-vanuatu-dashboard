@@ -90,7 +90,7 @@ function App() {
           <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading...</div>}>
           {/* Staff page sections */}
           {activeSection === 'gis-database' && (
-            <GISDatabase onNavigate={setActiveSection} />
+            <GISDatabase />
           )}
           {activeSection === 'protected-areas' && <ProtectedAreas />}
 
