@@ -496,32 +496,89 @@
     <div id="records-list"></div>
   </div>
 
+  <!-- ═══ OFFICER LOGIN MODAL ═══ -->
+  <div class="modal-overlay active" id="officer-login-modal" style="display:none">
+    <div class="delete-modal" style="max-width:400px">
+      <h3 style="color:#065f46;text-align:center">👮 Officer Login</h3>
+      <p style="text-align:center;margin-bottom:1rem;color:#64748b;font-size:0.85rem">Enter your officer details to begin</p>
+      <div class="settings-field">
+        <label>Officer ID / Badge Number</label>
+        <input id="login-officer-id" placeholder="e.g. DEPC-001" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.9rem">
+      </div>
+      <div class="settings-field">
+        <label>Full Name</label>
+        <input id="login-officer-name" placeholder="Your full name" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.9rem">
+      </div>
+      <div class="settings-field">
+        <label>Assigned Island</label>
+        <select id="login-officer-island" style="width:100%;padding:0.6rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.9rem;appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2712%27 height=%2712%27 fill=%27%2364748b%27 viewBox=%270 0 16 16%27%3E%3Cpath d=%27M8 11L3 6h10z%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 0.6rem center">
+          <option value="">Select primary island</option>
+          <option>Efate</option>
+          <option>Espiritu Santo</option>
+          <option>Tanna</option>
+          <option>Malakula</option>
+          <option>Pentecost</option>
+          <option>Ambae</option>
+          <option>Erromango</option>
+          <option>Epi</option>
+          <option>Mobile (Multiple Islands)</option>
+        </select>
+      </div>
+      <p id="login-error" style="color:#dc2626;font-size:0.75rem;text-align:center;display:none;margin-bottom:0.5rem">Please fill in all fields</p>
+      <button class="btn btn-primary" onclick="completeOfficerLogin()" style="margin-top:0.5rem">Start Collecting Data</button>
+    </div>
+  </div>
+
   <!-- ═══ SETTINGS VIEW ═══ -->
   <div class="view" id="view-settings">
     <div class="field-group">
       <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">GitHub Sync Settings</h3>
       <div class="settings-field">
         <label>GitHub Owner (username)</label>
-        <input id="s-owner" placeholder="your-username" value="welinrj">
+        <input id="s-owner" placeholder="your-username" value="welinrj" readonly style="background:#f1f5f9;color:#64748b">
       </div>
       <div class="settings-field">
         <label>Data Repository</label>
-        <input id="s-repo" value="merremia-field-data">
+        <input id="s-repo" value="merremia-field-data" readonly style="background:#f1f5f9;color:#64748b">
       </div>
       <div class="settings-field">
-        <label>Personal Access Token</label>
-        <input id="s-token" type="password" placeholder="Pre-configured">
+        <label>Sync Status</label>
+        <input id="s-token-status" value="✓ Pre-configured by IT" readonly style="background:#d1fae5;color:#065f46;font-weight:600">
       </div>
-      <button class="btn btn-secondary" onclick="saveSettings()" style="margin-bottom:1rem">Save Settings</button>
+      <!-- Token is hidden from field officers for security -->
+      <input id="s-token" type="hidden" value="">
     </div>
 
     <div class="field-group">
-      <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">Default Observer</h3>
+      <h3 style="color:#34d399;font-size:0.95rem;margin-bottom:0.75rem">Officer Profile</h3>
       <div class="settings-field">
-        <label>Name</label>
-        <input id="s-observer" placeholder="Your name">
+        <label>Officer ID / Badge Number</label>
+        <input id="s-officer-id" placeholder="e.g. DEPC-001">
       </div>
-      <button class="btn btn-secondary" onclick="saveDefaultObserver()">Save Default</button>
+      <div class="settings-field">
+        <label>Full Name</label>
+        <input id="s-officer-name" placeholder="Your full name">
+      </div>
+      <div class="settings-field">
+        <label>Assigned Island</label>
+        <select id="s-officer-island">
+          <option value="">Select primary island</option>
+          <option>Efate</option>
+          <option>Espiritu Santo</option>
+          <option>Tanna</option>
+          <option>Malakula</option>
+          <option>Pentecost</option>
+          <option>Ambae</option>
+          <option>Erromango</option>
+          <option>Epi</option>
+          <option>Mobile (Multiple Islands)</option>
+        </select>
+      </div>
+      <div class="settings-field">
+        <label>Contact Number</label>
+        <input id="s-officer-phone" type="tel" placeholder="+678...">
+      </div>
+      <button class="btn btn-secondary" onclick="saveOfficerProfile()">Save Profile</button>
     </div>
 
     <div class="field-group" style="margin-top:1rem">
@@ -534,9 +591,11 @@
     // ── State ──
     var DB_KEY = 'merremia_records';
     var SETTINGS_KEY = 'merremia_settings';
+    var OFFICER_KEY = 'merremia_officer_profile';
     var currentPhotos = [];
     var currentLat = null, currentLng = null, currentAcc = null;
     var editingRecordId = null;
+    var currentOfficer = null;
 
     // ── Category labels ──
     var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
@@ -577,6 +636,16 @@
     var bestAcc = Infinity;
 
     function pollGPS() {
+      // Battery-aware GPS: Check battery level and adjust accuracy threshold
+      if ('getBattery' in navigator) {
+        navigator.getBattery().then(function(battery) {
+          if (battery.level < 0.2 && GPS_ACC_THRESHOLD < 15) {
+            GPS_ACC_THRESHOLD = 15; // Relax accuracy requirement when battery low
+            showToast('Low battery - accepting 15m GPS accuracy', 'warn');
+          }
+        });
+      }
+
       navigator.geolocation.getCurrentPosition(
         function(pos) {
           if (manualGPSMode) return;
@@ -597,7 +666,7 @@
             btn.disabled = false;
             hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
             hint.className = 'gps-hint ready';
-            stopGPS();
+            stopGPS(); // Stop polling to save battery once locked
           } else {
             accEl.className = 'accuracy gps-accuracy-bad';
             btn.disabled = true;
@@ -627,7 +696,8 @@
       stopGPS();
       bestAcc = Infinity;
       pollGPS();
-      gpsIntervalId = setInterval(pollGPS, 1000);
+      // Battery optimization: Poll every 3 seconds instead of 1 second
+      gpsIntervalId = setInterval(pollGPS, 3000);
     }
     startGPS();
 
@@ -807,8 +877,11 @@
       }
 
       var isEditing = !!editingRecordId;
+      var officer = getOfficerProfile();
+      var officerId = officer.officerId ? officer.officerId.replace(/[^a-zA-Z0-9]/g, '') : 'UNKNOWN';
+
       var record = {
-        id: isEditing ? editingRecordId : Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
+        id: isEditing ? editingRecordId : Date.now().toString(36) + '-' + officerId + '-' + Math.random().toString(36).substr(2, 5),
         timestamp: isEditing ? getRecords().find(function(r) { return r.id === editingRecordId; }).timestamp : new Date().toISOString(),
         category: category, // Always set category
         latitude: currentLat,
@@ -821,7 +894,8 @@
         },
         island: island,
         siteName: document.getElementById('f-site').value || '',
-        observer: document.getElementById('f-observer').value || getSettings().defaultObserver || '',
+        observer: document.getElementById('f-observer').value || officer.name || '',
+        officerId: officerId, // Track which officer collected this
         notes: document.getElementById('f-notes').value || '',
         photos: currentPhotos,
         synced: false
@@ -989,10 +1063,11 @@
             return '<img src="' + p + '" onclick="showFullPhoto(this.src)">';
           }).join('') + '</div>';
         }
+        var officerBadge = r.officerId ? '<span style="background:#e0e7ff;color:#3730a3;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.6rem;font-weight:700;margin-left:0.3rem">ID: ' + r.officerId + '</span>' : '';
         return '<div class="record-card">' +
-          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + '</h4>' +
+          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + officerBadge + '</h4>' +
           '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
-          '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
+          '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.observer ? '<span>👤 ' + r.observer + '</span>' : '') + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
           photoHtml +
           '<button class="btn-edit-record" onclick="editRecord(\'' + r.id + '\')">Edit</button>' +
           '<button class="btn-delete-record" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button>' +
@@ -1019,17 +1094,120 @@
       var settings = getSettings();
       settings.owner = document.getElementById('s-owner').value.trim();
       settings.repo = document.getElementById('s-repo').value.trim();
-      settings.token = document.getElementById('s-token').value.trim();
+      // Token is pre-configured and hidden from field officers
+      if (!settings.token) settings.token = '';
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       showToast('Settings saved!', 'info');
     }
 
-    function saveDefaultObserver() {
-      var settings = getSettings();
-      settings.defaultObserver = document.getElementById('s-observer').value.trim();
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-      document.getElementById('f-observer').value = settings.defaultObserver;
-      showToast('Default observer saved!', 'info');
+    // ── Officer Profile Management ──
+    function getOfficerProfile() {
+      try {
+        var profile = JSON.parse(localStorage.getItem(OFFICER_KEY));
+        return profile || {};
+      } catch(e) {
+        return {};
+      }
+    }
+
+    function saveOfficerProfile() {
+      var profile = {
+        officerId: document.getElementById('s-officer-id').value.trim(),
+        name: document.getElementById('s-officer-name').value.trim(),
+        assignedIsland: document.getElementById('s-officer-island').value,
+        phone: document.getElementById('s-officer-phone').value.trim(),
+        deviceId: getDeviceId(),
+        registeredAt: new Date().toISOString()
+      };
+
+      if (!profile.officerId || !profile.name || !profile.assignedIsland) {
+        showToast('Please fill in Officer ID, Name, and Assigned Island', 'warn');
+        return;
+      }
+
+      localStorage.setItem(OFFICER_KEY, JSON.stringify(profile));
+      currentOfficer = profile;
+      applyOfficerPresets();
+      showToast('Officer profile saved!', 'info');
+    }
+
+    function getDeviceId() {
+      var deviceId = localStorage.getItem('device_id');
+      if (!deviceId) {
+        deviceId = 'dev-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 9);
+        localStorage.setItem('device_id', deviceId);
+      }
+      return deviceId;
+    }
+
+    function applyOfficerPresets() {
+      var officer = getOfficerProfile();
+      if (officer.name) {
+        document.getElementById('f-observer').value = officer.name;
+      }
+      // Auto-select assigned island if available
+      if (officer.assignedIsland && officer.assignedIsland !== 'Mobile (Multiple Islands)') {
+        var islandSelect = document.getElementById('f-island');
+        islandSelect.value = officer.assignedIsland;
+        // Show visual indicator that this is the officer's assigned island
+        var options = islandSelect.querySelectorAll('option');
+        options.forEach(function(opt) {
+          if (opt.value === officer.assignedIsland) {
+            opt.textContent = opt.value + ' ⭐ (Your Island)';
+          }
+        });
+      }
+    }
+
+    function completeOfficerLogin() {
+      var officerId = document.getElementById('login-officer-id').value.trim();
+      var name = document.getElementById('login-officer-name').value.trim();
+      var island = document.getElementById('login-officer-island').value;
+
+      if (!officerId || !name || !island) {
+        document.getElementById('login-error').style.display = 'block';
+        return;
+      }
+
+      var profile = {
+        officerId: officerId,
+        name: name,
+        assignedIsland: island,
+        deviceId: getDeviceId(),
+        registeredAt: new Date().toISOString()
+      };
+
+      localStorage.setItem(OFFICER_KEY, JSON.stringify(profile));
+      currentOfficer = profile;
+
+      // Update settings fields
+      document.getElementById('s-officer-id').value = officerId;
+      document.getElementById('s-officer-name').value = name;
+      document.getElementById('s-officer-island').value = island;
+
+      // Hide login modal
+      document.getElementById('officer-login-modal').style.display = 'none';
+
+      // Apply presets
+      applyOfficerPresets();
+
+      showToast('Welcome, ' + name + '!', 'info');
+    }
+
+    function checkOfficerLogin() {
+      var profile = getOfficerProfile();
+      if (!profile.officerId || !profile.name) {
+        // Show login modal
+        document.getElementById('officer-login-modal').style.display = 'flex';
+      } else {
+        currentOfficer = profile;
+        // Update settings display
+        document.getElementById('s-officer-id').value = profile.officerId || '';
+        document.getElementById('s-officer-name').value = profile.name || '';
+        document.getElementById('s-officer-island').value = profile.assignedIsland || '';
+        document.getElementById('s-officer-phone').value = profile.phone || '';
+        applyOfficerPresets();
+      }
     }
 
     function loadSettings() {
@@ -1415,7 +1593,7 @@
             newSW.addEventListener('statechange', function() {
               if (newSW.state === 'activated' && 'caches' in window) {
                 caches.keys().then(function(names) {
-                  names.forEach(function(n) { if (n !== 'merremia-collector-v9') caches.delete(n); });
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v10-multi-officer') caches.delete(n); });
                 });
               }
             });
@@ -1427,6 +1605,7 @@
     // ── Init ──
     loadSettings();
     updateRecordCount();
+    checkOfficerLogin(); // Show officer login modal on first launch
   </script>
 
   <footer>
