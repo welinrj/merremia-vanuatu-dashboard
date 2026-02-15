@@ -374,14 +374,6 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
             >
               Upload Your First Dataset
             </button>
-            {onNavigate && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => onNavigate('data-portal')}
-              >
-                Go to Data Portal
-              </button>
-            )}
           </div>
         </div>
       ) : (

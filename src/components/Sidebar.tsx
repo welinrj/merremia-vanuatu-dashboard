@@ -12,7 +12,6 @@ interface SidebarProps {
 }
 
 const staffNavItems = [
-  { id: 'data-portal', label: 'Data Portal' },
   { id: 'gis-database', label: 'GIS Database' },
   { id: 'protected-areas', label: 'CCAs & MPAs' },
 ]

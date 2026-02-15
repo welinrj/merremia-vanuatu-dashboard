@@ -6,13 +6,11 @@ import { getUser } from './services/userStore'
 import type { UserProfile } from './types/user'
 import './App.css'
 
-const DataPortal = lazy(() => import('./components/portal/DataPortal'))
 const GISDatabase = lazy(() => import('./components/portal/GISDatabase'))
 const ProtectedAreas = lazy(() => import('./components/portal/ProtectedAreas'))
 const PublicDataPortal = lazy(() => import('./components/public/PublicDataPortal'))
 
 const sectionTitles: Record<string, string> = {
-  'data-portal': 'Data Portal',
   'gis-database': 'GIS Database',
   'protected-areas': 'CCAs & MPAs',
   datasets: 'Datasets',
@@ -43,7 +41,7 @@ function App() {
       return
     }
     setActivePage(page)
-    setActiveSection(page === 'staff' ? 'data-portal' : 'datasets')
+    setActiveSection(page === 'staff' ? 'gis-database' : 'datasets')
   }
 
   const handleLogout = () => {
@@ -62,7 +60,7 @@ function App() {
         onSuccess={(user) => {
           setStaffAuth(true)
           setCurrentUser(user)
-          setActiveSection('data-portal')
+          setActiveSection('gis-database')
         }}
         onCancel={() => {
           setActivePage('public')
@@ -91,9 +89,6 @@ function App() {
         <div className="dashboard-content">
           <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading...</div>}>
           {/* Staff page sections */}
-          {activeSection === 'data-portal' && (
-            <DataPortal onNavigate={setActiveSection} />
-          )}
           {activeSection === 'gis-database' && (
             <GISDatabase onNavigate={setActiveSection} />
           )}
