@@ -810,10 +810,15 @@
       var record = {
         id: isEditing ? editingRecordId : Date.now().toString(36) + Math.random().toString(36).substr(2, 5),
         timestamp: isEditing ? getRecords().find(function(r) { return r.id === editingRecordId; }).timestamp : new Date().toISOString(),
-        category: category,
+        category: category, // Always set category
         latitude: currentLat,
         longitude: currentLng,
         accuracy: currentAcc,
+        gps: {  // Also include gps object for compatibility
+          lat: currentLat,
+          lng: currentLng,
+          accuracy: currentAcc
+        },
         island: island,
         siteName: document.getElementById('f-site').value || '',
         observer: document.getElementById('f-observer').value || getSettings().defaultObserver || '',

@@ -118,8 +118,11 @@ class MerremiaConnector {
         if (cached) return cached;
       }
 
-      // If no token, use raw URL (CDN-cached but no rate limits for public viewers)
+      // If no token, use raw URL + try to fetch individual records as fallback
       if (!this.token) {
+        let allRecords = [];
+
+        // Try aggregated file first (fast, CDN-cached)
         try {
           console.log('[Connector] Fetching from raw URL:', `${this.baseURL}/data/all-records.json`);
           const response = await fetch(`${this.baseURL}/data/all-records.json`, {
@@ -131,11 +134,7 @@ class MerremiaConnector {
             const records = await response.json();
             console.log('[Connector] Fetched', Array.isArray(records) ? records.length : 0, 'raw records');
             if (Array.isArray(records)) {
-              const processed = this.processRecords(records);
-              console.log('[Connector] Processed', processed.records.length, 'records');
-              this.setCache(processed);
-              this.lastFetch = new Date();
-              return processed;
+              allRecords = records;
             } else {
               console.warn('[Connector] Data is not an array:', typeof records);
             }
@@ -145,6 +144,36 @@ class MerremiaConnector {
         } catch (e) {
           console.error('[Connector] Raw fetch error:', e);
         }
+
+        // Also try fetching individual records (slower but catches unsynced records)
+        try {
+          console.log('[Connector] Fetching individual records as fallback...');
+          const individual = await this.fetchIndividualRecords();
+          console.log('[Connector] Found', individual.length, 'individual record files');
+          if (individual.length > 0) {
+            // Merge: add any records not already in allRecords (by ID)
+            const existingIds = new Set(allRecords.map(r => r.id));
+            individual.forEach(r => {
+              if (!existingIds.has(r.id)) {
+                console.log('[Connector] Adding missing record:', r.id);
+                allRecords.push(r);
+              }
+            });
+            console.log('[Connector] Total after merge:', allRecords.length, 'records');
+          }
+        } catch (e) {
+          console.warn('[Connector] Individual records fetch failed:', e);
+        }
+
+        if (allRecords.length > 0) {
+          const processed = this.processRecords(allRecords);
+          console.log('[Connector] Processed', processed.records.length, 'records');
+          this.setCache(processed);
+          this.lastFetch = new Date();
+          return processed;
+        }
+
+        console.warn('[Connector] No records found from any source');
         return this.emptyData();
       }
 
