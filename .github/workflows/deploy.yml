@@ -29,6 +29,13 @@ jobs:
       - run: npm run build
       - run: npm test
 
+      # Build NBSAP portal sub-project
+      - name: Build NBSAP portal
+        run: |
+          cd nbsap-portal
+          npm ci
+          npm run build
+
       # Copy static HTML pages into the deploy output
       - name: Copy static pages to dist
         run: |
@@ -38,6 +45,7 @@ jobs:
           cp merremia-connector.js dist/
           cp -r assets dist/
           cp -r field-collector dist/
+          cp -r nbsap-portal/dist dist/nbsap-portal
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
