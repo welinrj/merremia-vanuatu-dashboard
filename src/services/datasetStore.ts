@@ -22,21 +22,44 @@ import {
 const COLLECTION = 'datasets'
 
 /**
- * Firestore does not support nested arrays (e.g. GeoJSON Polygon coordinates).
- * Serialize the FeatureCollection `data` field as a JSON string for storage
- * and deserialize it on read.
+ * Firestore does not support nested arrays (e.g. GeoJSON Polygon coordinates)
+ * and has a 1 MB per-field limit. Serialize the FeatureCollection `data` field
+ * as a JSON string and split it into ≤900 KB chunks stored as _geoData_0,
+ * _geoData_1, etc. Reassemble on read.
  */
+const CHUNK_SIZE = 900_000 // 900 KB — safely under the 1,048,487 byte field limit
+
 function toFirestore(dataset: GeoDataset): Record<string, unknown> {
   const { data, ...rest } = dataset
-  return { ...rest, _geoData: JSON.stringify(data) }
+  const json = JSON.stringify(data)
+  const doc: Record<string, unknown> = { ...rest, _geoChunks: Math.ceil(json.length / CHUNK_SIZE) }
+  for (let i = 0; i < json.length; i += CHUNK_SIZE) {
+    doc[`_geoData_${i / CHUNK_SIZE}`] = json.slice(i, i + CHUNK_SIZE)
+  }
+  return doc
 }
 
 function fromFirestore(raw: Record<string, unknown>): GeoDataset {
-  const { _geoData, ...rest } = raw
-  return {
-    ...rest,
-    data: typeof _geoData === 'string' ? JSON.parse(_geoData) : (raw.data as FeatureCollection),
-  } as GeoDataset
+  // New chunked format
+  if (typeof raw._geoChunks === 'number') {
+    const chunks: string[] = []
+    for (let i = 0; i < raw._geoChunks; i++) {
+      chunks.push(raw[`_geoData_${i}`] as string)
+    }
+    const { _geoChunks, ...rest } = raw
+    // Remove chunk fields from rest
+    for (let i = 0; i < (_geoChunks as number); i++) {
+      delete rest[`_geoData_${i}`]
+    }
+    return { ...rest, data: JSON.parse(chunks.join('')) } as GeoDataset
+  }
+  // Legacy single-field format
+  if (typeof raw._geoData === 'string') {
+    const { _geoData, ...rest } = raw
+    return { ...rest, data: JSON.parse(_geoData as string) } as GeoDataset
+  }
+  // Oldest format — raw nested data (pre-serialization)
+  return raw as unknown as GeoDataset
 }
 
 /** No-op — kept for backward compatibility with tests */
