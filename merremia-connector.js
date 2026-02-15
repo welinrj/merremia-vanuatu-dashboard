@@ -42,6 +42,9 @@ class MerremiaConnector {
     this.refreshInterval = null;
     this.lastFetch = null;
     this.onError = config.onError || console.error;
+    this.rateLimitRemaining = null;
+    this.rateLimitReset = null;
+    this.onRateLimitWarning = config.onRateLimitWarning || null;
   }
 
   /**
@@ -67,6 +70,54 @@ class MerremiaConnector {
     return `https://api.github.com/repos/${this.owner}/${this.repo}/contents`;
   }
 
+  /**
+   * Update rate limit info from GitHub API response headers
+   */
+  updateRateLimit(response) {
+    if (response && response.headers) {
+      const remaining = response.headers.get('X-RateLimit-Remaining');
+      const reset = response.headers.get('X-RateLimit-Reset');
+
+      if (remaining !== null) {
+        this.rateLimitRemaining = parseInt(remaining);
+        this.rateLimitReset = reset ? parseInt(reset) * 1000 : null; // Convert to ms
+
+        // Warn if running low on rate limit (less than 10 requests remaining)
+        if (this.rateLimitRemaining < 10 && this.onRateLimitWarning) {
+          const resetTime = this.rateLimitReset ? new Date(this.rateLimitReset).toLocaleTimeString() : 'unknown';
+          this.onRateLimitWarning({
+            remaining: this.rateLimitRemaining,
+            reset: resetTime,
+            message: `GitHub API rate limit low: ${this.rateLimitRemaining} requests remaining (resets at ${resetTime})`
+          });
+        }
+      }
+    }
+  }
+
+  /**
+   * Check current rate limit status
+   */
+  async checkRateLimit() {
+    try {
+      const response = await fetch('https://api.github.com/rate_limit', {
+        headers: this.authHeaders
+      });
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          limit: data.rate.limit,
+          remaining: data.rate.remaining,
+          reset: new Date(data.rate.reset * 1000),
+          resetTime: new Date(data.rate.reset * 1000).toLocaleTimeString()
+        };
+      }
+    } catch (err) {
+      console.error('[Connector] Rate limit check failed:', err);
+    }
+    return null;
+  }
+
   // ═══════════════════════════════════════
   // CORE DATA FETCHING
   // ═══════════════════════════════════════
@@ -83,6 +134,7 @@ class MerremiaConnector {
           method: 'HEAD',
           headers: { 'Accept': 'application/vnd.github.v3+json' }
         });
+        this.updateRateLimit(response);
         if (response.ok) {
           const etag = response.headers.get('ETag');
           const changed = !this._lastETag || etag !== this._lastETag;
@@ -94,6 +146,7 @@ class MerremiaConnector {
         const response = await fetch(`${this.apiURL}/data/all-records.json`, {
           headers: this.authHeaders
         });
+        this.updateRateLimit(response);
         if (response.ok) {
           const data = await response.json();
           const changed = !this._lastSha || data.sha !== this._lastSha;
