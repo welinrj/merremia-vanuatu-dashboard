@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, type FC } from 'react'
 import type { DatasetSummary, GeoDataset } from '../../types/geospatial'
-import { listDatasets, getDataset, migrateFromLocalStorage, onDatasetsChanged } from '../../services/datasetStore'
+import { getDataset, migrateFromLocalStorage, onDatasetsChanged } from '../../services/datasetStore'
 import PublicDatasetList from './PublicDatasetList'
 import PublicDatasetDetail from './PublicDatasetDetail'
 import './PublicPortal.css'
