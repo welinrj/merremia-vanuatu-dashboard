@@ -9,7 +9,7 @@ async function loginAsMicky() {
   fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'VC@P 2026' } })
   fireEvent.click(screen.getByRole('button', { name: 'Log In' }))
   await waitFor(() => {
-    expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'GIS Database' })).toBeInTheDocument()
   })
 }
 
@@ -84,8 +84,8 @@ describe('App', () => {
   it('navigates staff sections after login', async () => {
     render(<App />)
     await loginAsMicky()
-    fireEvent.click(screen.getByRole('button', { name: 'Data Portal' }))
-    await waitFor(() => expect(screen.getByText('GIS Data Portal')).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'GIS Database' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'GIS Database', level: 1 })).toBeInTheDocument())
   })
 
   it('renders header with section title', () => {
@@ -110,8 +110,8 @@ describe('App', () => {
     sessionStorage.setItem('vcap2_staff_auth', '1')
     render(<App />)
     fireEvent.click(screen.getByRole('button', { name: 'Staff' }))
-    // Should go straight to staff data portal without login
-    expect(screen.getByRole('button', { name: 'Data Portal' })).toBeInTheDocument()
+    // Should go straight to staff GIS Database without login
+    expect(screen.getByRole('button', { name: 'GIS Database' })).toBeInTheDocument()
   })
 
   it('shows greeting with user name in header after login', async () => {
