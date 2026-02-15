@@ -24,9 +24,17 @@
     .config-bar{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
     .config-bar button{padding:0.4rem 1rem;background:#065f46;color:#ecfdf5;border:1px solid rgba(16,185,129,0.4);border-radius:0.4rem;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.2s}
     .config-bar button:hover{background:#047857;box-shadow:0 2px 8px rgba(16,185,129,0.2)}
-    .status-msg{font-size:0.8rem;color:#64748b;margin-left:auto}
+    .status-msg{font-size:0.8rem;color:#64748b;margin-left:auto;display:flex;align-items:center;gap:0.4rem}
     .status-msg.ok{color:#065f46}
     .status-msg.err{color:#dc2626}
+    .status-indicator{width:8px;height:8px;border-radius:50%;background:#94a3b8;flex-shrink:0}
+    .status-indicator.live{background:#10b981;animation:pulse-live 2s infinite}
+    .status-indicator.checking{background:#f59e0b;animation:pulse-check 1s infinite}
+    .status-indicator.updating{background:#3b82f6;animation:pulse-update 0.8s infinite}
+    .status-indicator.error{background:#ef4444}
+    @keyframes pulse-live{0%,100%{opacity:1}50%{opacity:0.6}}
+    @keyframes pulse-check{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(0.9)}}
+    @keyframes pulse-update{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.8;transform:scale(1.2)}}
     .cat-tabs{display:flex;background:#f8fafc;border-bottom:1px solid #e2e8f0;padding:0 2rem;overflow-x:auto;-webkit-overflow-scrolling:touch}
     .cat-tab{padding:0.75rem 1.25rem;background:none;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:0.8rem;font-weight:600;cursor:pointer;white-space:nowrap;transition:all 0.25s ease;letter-spacing:0.01em}
     .cat-tab:hover{color:#334155;background:rgba(0,0,0,0.02)}
@@ -134,6 +142,9 @@
     .live-alert-banner{display:none;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:linear-gradient(90deg,#fef2f2,#fff1f2);border-bottom:2px solid #fca5a5;font-size:0.82rem;color:#991b1b;font-weight:600}
     .live-alert-banner .alert-icon{font-size:1.1rem;flex-shrink:0}
     .live-alert-banner .alert-dismiss{margin-left:auto;background:none;border:none;color:#dc2626;font-size:1rem;cursor:pointer;padding:0 0.25rem}
+    .new-data-notification{position:fixed;top:80px;right:20px;z-index:1000;background:linear-gradient(135deg,#065f46,#10b981);color:#ecfdf5;padding:1rem 1.5rem;border-radius:0.75rem;box-shadow:0 10px 40px rgba(16,185,129,0.3);font-weight:600;font-size:0.85rem;display:none;animation:slideInRight 0.4s ease;border:1px solid rgba(255,255,255,0.2)}
+    .new-data-notification.show{display:block}
+    @keyframes slideInRight{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}
     @media print{
       body{background:#fff;color:#000;font-size:11pt}
       header{background:#065f46!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -166,7 +177,10 @@
     <input id="cfg-repo" type="hidden" value="merremia-field-data">
     <input id="cfg-token" type="hidden" value="">
     <button onclick="loadFieldData()">Load Data</button>
-    <span class="status-msg" id="status-msg"></span>
+    <span class="status-msg" id="status-msg">
+      <span class="status-indicator" id="status-indicator"></span>
+      <span id="status-text"></span>
+    </span>
   </div>
 
   <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Data categories">
@@ -180,6 +194,10 @@
     <span class="alert-icon">&#9888;</span>
     <span id="liveAlertText"></span>
     <button class="alert-dismiss" onclick="document.getElementById('liveAlertBanner').style.display='none'">&times;</button>
+  </div>
+
+  <div class="new-data-notification" id="newDataNotification">
+    ✨ New data synced from field!
   </div>
 
   <div class="grid" id="summary-cards">
@@ -311,10 +329,12 @@
     var activeTab = 'merremia';
     var allRecordsData = [];
     var liveConnector = null;
-    var REFRESH_INTERVAL = 5000;
+    var CHECK_INTERVAL = 2000; // Check for updates every 2 seconds
     var lastDataSha = null;
     var tablePage = 0;
     var TABLE_PAGE_SIZE = 50;
+    var lastUpdateTime = null;
+    var checkCount = 0;
 
     // Load saved config
     try {
@@ -335,18 +355,28 @@
       renderForTab();
     }
 
+    // ── Status Display Helpers ──
+    function setStatus(message, type, indicatorClass) {
+      var statusText = document.getElementById('status-text');
+      var statusIndicator = document.getElementById('status-indicator');
+      var statusMsg = document.getElementById('status-msg');
+      if (statusText) statusText.textContent = message;
+      if (statusIndicator) statusIndicator.className = 'status-indicator ' + (indicatorClass || '');
+      if (statusMsg) statusMsg.className = 'status-msg ' + (type || '');
+    }
+
     // ── Data Loading ──
     async function loadFieldData() {
       var owner = document.getElementById('cfg-owner').value.trim();
       var repo = document.getElementById('cfg-repo').value.trim();
       var token = document.getElementById('cfg-token').value.trim();
-      var status = document.getElementById('status-msg');
-      if (!owner) { status.textContent = 'Error: Owner required'; status.className = 'status-msg err'; return; }
-      if (!repo) { status.textContent = 'Error: Repo required'; status.className = 'status-msg err'; return; }
+      if (!owner) { setStatus('Error: Owner required', 'err', 'error'); return; }
+      if (!repo) { setStatus('Error: Repo required', 'err', 'error'); return; }
       localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo, token: token }));
-      status.textContent = 'Connecting to ' + owner + '/' + repo + '...'; status.className = 'status-msg';
+      setStatus('Connecting to ' + owner + '/' + repo + '...', '', 'checking');
       if (liveConnector) liveConnector.stopAutoRefresh();
       lastDataSha = null;
+      checkCount = 0;
       liveConnector = new MerremiaConnector({
         owner: owner,
         repo: repo,
@@ -354,44 +384,104 @@
         cacheTTL: 0, // Disable cache for real-time updates
         onError: function(msg, err) {
           var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-          status.textContent = 'Connection error — retrying... (' + now + ')';
-          status.className = 'status-msg err';
+          setStatus('Connection error — retrying... (' + now + ')', 'err', 'error');
           console.error('[Dashboard]', msg, err);
         }
       });
-      liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
-        console.log('[Dashboard] Received data:', data);
-        if (!data) {
-          status.textContent = 'Error: No data received — checking every 5s...';
-          status.className = 'status-msg err';
-          return;
+
+      // Start real-time checking (every 2 seconds)
+      liveConnector.startAutoRefresh(
+        CHECK_INTERVAL,
+        // onData callback - called when new data is available
+        function(data) {
+          console.log('[Dashboard] Received updated data:', data);
+          if (!data) {
+            setStatus('Error: No data received — checking every 2s...', 'err', 'error');
+            return;
+          }
+          if (!data.records) {
+            setStatus('Error: Invalid data format — checking every 2s...', 'err', 'error');
+            console.error('[Dashboard] Data missing records array:', data);
+            return;
+          }
+          if (data.records.length === 0) {
+            setStatus('No records yet — monitoring for new data...', 'err', 'live');
+            allRecordsData = [];
+            renderForTab();
+            return;
+          }
+          var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          var currentSha = liveConnector._lastSha || '';
+          // Update if first load or SHA changed
+          if (!lastDataSha || currentSha !== lastDataSha) {
+            var isUpdate = lastDataSha !== null;
+            var prevCount = allRecordsData.length;
+            allRecordsData = data.records;
+            var newCount = allRecordsData.length;
+            console.log('[Dashboard] ' + (isUpdate ? 'Updated' : 'Loaded') + ' ' + newCount + ' records');
+            renderForTab();
+            lastDataSha = currentSha;
+            lastUpdateTime = now;
+            if (isUpdate) {
+              // Show notification for new data
+              var notification = document.getElementById('newDataNotification');
+              if (notification) {
+                var added = newCount - prevCount;
+                if (added > 0) {
+                  notification.textContent = '✨ ' + added + ' new record' + (added === 1 ? '' : 's') + ' from field!';
+                } else {
+                  notification.textContent = '✨ Data updated!';
+                }
+                notification.classList.add('show');
+                setTimeout(function() {
+                  notification.classList.remove('show');
+                }, 4000);
+              }
+              // Show brief "updated" flash in status
+              setStatus('Updated! ' + newCount + ' record' + (newCount === 1 ? '' : 's') + ' (' + now + ')', 'ok', 'updating');
+              setTimeout(function() {
+                setStatus(newCount + ' record' + (newCount === 1 ? '' : 's') + ' — live (' + now + ')', 'ok', 'live');
+              }, 1500);
+            } else {
+              setStatus(newCount + ' record' + (newCount === 1 ? '' : 's') + ' — live (' + now + ')', 'ok', 'live');
+            }
+          }
+          enableDownloadButtons(data);
+        },
+        // onCheck callback - called on each check
+        function(status) {
+          checkCount++;
+          if (status.checking) {
+            // Briefly show checking indicator (subtle)
+            var indicator = document.getElementById('status-indicator');
+            if (indicator && !indicator.classList.contains('updating')) {
+              indicator.classList.add('checking');
+            }
+          } else if (status.updating) {
+            setStatus('Syncing new data...', 'ok', 'updating');
+          } else if (status.updated) {
+            // Handled in onData callback
+          } else if (status.noChanges) {
+            // Remove checking indicator
+            var indicator = document.getElementById('status-indicator');
+            if (indicator) {
+              indicator.classList.remove('checking');
+              if (!indicator.classList.contains('updating') && !indicator.classList.contains('error')) {
+                indicator.classList.add('live');
+              }
+            }
+            // Update check count in status every 10 checks (20 seconds)
+            if (checkCount % 10 === 0 && lastUpdateTime) {
+              var statusText = document.getElementById('status-text');
+              if (statusText && allRecordsData.length > 0) {
+                statusText.textContent = allRecordsData.length + ' record' + (allRecordsData.length === 1 ? '' : 's') + ' — live (' + lastUpdateTime + ')';
+              }
+            }
+          } else if (status.error) {
+            setStatus('Check failed — retrying...', 'err', 'error');
+          }
         }
-        if (!data.records) {
-          status.textContent = 'Error: Invalid data format — checking every 5s...';
-          status.className = 'status-msg err';
-          console.error('[Dashboard] Data missing records array:', data);
-          return;
-        }
-        if (data.records.length === 0) {
-          status.textContent = 'No records found yet — checking every 5s...';
-          status.className = 'status-msg err';
-          allRecordsData = [];
-          renderForTab();
-          return;
-        }
-        var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        var currentSha = liveConnector._lastSha || '';
-        // Always update on first load or when SHA changes
-        if (!lastDataSha || currentSha !== lastDataSha) {
-          allRecordsData = data.records;
-          console.log('[Dashboard] Loaded ' + allRecordsData.length + ' records');
-          renderForTab();
-          lastDataSha = currentSha;
-        }
-        enableDownloadButtons(data);
-        status.textContent = data.records.length + ' record' + (data.records.length === 1 ? '' : 's') + ' \u2014 live (' + now + ')';
-        status.className = 'status-msg ok';
-      });
+      );
     }
 
     // ── Filter records by active tab ──

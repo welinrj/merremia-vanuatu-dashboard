@@ -72,13 +72,51 @@ class MerremiaConnector {
   // ═══════════════════════════════════════
 
   /**
+   * Lightweight check if data has changed (checks file SHA without downloading content)
+   * Returns { changed: boolean, sha: string } or null on error
+   */
+  async checkForUpdates() {
+    try {
+      if (!this.token) {
+        // For public repos, check via API without auth (lower rate limit but works)
+        const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/data/all-records.json`, {
+          method: 'HEAD',
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (response.ok) {
+          const etag = response.headers.get('ETag');
+          const changed = !this._lastETag || etag !== this._lastETag;
+          if (changed) this._lastETag = etag;
+          return { changed, sha: etag };
+        }
+      } else {
+        // With token, get SHA via API
+        const response = await fetch(`${this.apiURL}/data/all-records.json`, {
+          headers: this.authHeaders
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const changed = !this._lastSha || data.sha !== this._lastSha;
+          return { changed, sha: data.sha };
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('[Connector] Update check failed:', err);
+      return null;
+    }
+  }
+
+  /**
    * Fetch all records and return processed data
    */
-  async fetchAll() {
+  async fetchAll(forceRefresh = false) {
     try {
-      // Try cache first
-      const cached = this.getCache();
-      if (cached) return cached;
+      // Try cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = this.getCache();
+        if (cached) return cached;
+      }
 
       // If no token, use raw URL (CDN-cached but no rate limits for public viewers)
       if (!this.token) {
@@ -513,25 +551,51 @@ class MerremiaConnector {
   // ═══════════════════════════════════════
 
   /**
-   * Start auto-refreshing data at an interval
-   * @param {number} intervalMs - Refresh interval in milliseconds (default: 5 min)
-   * @param {function} callback - Called with fresh data on each refresh
+   * Start auto-refreshing data with efficient change detection
+   * @param {number} checkIntervalMs - How often to check for changes (default: 2000ms = 2s)
+   * @param {function} onData - Called with fresh data when changes are detected
+   * @param {function} onCheck - Called on each check with status (optional)
    */
-  startAutoRefresh(intervalMs = 300000, callback) {
+  startAutoRefresh(checkIntervalMs = 2000, onData, onCheck = null) {
     this.stopAutoRefresh();
 
     // Initial fetch
-    this.fetchAll().then(data => callback?.(data));
+    this.fetchAll().then(data => onData?.(data));
 
+    // Set up periodic change checking
     this.refreshInterval = setInterval(async () => {
       try {
-        this.clearCache(); // Force fresh fetch
-        const data = await this.fetchAll();
-        callback?.(data);
+        onCheck?.({ checking: true });
+
+        // Quick check if data changed
+        const updateStatus = await this.checkForUpdates();
+
+        if (!updateStatus) {
+          // Check failed, fall back to full fetch less frequently
+          onCheck?.({ checking: false, error: true });
+          return;
+        }
+
+        if (updateStatus.changed) {
+          console.log('[Connector] Changes detected, fetching updated data...');
+          onCheck?.({ checking: false, updating: true });
+
+          // Data changed, fetch full update
+          this.clearCache();
+          const data = await this.fetchAll(true);
+          this._lastSha = updateStatus.sha;
+
+          onData?.(data);
+          onCheck?.({ checking: false, updating: false, updated: true });
+        } else {
+          // No changes
+          onCheck?.({ checking: false, noChanges: true });
+        }
       } catch (err) {
         this.onError('[Connector] Auto-refresh error:', err);
+        onCheck?.({ checking: false, error: true });
       }
-    }, intervalMs);
+    }, checkIntervalMs);
   }
 
   /**

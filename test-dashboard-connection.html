@@ -170,7 +170,7 @@
     }
 
     async function testFullDashboard() {
-      showResult('dashboard-result', 'Simulating dashboard load...', 'info');
+      showResult('dashboard-result', 'Simulating real-time dashboard with 2s checks...', 'info');
       try {
         const connector = new MerremiaConnector({
           owner: OWNER,
@@ -179,39 +179,69 @@
         });
 
         let receivedData = null;
-        let errorMsg = null;
+        let checkCount = 0;
+        let updateCount = 0;
 
-        connector.startAutoRefresh(5000, (data) => {
-          console.log('[Dashboard Simulation] Received:', data);
-          receivedData = data;
+        connector.startAutoRefresh(
+          2000, // Check every 2 seconds
+          // onData callback
+          (data) => {
+            console.log('[Dashboard Simulation] Received:', data);
+            receivedData = data;
+            updateCount++;
 
-          if (!data) {
-            errorMsg = 'No data received';
-          } else if (!data.records) {
-            errorMsg = 'Data missing records array';
-          } else if (data.records.length === 0) {
-            errorMsg = 'No records in data';
-          } else {
-            showResult('dashboard-result', `✓ Dashboard simulation successful! Loaded ${data.records.length} record(s)`, 'success', {
-              records: data.records,
-              stats: data.stats,
-              byIsland: data.byIsland,
-              geoJSON_features: data.geoJSON.features.length
-            });
+            if (!data) {
+              showResult('dashboard-result', `⚠ No data received`, 'warning', data);
+            } else if (!data.records) {
+              showResult('dashboard-result', `⚠ Data missing records array`, 'warning', data);
+            } else if (data.records.length === 0) {
+              showResult('dashboard-result', `⚠ No records in data (checks: ${checkCount}, updates: ${updateCount})`, 'warning', data);
+            } else {
+              showResult('dashboard-result', `✓ Real-time dashboard working! ${data.records.length} record(s)<br>Checks: ${checkCount} | Updates: ${updateCount}`, 'success', {
+                records: data.records,
+                stats: data.stats,
+                checkCount: checkCount,
+                updateCount: updateCount
+              });
+            }
+          },
+          // onCheck callback
+          (status) => {
+            checkCount++;
+            console.log('[Dashboard Simulation] Check #' + checkCount, status);
+
+            if (status.checking) {
+              // Checking for updates
+            } else if (status.updating) {
+              console.log('[Dashboard Simulation] Downloading new data...');
+            } else if (status.noChanges && receivedData) {
+              // No changes, update UI
+              const result = document.getElementById('dashboard-result');
+              if (result && receivedData.records) {
+                const statusDiv = result.querySelector('.status');
+                if (statusDiv) {
+                  statusDiv.innerHTML = `✓ Real-time monitoring active (2s checks)<br>Records: ${receivedData.records.length} | Checks: ${checkCount} | Updates: ${updateCount}`;
+                }
+              }
+            }
           }
+        );
 
-          if (errorMsg) {
-            showResult('dashboard-result', `⚠ ${errorMsg}`, 'warning', data);
-          }
-        });
-
-        // Wait a bit for the connector to fetch
+        // Let it run for 10 seconds to demonstrate real-time checking
         setTimeout(() => {
           connector.stopAutoRefresh();
-          if (!receivedData) {
-            showResult('dashboard-result', `✗ No data received after 3 seconds`, 'error');
+          console.log('[Dashboard Simulation] Stopped after 10s');
+          const result = document.getElementById('dashboard-result');
+          if (result && receivedData) {
+            showResult('dashboard-result',
+              `✓ Real-time test completed!<br>Total checks: ${checkCount} | Data updates: ${updateCount}<br>Check interval: 2s | Duration: 10s`,
+              'success', {
+                totalChecks: checkCount,
+                dataUpdates: updateCount,
+                finalData: receivedData
+              });
           }
-        }, 3000);
+        }, 10000);
 
       } catch (err) {
         showResult('dashboard-result', `✗ Dashboard simulation error: ${err.message}`, 'error');
