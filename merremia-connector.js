@@ -72,28 +72,79 @@ class MerremiaConnector {
   // ═══════════════════════════════════════
 
   /**
+   * Lightweight check if data has changed (checks file SHA without downloading content)
+   * Returns { changed: boolean, sha: string } or null on error
+   */
+  async checkForUpdates() {
+    try {
+      if (!this.token) {
+        // For public repos, check via API without auth (lower rate limit but works)
+        const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/data/all-records.json`, {
+          method: 'HEAD',
+          headers: { 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (response.ok) {
+          const etag = response.headers.get('ETag');
+          const changed = !this._lastETag || etag !== this._lastETag;
+          if (changed) this._lastETag = etag;
+          return { changed, sha: etag };
+        }
+      } else {
+        // With token, get SHA via API
+        const response = await fetch(`${this.apiURL}/data/all-records.json`, {
+          headers: this.authHeaders
+        });
+        if (response.ok) {
+          const data = await response.json();
+          const changed = !this._lastSha || data.sha !== this._lastSha;
+          return { changed, sha: data.sha };
+        }
+      }
+      return null;
+    } catch (err) {
+      console.error('[Connector] Update check failed:', err);
+      return null;
+    }
+  }
+
+  /**
    * Fetch all records and return processed data
    */
-  async fetchAll() {
+  async fetchAll(forceRefresh = false) {
     try {
-      // Try cache first
-      const cached = this.getCache();
-      if (cached) return cached;
+      // Try cache first (unless force refresh)
+      if (!forceRefresh) {
+        const cached = this.getCache();
+        if (cached) return cached;
+      }
 
       // If no token, use raw URL (CDN-cached but no rate limits for public viewers)
       if (!this.token) {
         try {
-          const response = await fetch(`${this.baseURL}/data/all-records.json`);
+          console.log('[Connector] Fetching from raw URL:', `${this.baseURL}/data/all-records.json`);
+          const response = await fetch(`${this.baseURL}/data/all-records.json`, {
+            cache: 'no-cache',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          console.log('[Connector] Response status:', response.status);
           if (response.ok) {
             const records = await response.json();
-            if (Array.isArray(records) && records.length > 0) {
+            console.log('[Connector] Fetched', Array.isArray(records) ? records.length : 0, 'raw records');
+            if (Array.isArray(records)) {
               const processed = this.processRecords(records);
+              console.log('[Connector] Processed', processed.records.length, 'records');
               this.setCache(processed);
               this.lastFetch = new Date();
               return processed;
+            } else {
+              console.warn('[Connector] Data is not an array:', typeof records);
             }
+          } else {
+            console.warn('[Connector] Fetch failed with status:', response.status);
           }
-        } catch (e) { /* fall through */ }
+        } catch (e) {
+          console.error('[Connector] Raw fetch error:', e);
+        }
         return this.emptyData();
       }
 
@@ -189,28 +240,39 @@ class MerremiaConnector {
    * Preserves all category-specific fields for multi-category support.
    */
   normalizeRecord(r) {
+    if (!r || !r.id) {
+      console.warn('[Connector] Invalid record - missing id:', r);
+      return null;
+    }
     // Start with all original fields (preserves category-specific data)
     const base = Object.assign({}, r);
     // Normalize common fields
     base.id = r.id;
-    base.timestamp = r.timestamp;
+    base.timestamp = r.timestamp || new Date().toISOString();
     base.category = r.category || 'merremia';
-    base.gps = {
-      lat: r.latitude || (r.gps && r.gps.lat),
-      lng: r.longitude || (r.gps && r.gps.lng),
-      accuracy: r.accuracy || (r.gps && r.gps.accuracy)
-    };
-    base.island = r.island;
-    base.siteName = r.siteName;
-    base.observer = r.observer;
+
+    // Handle GPS coordinates - support both formats
+    const lat = r.latitude || (r.gps && r.gps.lat) || null;
+    const lng = r.longitude || (r.gps && r.gps.lng) || null;
+    const accuracy = r.accuracy || (r.gps && r.gps.accuracy) || null;
+
+    base.gps = { lat, lng, accuracy };
+    base.latitude = lat;  // Add for backwards compatibility
+    base.longitude = lng;
+
+    base.island = r.island || 'Unknown';
+    base.siteName = r.siteName || '';
+    base.observer = r.observer || 'Unknown';
     base.notes = r.notes || '';
-    base.synced = r.synced;
-    // Normalize merremia-specific fields
-    if (base.category === 'merremia') {
-      base.species = Array.isArray(r.species) ? r.species : [r.species];
-      base.count = r.count || 1;
-      base.threatLevel = (r.threatLevel || 'low').toLowerCase();
-      base.coverageArea = r.coverageArea || 0;
+    base.synced = r.synced !== false; // Default to true
+    base.photoCount = r.photoCount || 0;
+
+    // Normalize merremia-specific fields (category could be missing in old data)
+    if (base.category === 'merremia' || !base.category) {
+      base.species = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : ['Unknown Merremia']);
+      base.count = (r.count !== null && r.count !== undefined && !isNaN(r.count)) ? r.count : 1;
+      base.threatLevel = r.threatLevel ? r.threatLevel.toLowerCase() : 'low';
+      base.coverageArea = (r.coverageArea !== null && r.coverageArea !== undefined && !isNaN(r.coverageArea)) ? r.coverageArea : 0;
     }
     return base;
   }
@@ -266,7 +328,12 @@ class MerremiaConnector {
     if (!Array.isArray(records) || records.length === 0) return this.emptyData();
 
     // Normalize all records (handles both field-collector and connector formats)
-    const normalized = records.map(r => this.normalizeRecord(r));
+    const normalized = records.map(r => this.normalizeRecord(r)).filter(r => r !== null);
+
+    if (normalized.length === 0) {
+      console.warn('[Connector] All records failed normalization');
+      return this.emptyData();
+    }
 
     // Sort by timestamp descending
     const sorted = [...normalized].sort((a, b) =>
@@ -484,25 +551,51 @@ class MerremiaConnector {
   // ═══════════════════════════════════════
 
   /**
-   * Start auto-refreshing data at an interval
-   * @param {number} intervalMs - Refresh interval in milliseconds (default: 5 min)
-   * @param {function} callback - Called with fresh data on each refresh
+   * Start auto-refreshing data with efficient change detection
+   * @param {number} checkIntervalMs - How often to check for changes (default: 2000ms = 2s)
+   * @param {function} onData - Called with fresh data when changes are detected
+   * @param {function} onCheck - Called on each check with status (optional)
    */
-  startAutoRefresh(intervalMs = 300000, callback) {
+  startAutoRefresh(checkIntervalMs = 2000, onData, onCheck = null) {
     this.stopAutoRefresh();
 
     // Initial fetch
-    this.fetchAll().then(data => callback?.(data));
+    this.fetchAll().then(data => onData?.(data));
 
+    // Set up periodic change checking
     this.refreshInterval = setInterval(async () => {
       try {
-        this.clearCache(); // Force fresh fetch
-        const data = await this.fetchAll();
-        callback?.(data);
+        onCheck?.({ checking: true });
+
+        // Quick check if data changed
+        const updateStatus = await this.checkForUpdates();
+
+        if (!updateStatus) {
+          // Check failed, fall back to full fetch less frequently
+          onCheck?.({ checking: false, error: true });
+          return;
+        }
+
+        if (updateStatus.changed) {
+          console.log('[Connector] Changes detected, fetching updated data...');
+          onCheck?.({ checking: false, updating: true });
+
+          // Data changed, fetch full update
+          this.clearCache();
+          const data = await this.fetchAll(true);
+          this._lastSha = updateStatus.sha;
+
+          onData?.(data);
+          onCheck?.({ checking: false, updating: false, updated: true });
+        } else {
+          // No changes
+          onCheck?.({ checking: false, noChanges: true });
+        }
       } catch (err) {
         this.onError('[Connector] Auto-refresh error:', err);
+        onCheck?.({ checking: false, error: true });
       }
-    }, intervalMs);
+    }, checkIntervalMs);
   }
 
   /**

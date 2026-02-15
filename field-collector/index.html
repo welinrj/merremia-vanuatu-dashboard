@@ -824,13 +824,17 @@
 
       // Category-specific fields and validation
       if (category === 'merremia') {
-        record.species = document.getElementById('f-species').value;
-        record.count = parseInt(document.getElementById('f-count').value) || 1;
-        record.threatLevel = document.getElementById('f-threat').value;
-        record.coverageArea = parseFloat(document.getElementById('f-area').value) || 0;
-        if (!record.species || !record.threatLevel) { showToast('Please fill in Species and Threat Level.', 'warn'); return; }
-        if (record.count < 1 || record.count > 100000) { showToast('Count must be between 1 and 100,000.', 'warn'); return; }
-        if (record.coverageArea < 0 || record.coverageArea > 50000) { showToast('Area must be between 0 and 50,000 hectares.', 'warn'); return; }
+        var speciesVal = document.getElementById('f-species').value;
+        var countVal = parseInt(document.getElementById('f-count').value);
+        var areaVal = parseFloat(document.getElementById('f-area').value);
+        record.species = speciesVal || 'Unknown Merremia';
+        record.count = (!isNaN(countVal) && countVal > 0) ? countVal : 1;
+        record.threatLevel = document.getElementById('f-threat').value || 'Low';
+        record.coverageArea = (!isNaN(areaVal) && areaVal >= 0) ? areaVal : 0;
+        if (!speciesVal) { showToast('Please select a Species.', 'warn'); return; }
+        if (!document.getElementById('f-threat').value) { showToast('Please select a Threat Level.', 'warn'); return; }
+        if (!isNaN(countVal) && (countVal < 1 || countVal > 100000)) { showToast('Count must be between 1 and 100,000.', 'warn'); return; }
+        if (!isNaN(areaVal) && (areaVal < 0 || areaVal > 50000)) { showToast('Area must be between 0 and 50,000 hectares.', 'warn'); return; }
       } else if (category === 'degraded') {
         record.degradationType = document.getElementById('f-deg-type').value;
         record.severity = document.getElementById('f-deg-severity').value;
