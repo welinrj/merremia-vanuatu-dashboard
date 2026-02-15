@@ -83,17 +83,30 @@ class MerremiaConnector {
       // If no token, use raw URL (CDN-cached but no rate limits for public viewers)
       if (!this.token) {
         try {
-          const response = await fetch(`${this.baseURL}/data/all-records.json`);
+          console.log('[Connector] Fetching from raw URL:', `${this.baseURL}/data/all-records.json`);
+          const response = await fetch(`${this.baseURL}/data/all-records.json`, {
+            cache: 'no-cache',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          console.log('[Connector] Response status:', response.status);
           if (response.ok) {
             const records = await response.json();
-            if (Array.isArray(records) && records.length > 0) {
+            console.log('[Connector] Fetched', Array.isArray(records) ? records.length : 0, 'raw records');
+            if (Array.isArray(records)) {
               const processed = this.processRecords(records);
+              console.log('[Connector] Processed', processed.records.length, 'records');
               this.setCache(processed);
               this.lastFetch = new Date();
               return processed;
+            } else {
+              console.warn('[Connector] Data is not an array:', typeof records);
             }
+          } else {
+            console.warn('[Connector] Fetch failed with status:', response.status);
           }
-        } catch (e) { /* fall through */ }
+        } catch (e) {
+          console.error('[Connector] Raw fetch error:', e);
+        }
         return this.emptyData();
       }
 
@@ -189,28 +202,39 @@ class MerremiaConnector {
    * Preserves all category-specific fields for multi-category support.
    */
   normalizeRecord(r) {
+    if (!r || !r.id) {
+      console.warn('[Connector] Invalid record - missing id:', r);
+      return null;
+    }
     // Start with all original fields (preserves category-specific data)
     const base = Object.assign({}, r);
     // Normalize common fields
     base.id = r.id;
-    base.timestamp = r.timestamp;
+    base.timestamp = r.timestamp || new Date().toISOString();
     base.category = r.category || 'merremia';
-    base.gps = {
-      lat: r.latitude || (r.gps && r.gps.lat),
-      lng: r.longitude || (r.gps && r.gps.lng),
-      accuracy: r.accuracy || (r.gps && r.gps.accuracy)
-    };
-    base.island = r.island;
-    base.siteName = r.siteName;
-    base.observer = r.observer;
+
+    // Handle GPS coordinates - support both formats
+    const lat = r.latitude || (r.gps && r.gps.lat) || null;
+    const lng = r.longitude || (r.gps && r.gps.lng) || null;
+    const accuracy = r.accuracy || (r.gps && r.gps.accuracy) || null;
+
+    base.gps = { lat, lng, accuracy };
+    base.latitude = lat;  // Add for backwards compatibility
+    base.longitude = lng;
+
+    base.island = r.island || 'Unknown';
+    base.siteName = r.siteName || '';
+    base.observer = r.observer || 'Unknown';
     base.notes = r.notes || '';
-    base.synced = r.synced;
-    // Normalize merremia-specific fields
-    if (base.category === 'merremia') {
-      base.species = Array.isArray(r.species) ? r.species : [r.species];
-      base.count = r.count || 1;
-      base.threatLevel = (r.threatLevel || 'low').toLowerCase();
-      base.coverageArea = r.coverageArea || 0;
+    base.synced = r.synced !== false; // Default to true
+    base.photoCount = r.photoCount || 0;
+
+    // Normalize merremia-specific fields (category could be missing in old data)
+    if (base.category === 'merremia' || !base.category) {
+      base.species = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : ['Unknown Merremia']);
+      base.count = (r.count !== null && r.count !== undefined && !isNaN(r.count)) ? r.count : 1;
+      base.threatLevel = r.threatLevel ? r.threatLevel.toLowerCase() : 'low';
+      base.coverageArea = (r.coverageArea !== null && r.coverageArea !== undefined && !isNaN(r.coverageArea)) ? r.coverageArea : 0;
     }
     return base;
   }
@@ -266,7 +290,12 @@ class MerremiaConnector {
     if (!Array.isArray(records) || records.length === 0) return this.emptyData();
 
     // Normalize all records (handles both field-collector and connector formats)
-    const normalized = records.map(r => this.normalizeRecord(r));
+    const normalized = records.map(r => this.normalizeRecord(r)).filter(r => r !== null);
+
+    if (normalized.length === 0) {
+      console.warn('[Connector] All records failed normalization');
+      return this.emptyData();
+    }
 
     // Sort by timestamp descending
     const sorted = [...normalized].sort((a, b) =>

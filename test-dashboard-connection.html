@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Connection Test</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #f8fafc;
+    }
+    .test-section {
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    h1 { color: #065f46; }
+    h2 { color: #334155; font-size: 1.2rem; margin-top: 0; }
+    pre {
+      background: #1e293b;
+      color: #ecfdf5;
+      padding: 15px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+    }
+    .status {
+      padding: 10px 15px;
+      border-radius: 6px;
+      margin: 10px 0;
+      font-weight: 600;
+    }
+    .success { background: #d1fae5; color: #065f46; border: 1px solid #10b981; }
+    .error { background: #fee2e2; color: #991b1b; border: 1px solid #ef4444; }
+    .warning { background: #fef3c7; color: #92400e; border: 1px solid #f59e0b; }
+    .info { background: #dbeafe; color: #1e40af; border: 1px solid #3b82f6; }
+    button {
+      background: #065f46;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+      margin-right: 10px;
+    }
+    button:hover { background: #047857; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Dashboard Connection Diagnostic</h1>
+
+  <div class="test-section">
+    <h2>1. GitHub Repository Test</h2>
+    <button onclick="testRepoAccess()">Test Repository Access</button>
+    <div id="repo-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>2. Raw Data Fetch Test</h2>
+    <button onclick="testRawDataFetch()">Test Raw Data URL</button>
+    <div id="raw-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>3. Connector Test</h2>
+    <button onclick="testConnector()">Test MerremiaConnector</button>
+    <div id="connector-result"></div>
+  </div>
+
+  <div class="test-section">
+    <h2>4. Full Dashboard Simulation</h2>
+    <button onclick="testFullDashboard()">Simulate Dashboard Load</button>
+    <div id="dashboard-result"></div>
+  </div>
+
+  <script src="merremia-connector.js"></script>
+  <script>
+    const OWNER = 'welinrj';
+    const REPO = 'merremia-field-data';
+    const RAW_URL = `https://raw.githubusercontent.com/${OWNER}/${REPO}/main/data/all-records.json`;
+    const API_URL = `https://api.github.com/repos/${OWNER}/${REPO}`;
+
+    function showResult(elementId, message, type = 'info', data = null) {
+      const el = document.getElementById(elementId);
+      let html = `<div class="status ${type}">${message}</div>`;
+      if (data) {
+        html += `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+      }
+      el.innerHTML = html;
+    }
+
+    async function testRepoAccess() {
+      showResult('repo-result', 'Testing...', 'info');
+      try {
+        const resp = await fetch(API_URL);
+        if (resp.ok) {
+          const data = await resp.json();
+          showResult('repo-result', `✓ Repository exists: ${data.full_name}`, 'success', {
+            private: data.private,
+            size: data.size,
+            updated_at: data.updated_at
+          });
+        } else {
+          showResult('repo-result', `✗ Repository not accessible (${resp.status})`, 'error');
+        }
+      } catch (err) {
+        showResult('repo-result', `✗ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function testRawDataFetch() {
+      showResult('raw-result', 'Fetching...', 'info');
+      try {
+        const resp = await fetch(RAW_URL, {
+          cache: 'no-cache',
+          headers: { 'Cache-Control': 'no-cache' }
+        });
+        console.log('Raw fetch response:', resp.status, resp.headers);
+        if (resp.ok) {
+          const records = await resp.json();
+          if (Array.isArray(records)) {
+            showResult('raw-result', `✓ Fetched ${records.length} record(s)`, 'success', records);
+          } else {
+            showResult('raw-result', `✗ Invalid data format (not an array)`, 'error', records);
+          }
+        } else {
+          showResult('raw-result', `✗ Fetch failed (${resp.status})`, 'error');
+        }
+      } catch (err) {
+        showResult('raw-result', `✗ Error: ${err.message}`, 'error');
+      }
+    }
+
+    async function testConnector() {
+      showResult('connector-result', 'Testing connector...', 'info');
+      try {
+        const connector = new MerremiaConnector({
+          owner: OWNER,
+          repo: REPO,
+          cacheTTL: 0,
+          onError: (msg, err) => {
+            console.error('[Test Connector]', msg, err);
+          }
+        });
+
+        const data = await connector.fetchAll();
+        console.log('Connector data:', data);
+
+        if (data && data.records && data.records.length > 0) {
+          showResult('connector-result', `✓ Connector fetched ${data.records.length} record(s)`, 'success', {
+            totalRecords: data.totalRecords,
+            stats: data.stats,
+            firstRecord: data.records[0]
+          });
+        } else if (data && data.records && data.records.length === 0) {
+          showResult('connector-result', `⚠ Connector working but no records found`, 'warning', data);
+        } else {
+          showResult('connector-result', `✗ Invalid connector response`, 'error', data);
+        }
+      } catch (err) {
+        showResult('connector-result', `✗ Connector error: ${err.message}`, 'error');
+      }
+    }
+
+    async function testFullDashboard() {
+      showResult('dashboard-result', 'Simulating dashboard load...', 'info');
+      try {
+        const connector = new MerremiaConnector({
+          owner: OWNER,
+          repo: REPO,
+          cacheTTL: 0
+        });
+
+        let receivedData = null;
+        let errorMsg = null;
+
+        connector.startAutoRefresh(5000, (data) => {
+          console.log('[Dashboard Simulation] Received:', data);
+          receivedData = data;
+
+          if (!data) {
+            errorMsg = 'No data received';
+          } else if (!data.records) {
+            errorMsg = 'Data missing records array';
+          } else if (data.records.length === 0) {
+            errorMsg = 'No records in data';
+          } else {
+            showResult('dashboard-result', `✓ Dashboard simulation successful! Loaded ${data.records.length} record(s)`, 'success', {
+              records: data.records,
+              stats: data.stats,
+              byIsland: data.byIsland,
+              geoJSON_features: data.geoJSON.features.length
+            });
+          }
+
+          if (errorMsg) {
+            showResult('dashboard-result', `⚠ ${errorMsg}`, 'warning', data);
+          }
+        });
+
+        // Wait a bit for the connector to fetch
+        setTimeout(() => {
+          connector.stopAutoRefresh();
+          if (!receivedData) {
+            showResult('dashboard-result', `✗ No data received after 3 seconds`, 'error');
+          }
+        }, 3000);
+
+      } catch (err) {
+        showResult('dashboard-result', `✗ Dashboard simulation error: ${err.message}`, 'error');
+      }
+    }
+
+    // Auto-run all tests on load
+    window.addEventListener('load', () => {
+      console.log('Running automatic diagnostics...');
+      setTimeout(testRepoAccess, 500);
+      setTimeout(testRawDataFetch, 1000);
+      setTimeout(testConnector, 1500);
+      setTimeout(testFullDashboard, 2000);
+    });
+  </script>
+</body>
+</html>

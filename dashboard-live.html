@@ -341,32 +341,55 @@
       var repo = document.getElementById('cfg-repo').value.trim();
       var token = document.getElementById('cfg-token').value.trim();
       var status = document.getElementById('status-msg');
-      if (!owner) { status.textContent = 'Error loading'; status.className = 'status-msg err'; return; }
+      if (!owner) { status.textContent = 'Error: Owner required'; status.className = 'status-msg err'; return; }
+      if (!repo) { status.textContent = 'Error: Repo required'; status.className = 'status-msg err'; return; }
       localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo, token: token }));
-      status.textContent = 'Loading...'; status.className = 'status-msg';
+      status.textContent = 'Connecting to ' + owner + '/' + repo + '...'; status.className = 'status-msg';
       if (liveConnector) liveConnector.stopAutoRefresh();
       lastDataSha = null;
-      liveConnector = new MerremiaConnector({ owner: owner, repo: repo, token: token, cacheTTL: 3000, onError: function(msg, err) {
-        var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-        status.textContent = 'Connection error — retrying... (' + now + ')';
-        status.className = 'status-msg err';
-        console.error(msg, err);
-      }});
+      liveConnector = new MerremiaConnector({
+        owner: owner,
+        repo: repo,
+        token: token,
+        cacheTTL: 0, // Disable cache for real-time updates
+        onError: function(msg, err) {
+          var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          status.textContent = 'Connection error — retrying... (' + now + ')';
+          status.className = 'status-msg err';
+          console.error('[Dashboard]', msg, err);
+        }
+      });
       liveConnector.startAutoRefresh(REFRESH_INTERVAL, function(data) {
-        if (!data || !data.records || data.records.length === 0) {
+        console.log('[Dashboard] Received data:', data);
+        if (!data) {
+          status.textContent = 'Error: No data received — checking every 5s...';
+          status.className = 'status-msg err';
+          return;
+        }
+        if (!data.records) {
+          status.textContent = 'Error: Invalid data format — checking every 5s...';
+          status.className = 'status-msg err';
+          console.error('[Dashboard] Data missing records array:', data);
+          return;
+        }
+        if (data.records.length === 0) {
           status.textContent = 'No records found yet — checking every 5s...';
           status.className = 'status-msg err';
+          allRecordsData = [];
+          renderForTab();
           return;
         }
         var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         var currentSha = liveConnector._lastSha || '';
-        if (currentSha !== lastDataSha) {
+        // Always update on first load or when SHA changes
+        if (!lastDataSha || currentSha !== lastDataSha) {
           allRecordsData = data.records;
+          console.log('[Dashboard] Loaded ' + allRecordsData.length + ' records');
           renderForTab();
           lastDataSha = currentSha;
         }
         enableDownloadButtons(data);
-        status.textContent = data.records.length + ' records \u2014 live (' + now + ')';
+        status.textContent = data.records.length + ' record' + (data.records.length === 1 ? '' : 's') + ' \u2014 live (' + now + ')';
         status.className = 'status-msg ok';
       });
     }
