@@ -201,7 +201,6 @@ const GISDatabase: FC = () => {
       if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
       if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
       if (parts.length === 0) parts.push('Already in sync')
-      if (!config.token) parts.push('(pull-only — no token)')
 
       setSyncStatus(parts.join(', '))
       setLastSync(new Date().toISOString())
