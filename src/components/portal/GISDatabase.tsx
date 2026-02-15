@@ -1,474 +1,443 @@
-import { useState, useCallback, useEffect, useRef, type FC } from 'react'
-import type { DatasetSummary, GeoDataset } from '../../types/geospatial'
+import React, { useState, useEffect } from 'react';
+import { Upload, Search, Download, Map, Filter, FileText, Database, Lock, Globe, Shield } from 'lucide-react';
+import type {
+  GISDataset,
+  GISMetadata,
+  GISCategory,
+  AccessClassification,
+  UpdateFrequency,
+  DataFormat,
+  GISSearchFilters,
+  GeometryType
+} from '../types/gis';
 import {
-  listDatasets,
-  getDataset,
-  deleteDataset,
-  exportAllDatasets,
-  importDatasets,
-  getStorageEstimate,
-  formatBytes,
-  migrateFromLocalStorage,
-  onDatasetsChanged,
-} from '../../services/datasetStore'
-import {
-  syncDatasets,
-  getSyncSettings,
-  getSyncState,
-  deleteRemoteDataset,
-} from '../../services/githubSync'
-import DatasetUpload from './DatasetUpload'
-import MapViewer from './MapViewer'
-import './DataPortal.css'
-import './GISDatabase.css'
+  CATEGORY_LABELS,
+  CATEGORY_ICONS,
+  ACCESS_ICONS,
+  generateFileName,
+  isValidGeoJSON
+} from '../types/gis';
+import { UploadView, MetadataCatalogView, MetadataModal } from './GISUpload';
 
-interface GISDatabaseProps {
-  onNavigate?: (section: string) => void
-}
+export default function GISDatabase() {
+  const [datasets, setDatasets] = useState<GISDataset[]>([]);
+  const [filteredDatasets, setFilteredDatasets] = useState<GISDataset[]>([]);
+  const [view, setView] = useState<'browse' | 'upload' | 'metadata'>('browse');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<GISSearchFilters>({});
+  const [selectedDataset, setSelectedDataset] = useState<GISDataset | null>(null);
+  const [showMetadataModal, setShowMetadataModal] = useState(false);
 
-type DbView = 'browse' | 'upload'
-
-const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
-  const [view, setView] = useState<DbView>('browse')
-  const [datasets, setDatasets] = useState<DatasetSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [storageUsed, setStorageUsed] = useState<number | null>(null)
-  const [storageQuota, setStorageQuota] = useState<number | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [preview, setPreview] = useState<GeoDataset | null>(null)
-  const [importStatus, setImportStatus] = useState('')
-  const backupInputRef = useRef<HTMLInputElement>(null)
-
-  // GitHub sync state
-  const [syncing, setSyncing] = useState(false)
-  const [syncStatus, setSyncStatus] = useState('')
-  const [lastSync, setLastSync] = useState<string | null>(null)
-
-  // Load sync state on mount
+  // Load datasets from localStorage
   useEffect(() => {
-    const state = getSyncState()
-    setLastSync(state.lastSync)
-  }, [])
-
-  const refresh = useCallback(async () => {
-    const list = await listDatasets()
-    setDatasets(list)
-    const est = await getStorageEstimate()
-    if (est) {
-      setStorageUsed(est.used)
-      setStorageQuota(est.quota)
-    }
-  }, [])
-
-  // Auto-sync on mount: migrate, pull from GitHub, then subscribe to real-time updates
-  useEffect(() => {
-    let cancelled = false
-    let unsubscribe: (() => void) | undefined
-
-    async function initialLoad() {
-      await migrateFromLocalStorage()
+    const stored = localStorage.getItem('depc-gis-datasets');
+    if (stored) {
       try {
-        const config = getSyncSettings()
-        const result = await syncDatasets(config)
-        if (!cancelled && (result.pulled > 0 || result.pushed > 0)) {
-          setLastSync(new Date().toISOString())
-        }
-      } catch {
-        // silent — manual sync still available
-      }
-      if (!cancelled) {
-        // Subscribe to real-time updates for cross-device sync
-        unsubscribe = onDatasetsChanged((list) => {
-          if (!cancelled) setDatasets(list)
-        })
-        setLoading(false)
+        const loaded = JSON.parse(stored);
+        setDatasets(loaded);
+        setFilteredDatasets(loaded);
+      } catch (e) {
+        console.error('Failed to load GIS datasets:', e);
       }
     }
-    initialLoad()
-    return () => {
-      cancelled = true
-      unsubscribe?.()
+  }, []);
+
+  // Save datasets to localStorage
+  useEffect(() => {
+    if (datasets.length > 0) {
+      localStorage.setItem('depc-gis-datasets', JSON.stringify(datasets));
     }
-  }, [])
+  }, [datasets]);
 
-  const totalFeatures = datasets.reduce((sum, d) => sum + d.featureCount, 0)
-  const totalSize = datasets.reduce((sum, d) => sum + d.sizeBytes, 0)
+  // Filter datasets
+  useEffect(() => {
+    let filtered = datasets;
 
-  async function handlePreview(id: string) {
-    if (selectedId === id) {
-      setSelectedId(null)
-      setPreview(null)
-      return
-    }
-    setSelectedId(id)
-    const ds = await getDataset(id)
-    setPreview(ds)
-  }
-
-  // Fire-and-forget push to GitHub after local mutation
-  function backgroundSync() {
-    const config = getSyncSettings()
-    if (!config.token) return
-    syncDatasets(config)
-      .then((r) => {
-        if (r.pushed > 0 || r.pulled > 0) setLastSync(new Date().toISOString())
-      })
-      .catch(() => { /* silent — manual sync still available */ })
-  }
-
-  async function handleDelete(id: string) {
-    const ds = datasets.find((d) => d.id === id)
-    if (!window.confirm(`Delete "${ds?.metadata.name}"? This cannot be undone.`)) return
-    await deleteDataset(id)
-    // Also delete from GitHub
-    const config = getSyncSettings()
-    if (config.token) {
-      deleteRemoteDataset(id, config).catch(() => { /* silent */ })
-    }
-    if (selectedId === id) {
-      setSelectedId(null)
-      setPreview(null)
-    }
-    await refresh()
-  }
-
-  async function handleExportAll() {
-    const all = await exportAllDatasets()
-    const json = JSON.stringify(all, null, 2)
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `vcap2-gis-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function handleImportFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setImportStatus('Importing...')
-    try {
-      const text = await file.text()
-      const data = JSON.parse(text)
-
-      let toImport: GeoDataset[]
-      if (Array.isArray(data)) {
-        toImport = data
-      } else if (data.type === 'FeatureCollection' || data.type === 'Feature' || data.coordinates) {
-        setImportStatus('This is a GIS file — use the "Upload Dataset" button to add it to the database.')
-        return
-      } else {
-        setImportStatus('Invalid backup file format.')
-        return
-      }
-
-      const result = await importDatasets(toImport)
-      await refresh()
-      setImportStatus(
-        `Imported ${result.imported} dataset${result.imported !== 1 ? 's' : ''}` +
-        (result.skipped > 0 ? `, ${result.skipped} already existed` : ''),
-      )
-    } catch {
-      setImportStatus('Failed to import — invalid file format.')
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(d =>
+        d.metadata.datasetName.toLowerCase().includes(term) ||
+        d.metadata.description.toLowerCase().includes(term) ||
+        d.metadata.keywords.some(k => k.toLowerCase().includes(term))
+      );
     }
 
-    if (backupInputRef.current) backupInputRef.current.value = ''
-  }
-
-  async function handleExportOne(id: string) {
-    const ds = await getDataset(id)
-    if (!ds) return
-    const json = JSON.stringify(ds.data, null, 2)
-    const blob = new Blob([json], { type: 'application/geo+json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${ds.metadata.name.replace(/\s+/g, '_')}.geojson`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function handleSync() {
-    const config = getSyncSettings()
-
-    setSyncing(true)
-    setSyncStatus('Syncing with GitHub...')
-
-    try {
-      const result = await syncDatasets(config)
-      await refresh()
-
-      const parts: string[] = []
-      if (result.pushed > 0) parts.push(`${result.pushed} pushed`)
-      if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
-      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
-      if (parts.length === 0) parts.push('Already in sync')
-      if (!config.token) parts.push('(pull-only — no token)')
-
-      setSyncStatus(parts.join(', '))
-      setLastSync(new Date().toISOString())
-    } catch (err) {
-      setSyncStatus(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
+    if (filters.category) {
+      filtered = filtered.filter(d => d.metadata.category === filters.category);
     }
-  }
 
-  if (loading) {
-    return (
-      <div className="data-portal">
-        <div className="portal-toolbar">
-          <div className="portal-toolbar-left">
-            <h2>GIS Database</h2>
-            <span className="dataset-count">Loading...</span>
-          </div>
-        </div>
-      </div>
-    )
-  }
+    if (filters.accessClassification) {
+      filtered = filtered.filter(d => d.metadata.accessClassification === filters.accessClassification);
+    }
 
-  if (view === 'upload') {
-    return (
-      <div className="data-portal">
-        <DatasetUpload
-          onUploaded={async () => {
-            backgroundSync()
-            await refresh()
-            setView('browse')
-            setImportStatus('Dataset uploaded and stored to database.')
-          }}
-          onCancel={() => setView('browse')}
-        />
-      </div>
-    )
-  }
+    if (filters.custodian) {
+      filtered = filtered.filter(d => d.metadata.custodianAgency.toLowerCase().includes(filters.custodian!.toLowerCase()));
+    }
+
+    setFilteredDatasets(filtered);
+  }, [searchTerm, filters, datasets]);
+
+  const handleAddDataset = (dataset: GISDataset) => {
+    setDatasets(prev => [...prev, dataset]);
+  };
+
+  const handleDeleteDataset = (id: string) => {
+    if (confirm('Are you sure you want to delete this dataset?')) {
+      setDatasets(prev => prev.filter(d => d.metadata.id !== id));
+    }
+  };
+
+  const handleDownloadMetadata = (dataset: GISDataset) => {
+    const blob = new Blob([JSON.stringify(dataset.metadata, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${dataset.metadata.fileName.replace(/\.[^.]+$/, '')}_metadata.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadData = (dataset: GISDataset) => {
+    if (!dataset.data) {
+      alert('No data available for download');
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(dataset.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = dataset.metadata.fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const getCategoryStats = () => {
+    const stats: Record<string, number> = {};
+    datasets.forEach(d => {
+      stats[d.metadata.category] = (stats[d.metadata.category] || 0) + 1;
+    });
+    return stats;
+  };
 
   return (
-    <div className="data-portal">
-      <div className="portal-toolbar">
-        <div className="portal-toolbar-left">
-          <h2>GIS Database</h2>
-          <span className="dataset-count">
-            {datasets.length} dataset{datasets.length !== 1 ? 's' : ''} stored
-          </span>
+    <div className="h-full flex flex-col bg-gray-50">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-emerald-800 to-emerald-600 text-white p-6 shadow-lg">
+        <div className="flex items-center gap-3 mb-2">
+          <Database className="w-8 h-8" />
+          <h1 className="text-2xl font-bold">DEPC GIS Database</h1>
         </div>
-        <div className="portal-toolbar-right">
-          <input
-            ref={backupInputRef}
-            type="file"
-            accept=".json"
-            onChange={handleImportFile}
-            hidden
-          />
+        <p className="text-emerald-100 text-sm">
+          Centralized geospatial data repository • ISO 19115 compliant
+        </p>
+
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-4 mt-4">
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <div className="text-2xl font-bold">{datasets.length}</div>
+            <div className="text-xs text-emerald-100">Total Datasets</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <div className="text-2xl font-bold">
+              {datasets.filter(d => d.metadata.accessClassification === 'Public').length}
+            </div>
+            <div className="text-xs text-emerald-100">Public</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <div className="text-2xl font-bold">
+              {datasets.filter(d => d.metadata.format === 'GeoJSON').length}
+            </div>
+            <div className="text-xs text-emerald-100">GeoJSON</div>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-3">
+            <div className="text-2xl font-bold">
+              {Object.keys(getCategoryStats()).length}
+            </div>
+            <div className="text-xs text-emerald-100">Categories</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="flex">
           <button
-            className="btn btn-secondary"
-            onClick={() => backupInputRef.current?.click()}
+            onClick={() => setView('browse')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+              view === 'browse'
+                ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50'
+                : 'text-gray-600 hover:text-emerald-700 hover:bg-gray-50'
+            }`}
           >
-            Restore Backup
+            <Database className="w-4 h-4" />
+            Browse Datasets
           </button>
           <button
-            className="btn btn-secondary"
-            onClick={handleExportAll}
-            disabled={datasets.length === 0}
-          >
-            Export Backup
-          </button>
-          <button
-            className="btn btn-primary"
             onClick={() => setView('upload')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+              view === 'upload'
+                ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50'
+                : 'text-gray-600 hover:text-emerald-700 hover:bg-gray-50'
+            }`}
           >
+            <Upload className="w-4 h-4" />
             Upload Dataset
           </button>
-        </div>
-      </div>
-
-      {importStatus && (
-        <div className="db-import-status" role="status">
-          {importStatus}
-          <button className="db-dismiss" onClick={() => setImportStatus('')} aria-label="Dismiss">
-            &times;
+          <button
+            onClick={() => setView('metadata')}
+            className={`flex items-center gap-2 px-6 py-3 font-medium transition-colors ${
+              view === 'metadata'
+                ? 'text-emerald-700 border-b-2 border-emerald-600 bg-emerald-50'
+                : 'text-gray-600 hover:text-emerald-700 hover:bg-gray-50'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Metadata Catalog
           </button>
         </div>
-      )}
-
-      {/* Storage stats */}
-      <div className="db-stats-grid">
-        <div className="db-stat-card">
-          <span className="db-stat-value">{datasets.length}</span>
-          <span className="db-stat-label">Datasets</span>
-        </div>
-        <div className="db-stat-card">
-          <span className="db-stat-value">{totalFeatures.toLocaleString()}</span>
-          <span className="db-stat-label">Total Features</span>
-        </div>
-        <div className="db-stat-card">
-          <span className="db-stat-value">{formatBytes(totalSize)}</span>
-          <span className="db-stat-label">Data Size</span>
-        </div>
-        <div className="db-stat-card">
-          <span className="db-stat-value">
-            {storageQuota ? formatBytes(storageQuota - (storageUsed ?? 0)) : 'N/A'}
-          </span>
-          <span className="db-stat-label">Storage Available</span>
-        </div>
       </div>
 
-      {storageUsed != null && storageQuota != null && storageQuota > 0 && (
-        <div className="db-storage-bar-container">
-          <div className="db-storage-bar">
-            <div
-              className="db-storage-bar-fill"
-              style={{ width: `${Math.min((storageUsed / storageQuota) * 100, 100)}%` }}
-            />
-          </div>
-          <span className="db-storage-text">
-            {formatBytes(storageUsed)} of {formatBytes(storageQuota)} used
-          </span>
-        </div>
-      )}
+      {/* Content */}
+      <div className="flex-1 overflow-auto">
+        {view === 'browse' && (
+          <BrowseView
+            datasets={filteredDatasets}
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            filters={filters}
+            setFilters={setFilters}
+            onDownloadMetadata={handleDownloadMetadata}
+            onDownloadData={handleDownloadData}
+            onDelete={handleDeleteDataset}
+            onViewDetails={(dataset) => {
+              setSelectedDataset(dataset);
+              setShowMetadataModal(true);
+            }}
+          />
+        )}
 
-      {/* GitHub Sync */}
-      <div className="db-sync-section">
-        <div className="db-sync-row">
-          <div className="db-sync-info">
-            <strong>GitHub Sync</strong>
-            {lastSync && (
-              <span className="db-sync-last">
-                Last sync: {new Date(lastSync).toLocaleString()}
-              </span>
-            )}
-          </div>
-          <div className="db-sync-actions">
-            <button
-              className="btn btn-sm btn-primary"
-              onClick={handleSync}
-              disabled={syncing}
-            >
-              {syncing ? 'Syncing...' : 'Sync Now'}
-            </button>
-          </div>
-        </div>
-        {syncStatus && (
-          <div className="db-sync-status" role="status">
-            {syncStatus}
-            <button className="db-dismiss" onClick={() => setSyncStatus('')} aria-label="Dismiss">
-              &times;
-            </button>
-          </div>
+        {view === 'upload' && (
+          <UploadView onAddDataset={handleAddDataset} />
+        )}
+
+        {view === 'metadata' && (
+          <MetadataCatalogView
+            datasets={datasets}
+            onDownloadMetadata={handleDownloadMetadata}
+          />
         )}
       </div>
 
-      {/* Dataset table */}
-      {datasets.length === 0 ? (
-        <div className="portal-empty">
-          <p>No datasets in the database yet.</p>
-          <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            Click <strong>Upload Dataset</strong> to add GIS files (GeoJSON, CSV, KML), or use <strong>Restore Backup</strong> to import a previous export.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => setView('upload')}
-            >
-              Upload Your First Dataset
-            </button>
-            {onNavigate && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => onNavigate('data-portal')}
-              >
-                Go to Data Portal
-              </button>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div className="table-container">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Format</th>
-                <th>Features</th>
-                <th>Size</th>
-                <th>Status</th>
-                <th>Stored</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {datasets.map((ds) => (
-                <tr key={ds.id} className={selectedId === ds.id ? 'db-row-selected' : ''}>
-                  <td>
-                    <button className="link-button" onClick={() => handlePreview(ds.id)}>
-                      {ds.metadata.name}
-                    </button>
-                    {ds.metadata.description && (
-                      <span className="dataset-description">{ds.metadata.description}</span>
-                    )}
-                  </td>
-                  <td>
-                    <span className="badge badge-format">{ds.format.toUpperCase()}</span>
-                  </td>
-                  <td>{ds.featureCount.toLocaleString()}</td>
-                  <td>{formatBytes(ds.sizeBytes)}</td>
-                  <td>
-                    <span className={`badge badge-${ds.metadata.status}`}>
-                      {ds.metadata.status}
-                    </span>
-                  </td>
-                  <td>{new Date(ds.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <div className="action-buttons">
-                      <button
-                        className="btn btn-sm"
-                        onClick={() => handleExportOne(ds.id)}
-                        title="Download as GeoJSON"
-                      >
-                        Download
-                      </button>
-                      <button
-                        className="btn btn-sm btn-danger"
-                        onClick={() => handleDelete(ds.id)}
-                        title="Delete from database"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {/* Map preview */}
-      {preview && (
-        <div className="db-preview">
-          <div className="db-preview-header">
-            <h3>Preview: {preview.metadata.name}</h3>
-            <button className="btn btn-sm" onClick={() => { setSelectedId(null); setPreview(null) }}>
-              Close
-            </button>
-          </div>
-          <div className="db-preview-meta">
-            <span>{preview.featureCount} features</span>
-            <span>{preview.format.toUpperCase()}</span>
-            <span>{formatBytes(preview.sizeBytes)}</span>
-            {preview.bbox && (
-              <span>
-                Bbox: [{preview.bbox.map((v) => v.toFixed(2)).join(', ')}]
-              </span>
-            )}
-          </div>
-          <MapViewer data={preview.data} height="350px" />
-        </div>
+      {/* Metadata Modal */}
+      {showMetadataModal && selectedDataset && (
+        <MetadataModal
+          dataset={selectedDataset}
+          onClose={() => {
+            setShowMetadataModal(false);
+            setSelectedDataset(null);
+          }}
+          onDownload={handleDownloadMetadata}
+        />
       )}
     </div>
-  )
+  );
 }
 
-export default GISDatabase
+// Browse View Component
+function BrowseView({
+  datasets,
+  searchTerm,
+  setSearchTerm,
+  filters,
+  setFilters,
+  onDownloadMetadata,
+  onDownloadData,
+  onDelete,
+  onViewDetails
+}: any) {
+  return (
+    <div className="p-6">
+      {/* Search and Filters */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+        <div className="grid grid-cols-4 gap-4">
+          <div className="col-span-2">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search datasets, keywords..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+            </div>
+          </div>
+
+          <select
+            value={filters.category || ''}
+            onChange={(e) => setFilters({ ...filters, category: e.target.value as GISCategory || undefined })}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="">All Categories</option>
+            {Object.entries(CATEGORY_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+
+          <select
+            value={filters.accessClassification || ''}
+            onChange={(e) => setFilters({ ...filters, accessClassification: e.target.value as AccessClassification || undefined })}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+          >
+            <option value="">All Access Levels</option>
+            <option value="Public">Public</option>
+            <option value="Restricted">Restricted</option>
+            <option value="Confidential">Confidential</option>
+          </select>
+        </div>
+
+        {Object.keys(filters).filter(k => filters[k as keyof GISSearchFilters]).length > 0 && (
+          <button
+            onClick={() => setFilters({})}
+            className="mt-3 text-sm text-emerald-700 hover:text-emerald-800 font-medium"
+          >
+            Clear all filters
+          </button>
+        )}
+      </div>
+
+      {/* Results */}
+      <div className="grid gap-4">
+        {datasets.length === 0 ? (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+            <Database className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-lg font-medium">No datasets found</p>
+            <p className="text-gray-400 text-sm mt-1">
+              {searchTerm || Object.keys(filters).length > 0
+                ? 'Try adjusting your search or filters'
+                : 'Upload your first dataset to get started'}
+            </p>
+          </div>
+        ) : (
+          datasets.map((dataset: GISDataset) => (
+            <DatasetCard
+              key={dataset.metadata.id}
+              dataset={dataset}
+              onDownloadMetadata={onDownloadMetadata}
+              onDownloadData={onDownloadData}
+              onDelete={onDelete}
+              onViewDetails={onViewDetails}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Dataset Card Component
+function DatasetCard({ dataset, onDownloadMetadata, onDownloadData, onDelete, onViewDetails }: any) {
+  const { metadata } = dataset;
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+      <div className="p-5">
+        <div className="flex items-start justify-between mb-3">
+          <div className="flex items-center gap-3">
+            <div className="text-3xl">
+              {CATEGORY_ICONS[metadata.category]}
+            </div>
+            <div>
+              <h3 className="font-bold text-lg text-gray-900">{metadata.datasetName}</h3>
+              <p className="text-sm text-gray-500">{CATEGORY_LABELS[metadata.category]}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+              metadata.accessClassification === 'Public'
+                ? 'bg-green-100 text-green-800'
+                : metadata.accessClassification === 'Restricted'
+                ? 'bg-yellow-100 text-yellow-800'
+                : 'bg-red-100 text-red-800'
+            }`}>
+              {ACCESS_ICONS[metadata.accessClassification]} {metadata.accessClassification}
+            </span>
+            <span className="px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+              {metadata.format}
+            </span>
+          </div>
+        </div>
+
+        <p className="text-gray-700 text-sm mb-4 line-clamp-2">{metadata.description}</p>
+
+        <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm mb-4">
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="font-medium">Custodian:</span>
+            <span>{metadata.custodianAgency}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="font-medium">Coverage:</span>
+            <span>{metadata.geographicCoverage}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="font-medium">Updated:</span>
+            <span>{new Date(metadata.dateUpdated).toLocaleDateString()}</span>
+          </div>
+          <div className="flex items-center gap-2 text-gray-600">
+            <span className="font-medium">CRS:</span>
+            <span>{metadata.coordinateReferenceSystem}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          {metadata.keywords.slice(0, 4).map((keyword, idx) => (
+            <span key={idx} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+              {keyword}
+            </span>
+          ))}
+          {metadata.keywords.length > 4 && (
+            <span className="px-2 py-1 bg-gray-100 text-gray-500 text-xs rounded">
+              +{metadata.keywords.length - 4} more
+            </span>
+          )}
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => onViewDetails(dataset)}
+            className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm font-medium"
+          >
+            View Details
+          </button>
+          <button
+            onClick={() => onDownloadMetadata(dataset)}
+            className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+            title="Download Metadata"
+          >
+            <FileText className="w-4 h-4" />
+          </button>
+          {dataset.data && (
+            <button
+              onClick={() => onDownloadData(dataset)}
+              className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-sm font-medium"
+              title="Download Data"
+            >
+              <Download className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(metadata.id)}
+            className="px-4 py-2 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 transition-colors text-sm font-medium"
+            title="Delete Dataset"
+          >
+            🗑️
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Upload View Component (continued in next file due to length)

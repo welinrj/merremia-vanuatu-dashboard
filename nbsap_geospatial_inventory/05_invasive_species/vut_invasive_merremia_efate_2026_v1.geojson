@@ -1,0 +1,68 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [168.3273, -17.7333]
+      },
+      "properties": {
+        "site_id": "MEL001",
+        "species": "Merremia peltata",
+        "location_name": "Mele Bay",
+        "island": "Efate",
+        "coverage_category": "Dense (>50%)",
+        "affected_area_sqm": 2500,
+        "observed_date": "2026-02-10",
+        "observer": "John Doe",
+        "control_status": "Not controlled",
+        "threat_level": "High",
+        "photo_count": 3,
+        "notes": "Dense coverage along coastal area, threatening native vegetation"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [168.2947, -17.7184]
+      },
+      "properties": {
+        "site_id": "PORT001",
+        "species": "Merremia peltata",
+        "location_name": "Port Vila Harbor",
+        "island": "Efate",
+        "coverage_category": "Moderate (10-50%)",
+        "affected_area_sqm": 1200,
+        "observed_date": "2026-02-12",
+        "observer": "Jane Smith",
+        "control_status": "Under monitoring",
+        "threat_level": "Medium",
+        "photo_count": 2,
+        "notes": "Urban area invasion, manual removal planned"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [168.3512, -17.6891]
+      },
+      "properties": {
+        "site_id": "ERAT001",
+        "species": "Merremia peltata",
+        "location_name": "Erakor Village",
+        "island": "Efate",
+        "coverage_category": "Sparse (<10%)",
+        "affected_area_sqm": 450,
+        "observed_date": "2026-02-14",
+        "observer": "John Doe",
+        "control_status": "Controlled",
+        "threat_level": "Low",
+        "photo_count": 1,
+        "notes": "Recently cleared area, monitoring for regrowth"
+      }
+    }
+  ]
+}
