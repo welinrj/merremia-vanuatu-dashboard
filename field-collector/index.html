@@ -1001,8 +1001,9 @@
     }
 
     // ── Settings ──
-    var _tp = ['Z2l0aHViX3BhdF8xMUFQNlc1NlEwUnN','lRVFCWXlyV2RyX2U0enMxQ3ZiNWFiVX','ZSYnp0aEozbmhqRDhlUU5XV1VDQ0hkM','HFleEZ2VnU1Qk9CSldISjlZYXVVcTla'];
-    var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: atob(_tp.join('')) };
+    // SECURITY: Token must be configured by user in Settings panel
+    // Never hardcode tokens in client-side JavaScript!
+    var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: '' };
     var DELETE_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
     async function sha256(message) {
       var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
