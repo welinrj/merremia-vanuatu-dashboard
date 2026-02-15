@@ -175,7 +175,10 @@
   <div class="config-bar">
     <input id="cfg-owner" type="hidden" value="welinrj">
     <input id="cfg-repo" type="hidden" value="merremia-field-data">
-    <input id="cfg-token" type="hidden" value="">
+    <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:#475569">
+      <span style="font-weight:600">GitHub Token (optional):</span>
+      <input id="cfg-token" type="password" value="" placeholder="ghp_xxxxxxxxxxxx" style="padding:0.4rem 0.75rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.78rem;width:200px">
+    </label>
     <button onclick="loadFieldData()">Load Data</button>
     <span class="status-msg" id="status-msg">
       <span class="status-indicator" id="status-indicator"></span>
@@ -290,7 +293,7 @@
 
   <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
-  <script src="merremia-connector.js"></script>
+  <script src="merremia-connector.js?v=20260215-fix"></script>
   <script>
     // ── Map ──
     var liveMap = new maplibregl.Map({
