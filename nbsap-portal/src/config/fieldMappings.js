@@ -10,8 +10,8 @@ export default {
     "notes": ["notes", "NOTES", "Notes", "comments", "COMMENTS", "description", "DESCRIPTION", "desc", "DESC", "remarks", "REMARKS"]
   },
   "CCA": {
-    "name": ["cca_name", "CCA_NAME", "community_area", "COMMUNITY_AREA"],
-    "type": ["cca_type", "CCA_TYPE"]
+    "name": ["cca_name", "CCA_NAME", "community_area", "COMMUNITY_AREA", "tabu_name"],
+    "type": ["cca_type", "CCA_TYPE", "tabu_type"]
   },
   "MPA": {
     "name": ["mpa_name", "MPA_NAME", "marine_area", "MARINE_AREA"],
@@ -29,12 +29,48 @@ export default {
     "name": ["kba_name", "KBA_NAME", "iba_name"],
     "type": ["kba_type", "KBA_TYPE", "trigger"]
   },
+  "LMMA": {
+    "name": ["lmma_name", "LMMA_NAME", "managed_area"],
+    "type": ["lmma_type", "LMMA_TYPE", "management_type"]
+  },
+  "SPATIAL_PLAN": {
+    "name": ["plan_name", "PLAN_NAME", "spatial_plan"],
+    "type": ["plan_type", "PLAN_TYPE", "planning_zone"]
+  },
+  "DEGRADED": {
+    "name": ["degraded_name", "site_name", "SITE_NAME"],
+    "type": ["degradation_type", "DEGRADATION_TYPE", "deg_type", "cause"]
+  },
   "RESTORATION": {
     "name": ["restoration_name", "project_name", "PROJECT_NAME"],
     "type": ["restoration_type", "activity"]
   },
+  "SPECIES_DIST": {
+    "name": ["species_name", "SPECIES_NAME", "common_name", "sci_name"],
+    "type": ["species_type", "taxa", "TAXA", "group"]
+  },
   "INVASIVE": {
-    "name": ["species_name", "SPECIES", "invasive_name"],
-    "type": ["invasive_type", "threat_type", "species_type"]
+    "name": ["species_name", "SPECIES", "invasive_name", "ias_name"],
+    "type": ["invasive_type", "threat_type", "species_type", "ias_type"]
+  },
+  "MERREMIA": {
+    "name": ["site_name", "detection_id", "SITE_NAME", "patch_id"],
+    "type": ["detection_method", "confidence", "CONFIDENCE", "source_type"]
+  },
+  "PESTICIDE": {
+    "name": ["farm_name", "FARM_NAME", "site_name", "operator"],
+    "type": ["chemical_type", "pesticide_type", "PESTICIDE_TYPE", "product"]
+  },
+  "EUTROPHICATION": {
+    "name": ["zone_name", "ZONE_NAME", "site_name", "station"],
+    "type": ["severity", "SEVERITY", "nutrient_level", "trophic_state"]
+  },
+  "LAND_COVER": {
+    "name": ["class_name", "CLASS_NAME", "cover_type", "land_use"],
+    "type": ["lc_class", "LC_CLASS", "land_cover", "LAND_COVER", "use_type"]
+  },
+  "GREEN_SPACE": {
+    "name": ["park_name", "PARK_NAME", "space_name", "garden_name"],
+    "type": ["space_type", "SPACE_TYPE", "park_type", "green_type"]
   }
 };
