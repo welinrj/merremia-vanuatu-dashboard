@@ -1,14 +1,29 @@
 /**
  * Dashboard page.
- * Target-based results, Target 3 analytics, map, charts, and export buttons.
+ * Per-target results, analytics, map, charts, and export buttons.
+ * Shows target-specific breakdowns when a single target is selected.
  */
 import { renderFilterPanel } from '../ui/components/filterPanel.js';
 import { renderKPIWidgets } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
-import { compute30x30Metrics } from '../gis/areaCalc.js';
+import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
+import { CATEGORIES } from '../config/categories.js';
+
+/** Target descriptions for the dashboard header */
+const TARGET_HEADERS = {
+  T1: { title: 'Target 1: Biodiversity Spatial Planning', desc: 'Percentage of land and sea covered by biodiversity-inclusive spatial plans' },
+  T2: { title: 'Target 2: Degraded Areas & Restoration', desc: 'Mapping of degraded areas and active restoration sites' },
+  T3: { title: 'Target 3: 30x30 Conservation', desc: 'Conserve 30% of terrestrial and 30% of marine areas by 2030' },
+  T4: { title: 'Target 4: Species & Biodiversity', desc: 'Distribution maps of significant species and key biodiversity areas' },
+  T6: { title: 'Target 6: Invasive Alien Species', desc: 'Coverage and distribution of key IAS — Merremia, Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle' },
+  T7: { title: 'Target 7: Pesticide & Herbicide', desc: 'Areas of pesticide and herbicide use in commercial farming' },
+  T8: { title: 'Target 8: Coastal Eutrophication', desc: 'Coastal eutrophication and nutrient-impacted zones' },
+  T10: { title: 'Target 10: Land Cover Change', desc: 'Land cover change mapping for agriculture, livestock, fisheries and forestry' },
+  T12: { title: 'Target 12: Blue & Green Spaces', desc: 'Parks within provincial and municipal areas, and botanical gardens' }
+};
 
 /**
  * Initializes the Dashboard page.
@@ -37,6 +52,7 @@ export function initDashboard() {
         </div>
       </div>
       <div class="dashboard-main">
+        <div id="target-header-container"></div>
         <div class="map-container">
           <div id="map"></div>
         </div>
@@ -57,6 +73,7 @@ export function initDashboard() {
               <div id="province-chart-container"></div>
             </div>
           </div>
+          <div id="category-breakdown-container" style="margin-top:20px"></div>
         </div>
       </div>
     </div>
@@ -91,22 +108,111 @@ export function refreshDashboard() {
   // Update map layers
   updateMapLayers();
 
-  // Update province breakdown (only for T3)
+  // Determine active target context
   const filters = state.filters;
-  const t3Active = filters.targets.length === 0 || filters.targets.includes('T3');
+  const activeTargets = filters.targets;
+  const dashLayers = getDashboardLayers();
 
+  // Render target header
+  const headerContainer = document.getElementById('target-header-container');
+  if (headerContainer) {
+    if (activeTargets.length === 1) {
+      const t = activeTargets[0];
+      const hdr = TARGET_HEADERS[t] || { title: t, desc: '' };
+      headerContainer.innerHTML = `
+        <div class="target-header-bar">
+          <strong>${hdr.title}</strong>
+          <span style="color:var(--text-secondary);font-size:13px;margin-left:12px">${hdr.desc}</span>
+        </div>
+      `;
+    } else {
+      headerContainer.innerHTML = '';
+    }
+  }
+
+  // Update province breakdown
   const tableContainer = document.getElementById('province-table-container');
   const chartContainer = document.getElementById('province-chart-container');
+  const catContainer = document.getElementById('category-breakdown-container');
 
-  if (t3Active) {
-    const dashLayers = getDashboardLayers();
-    const metrics = compute30x30Metrics(dashLayers, filters);
-    if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
-    if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+  if (activeTargets.length === 1) {
+    // Single target selected — show that target's province breakdown
+    const targetCode = activeTargets[0];
+
+    if (targetCode === 'T3') {
+      const metrics = compute30x30Metrics(dashLayers, filters);
+      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
+      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+    } else {
+      const metrics = computeTargetMetrics(dashLayers, targetCode, filters);
+      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
+      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+    }
+
+    // Render category breakdown for all single-target views
+    if (catContainer) {
+      const metrics = computeTargetMetrics(dashLayers, targetCode, filters);
+      renderCategoryBreakdown(catContainer, metrics);
+    }
   } else {
-    if (tableContainer) tableContainer.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px;padding:12px 0">Select Target 3 to see provincial breakdown</p>';
-    if (chartContainer) chartContainer.innerHTML = '';
+    // Multiple or no targets — show T3 if included
+    const t3Active = activeTargets.length === 0 || activeTargets.includes('T3');
+
+    if (t3Active) {
+      const metrics = compute30x30Metrics(dashLayers, filters);
+      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
+      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+    } else {
+      if (tableContainer) tableContainer.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px;padding:12px 0">Select a target to see provincial breakdown</p>';
+      if (chartContainer) chartContainer.innerHTML = '';
+    }
+
+    if (catContainer) catContainer.innerHTML = '';
   }
+}
+
+/**
+ * Renders a category breakdown section for the selected target.
+ */
+function renderCategoryBreakdown(container, metrics) {
+  if (!metrics.categoryBreakdown || metrics.categoryBreakdown.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const rows = metrics.categoryBreakdown.map(c => {
+    const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
+    return `
+      <tr>
+        <td>
+          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${catDef.color};margin-right:6px"></span>
+          ${catDef.label}
+        </td>
+        <td style="text-align:right">${formatHa(c.area_ha)}</td>
+        <td style="text-align:right">${c.features}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="breakdown-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 2v20"/></svg>
+      Category Breakdown
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Category</th><th style="text-align:right">Area (ha)</th><th style="text-align:right">Features</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function formatHa(val) {
+  if (!val && val !== 0) return '-';
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+  return val.toFixed(1);
 }
 
 /**
