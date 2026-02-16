@@ -1,9 +1,10 @@
 /**
  * Main application entry point.
- * Initializes the app shell, loads demo data, and wires up tab navigation.
+ * Initializes the app shell, loads data from Firestore, wires up tab navigation,
+ * and subscribes to real-time updates for cross-device sync.
  */
-import { listLayers, saveLayer, getSetting } from './services/storage/index.js';
-import { getAppState, setLayers, setProvincesGeojson, addLayer, setLayerTracker } from './ui/state.js';
+import { listLayers, saveLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
+import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
@@ -12,7 +13,6 @@ import { isWizardOpen } from './ui/components/uploadWizard.js';
 import { initAbout } from './pages/about.js';
 import { computeFeatureAreas } from './gis/areaCalc.js';
 import { createLayerMetadata } from './core/schema.js';
-import ENV from './config/env.js';
 
 // Fix Leaflet default icon paths (use CDN URLs for universal compatibility)
 import L from 'leaflet';
@@ -24,6 +24,9 @@ L.Icon.Default.mergeOptions({
 });
 
 let activeTab = 'dashboard';
+
+/** Track whether initial load has completed to distinguish real-time changes */
+let initialLoadComplete = false;
 
 /** Safe accessor for Vite's BASE_URL (returns './' outside Vite) */
 function getBaseUrl() {
@@ -64,6 +67,9 @@ async function init() {
 
   // 5. Load data asynchronously (UI already visible)
   await loadAppData();
+
+  // 6. Subscribe to real-time changes from Firestore
+  subscribeToRealtimeUpdates();
 }
 
 /**
@@ -85,15 +91,15 @@ async function loadAppData() {
 
   // Load layer tracker state
   try {
-    const tracker = await withTimeout(getSetting('layerTracker'), 2000);
+    const tracker = await withTimeout(getSetting('layerTracker'), 5000);
     if (tracker) setLayerTracker(tracker);
   } catch (err) {
     console.warn('Failed to load layer tracker:', err);
   }
 
-  // Load layers from IndexedDB (with timeout to prevent hanging)
+  // Load layers from Firestore (with generous timeout for network)
   try {
-    const stored = await withTimeout(listLayers(), 3000);
+    const stored = await withTimeout(listLayers(), 15000);
     if (stored.length > 0) {
       setLayers(stored);
     } else {
@@ -108,8 +114,110 @@ async function loadAppData() {
     }
   }
 
+  initialLoadComplete = true;
+
   // Refresh all visible components with loaded data
   refreshDashboard();
+}
+
+/**
+ * Subscribes to real-time Firestore updates.
+ * When another device uploads or modifies a layer, this
+ * device sees the change and refreshes automatically.
+ */
+function subscribeToRealtimeUpdates() {
+  // Listen for layer changes
+  onLayersChanged(async (changes) => {
+    if (!initialLoadComplete) return;
+
+    const hasChanges = changes.added.length > 0 ||
+                       changes.modified.length > 0 ||
+                       changes.removed.length > 0;
+
+    if (!hasChanges) return;
+
+    // Fetch full data for added or modified layers
+    for (const layerId of [...changes.added, ...changes.modified]) {
+      try {
+        const layer = await getLayer(layerId);
+        if (layer) {
+          addLayer(layer);
+        }
+      } catch (err) {
+        console.warn(`Failed to load layer ${layerId}:`, err);
+      }
+    }
+
+    // Remove deleted layers from state
+    for (const layerId of changes.removed) {
+      removeLayer(layerId);
+    }
+
+    // Show a brief sync notification
+    showSyncNotification(changes);
+  });
+
+  // Listen for settings changes (layer tracker sync)
+  onSettingsChanged((settings) => {
+    if (!initialLoadComplete) return;
+
+    if (settings.layerTracker) {
+      setLayerTracker(settings.layerTracker);
+      window.dispatchEvent(new CustomEvent('nbsap:refresh'));
+    }
+  });
+}
+
+/**
+ * Shows a brief notification when data syncs from another device.
+ */
+function showSyncNotification(changes) {
+  const count = changes.added.length + changes.modified.length + changes.removed.length;
+  if (count === 0) return;
+
+  const parts = [];
+  if (changes.added.length > 0) parts.push(`${changes.added.length} added`);
+  if (changes.modified.length > 0) parts.push(`${changes.modified.length} updated`);
+  if (changes.removed.length > 0) parts.push(`${changes.removed.length} removed`);
+
+  const msg = `Synced: ${parts.join(', ')}`;
+
+  // Create notification element
+  let toast = document.getElementById('sync-toast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'sync-toast';
+    toast.style.cssText = `
+      position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+      background: #006B3F; color: white; padding: 10px 20px;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: opacity 0.3s, transform 0.3s;
+      opacity: 0; transform: translateY(10px);
+      display: flex; align-items: center; gap: 8px;
+    `;
+    document.body.appendChild(toast);
+  }
+
+  toast.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/>
+      <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+    </svg>
+    ${msg}
+  `;
+
+  // Animate in
+  requestAnimationFrame(() => {
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateY(0)';
+  });
+
+  // Animate out after 3s
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateY(10px)';
+  }, 3000);
 }
 
 /**

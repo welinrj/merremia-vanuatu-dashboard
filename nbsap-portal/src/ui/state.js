@@ -28,8 +28,11 @@ const appState = {
   isAdmin: false,
 
   /**
-   * Layer tracker: maps expected layer IDs to uploaded layer info.
-   * { [expectedLayerId]: { layerId, uploadedAt } }
+   * Layer tracker: maps expected layer IDs to arrays of uploaded layer info.
+   * { [expectedLayerId]: [{ layerId, uploadedAt }, ...] }
+   *
+   * Supports multiple shapefile uploads per target/expected layer.
+   * Backward compatible: migrates old single-object format on load.
    */
   layerTracker: {}
 };
@@ -109,50 +112,96 @@ export function setAdminState(isAdmin) {
 
 /**
  * Sets the layer tracker state (loaded from storage on init).
- * @param {object} tracker - { [expectedLayerId]: { layerId, uploadedAt } }
+ * Migrates old single-object format to array format.
+ * @param {object} tracker - { [expectedLayerId]: { layerId, uploadedAt } | Array }
  */
 export function setLayerTracker(tracker) {
-  appState.layerTracker = tracker || {};
+  if (!tracker) {
+    appState.layerTracker = {};
+    return;
+  }
+
+  // Migrate old format: { expectedId: { layerId, uploadedAt } } → { expectedId: [{ layerId, uploadedAt }] }
+  const migrated = {};
+  for (const [key, val] of Object.entries(tracker)) {
+    if (Array.isArray(val)) {
+      migrated[key] = val;
+    } else if (val && val.layerId) {
+      migrated[key] = [val];
+    }
+  }
+  appState.layerTracker = migrated;
 }
 
 /**
  * Links an expected layer to an uploaded layer.
+ * Appends to the array — supports multiple shapefiles per expected layer.
  * @param {string} expectedLayerId
  * @param {string} layerId - The uploaded layer's ID
  */
 export function trackLayer(expectedLayerId, layerId) {
-  appState.layerTracker[expectedLayerId] = {
-    layerId,
-    uploadedAt: new Date().toISOString()
-  };
+  if (!appState.layerTracker[expectedLayerId]) {
+    appState.layerTracker[expectedLayerId] = [];
+  }
+
+  // Don't add duplicate
+  const existing = appState.layerTracker[expectedLayerId].find(e => e.layerId === layerId);
+  if (!existing) {
+    appState.layerTracker[expectedLayerId].push({
+      layerId,
+      uploadedAt: new Date().toISOString()
+    });
+  }
   dispatchRefresh();
 }
 
 /**
- * Unlinks an expected layer from its uploaded layer.
+ * Unlinks a specific uploaded layer from an expected layer.
+ * If layerId is null, removes all uploads for that expected layer.
  * @param {string} expectedLayerId
+ * @param {string|null} layerId - specific layer to remove, or null for all
  */
-export function untrackLayer(expectedLayerId) {
-  delete appState.layerTracker[expectedLayerId];
+export function untrackLayer(expectedLayerId, layerId = null) {
+  if (!appState.layerTracker[expectedLayerId]) return;
+
+  if (layerId === null) {
+    delete appState.layerTracker[expectedLayerId];
+  } else {
+    appState.layerTracker[expectedLayerId] = appState.layerTracker[expectedLayerId]
+      .filter(e => e.layerId !== layerId);
+    if (appState.layerTracker[expectedLayerId].length === 0) {
+      delete appState.layerTracker[expectedLayerId];
+    }
+  }
   dispatchRefresh();
 }
 
 /**
- * Returns only user-uploaded layers (excludes demo/system layers).
- * A layer is considered user-uploaded if it is linked in the tracker.
+ * Returns all tracked layer IDs from the tracker (all expected layers).
+ */
+function getTrackedLayerIds() {
+  const ids = new Set();
+  for (const entries of Object.values(appState.layerTracker)) {
+    for (const entry of entries) {
+      ids.add(entry.layerId);
+    }
+  }
+  return ids;
+}
+
+/**
+ * Returns only user-uploaded layers (those linked in the tracker).
  */
 export function getUserLayers() {
-  const trackedLayerIds = new Set(
-    Object.values(appState.layerTracker).map(t => t.layerId)
-  );
-  return appState.layers.filter(l => trackedLayerIds.has(l.id));
+  const trackedIds = getTrackedLayerIds();
+  return appState.layers.filter(l => trackedIds.has(l.id));
 }
 
 /**
  * Returns true if any layers have been uploaded by the user via the tracker.
  */
 export function hasUserLayers() {
-  return Object.keys(appState.layerTracker).length > 0;
+  return getTrackedLayerIds().size > 0;
 }
 
 /**

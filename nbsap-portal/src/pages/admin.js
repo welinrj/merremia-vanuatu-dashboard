@@ -1,6 +1,8 @@
 /**
  * Admin page.
  * Auth gate, data upload, layer tracker, sync, audit log, backup/restore, and settings.
+ * Supports multiple shapefile uploads per expected layer.
+ * Data syncs in real time via Firestore across all devices.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
 import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting } from '../services/storage/index.js';
@@ -86,12 +88,15 @@ async function renderAdminDashboard(page) {
   const submittedCount = Object.keys(tracker).length;
   const totalExpected = EXPECTED_LAYERS.length;
 
+  // Count total uploaded files across all expected layers
+  const totalFiles = Object.values(tracker).reduce((sum, arr) => sum + (Array.isArray(arr) ? arr.length : 0), 0);
+
   page.innerHTML = `
     <div class="admin-layout">
       <div class="admin-header">
         <div>
           <h2>Admin Panel</h2>
-          <p style="font-size:13px;color:var(--text-secondary);margin-top:2px">Manage data, backups, and system settings</p>
+          <p style="font-size:13px;color:var(--text-secondary);margin-top:2px">Manage data, backups, and system settings &mdash; data syncs in real time across all devices</p>
         </div>
         <button class="btn btn-outline" id="btn-admin-logout">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -105,14 +110,14 @@ async function renderAdminDashboard(page) {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
             Data Layer Tracker
           </div>
-          <span style="font-size:13px;color:var(--text-secondary)">${submittedCount} / ${totalExpected} submitted</span>
+          <span style="font-size:13px;color:var(--text-secondary)">${submittedCount} / ${totalExpected} layers &middot; ${totalFiles} file${totalFiles !== 1 ? 's' : ''} uploaded</span>
         </div>
         <div class="card-body" style="padding:0">
           <div style="padding:12px 16px 8px;border-bottom:1px solid var(--border)">
             <div class="progress-bar-container" style="height:8px">
               <div class="progress-bar-fill terrestrial" style="width:${totalExpected > 0 ? (submittedCount / totalExpected * 100).toFixed(0) : 0}%;transition:width 0.3s"></div>
             </div>
-            <p style="font-size:12px;color:var(--text-tertiary);margin-top:6px">Upload each required GIS data layer. Only submitted layers appear on the dashboard.</p>
+            <p style="font-size:12px;color:var(--text-tertiary);margin-top:6px">Upload GIS data layers. You can upload <strong>multiple shapefiles</strong> per target. Data syncs across all devices in real time.</p>
           </div>
           <table class="data-table" id="tracker-table">
             <thead>
@@ -122,21 +127,34 @@ async function renderAdminDashboard(page) {
                 <th>Category</th>
                 <th>Target</th>
                 <th>Realm</th>
-                <th>Uploaded</th>
+                <th>Uploaded Files</th>
                 <th>Action</th>
               </tr>
             </thead>
             <tbody>
               ${EXPECTED_LAYERS.map(el => {
-                const tracked = tracker[el.id];
-                const isSubmitted = !!tracked;
-                const uploadedLayer = isSubmitted ? state.layers.find(l => l.id === tracked.layerId) : null;
+                const entries = tracker[el.id] || [];
+                const isSubmitted = entries.length > 0;
                 const catConfig = CATEGORIES[el.category] || {};
+
+                // Build uploaded files list
+                const filesHtml = entries.map(entry => {
+                  const uploadedLayer = state.layers.find(l => l.id === entry.layerId);
+                  const filename = uploadedLayer?.metadata?.originalFilename || entry.layerId;
+                  const date = new Date(entry.uploadedAt).toLocaleDateString();
+                  const shortName = filename.length > 22 ? filename.slice(0, 22) + '...' : filename;
+                  return `<div style="display:flex;align-items:center;gap:4px;margin-bottom:2px">
+                    <span style="font-size:11px" title="${filename}">${shortName}</span>
+                    <span style="font-size:10px;color:var(--text-tertiary)">${date}</span>
+                    <button class="btn btn-sm btn-ghost tracker-remove-one" data-expected-id="${el.id}" data-layer-id="${entry.layerId}" title="Remove this file" style="padding:1px 4px;font-size:10px;color:var(--danger);min-width:0">&times;</button>
+                  </div>`;
+                }).join('');
+
                 return `
                   <tr>
                     <td>
                       ${isSubmitted
-                        ? '<span class="badge badge-success">Submitted</span>'
+                        ? `<span class="badge badge-success">${entries.length} file${entries.length !== 1 ? 's' : ''}</span>`
                         : '<span class="badge" style="background:var(--warning-light);color:var(--warning)">Pending</span>'}
                     </td>
                     <td>
@@ -152,15 +170,15 @@ async function renderAdminDashboard(page) {
                     <td><span class="badge badge-info">${el.target}</span></td>
                     <td style="text-transform:capitalize;font-size:12px">${el.realm}</td>
                     <td style="font-size:12px;color:var(--text-secondary)">
-                      ${isSubmitted
-                        ? `${new Date(tracked.uploadedAt).toLocaleDateString()}<br><span style="font-size:11px;color:var(--text-tertiary)">${uploadedLayer?.metadata?.originalFilename || ''}</span>`
-                        : '<span style="color:var(--text-tertiary)">--</span>'}
+                      ${isSubmitted ? filesHtml : '<span style="color:var(--text-tertiary)">--</span>'}
                     </td>
                     <td>
+                      <button class="btn btn-sm btn-primary tracker-upload" data-expected-id="${el.id}">
+                        ${isSubmitted ? 'Add More' : 'Upload'}
+                      </button>
                       ${isSubmitted
-                        ? `<button class="btn btn-sm btn-outline tracker-reupload" data-expected-id="${el.id}">Replace</button>
-                           <button class="btn btn-sm btn-danger tracker-remove" data-expected-id="${el.id}" style="margin-left:4px">Unlink</button>`
-                        : `<button class="btn btn-sm btn-primary tracker-upload" data-expected-id="${el.id}">Upload</button>`}
+                        ? `<button class="btn btn-sm btn-danger tracker-remove-all" data-expected-id="${el.id}" style="margin-left:4px" title="Remove all files for this layer">Clear</button>`
+                        : ''}
                     </td>
                   </tr>
                 `;
@@ -194,7 +212,7 @@ async function renderAdminDashboard(page) {
           </div>
         </div>
         <div class="card-body">
-          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Export data to sync to another device. Import merges by layer ID — re-syncing does not create duplicates.</p>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:12px">Data syncs automatically via Firestore. Use Export/Import for offline backup or migration.</p>
           <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
             <button class="btn btn-primary" id="btn-export-backup">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -269,6 +287,7 @@ async function renderAdminDashboard(page) {
         <div class="card-body" style="font-size:13px">
           <table class="metadata-table">
             <tr><td>Provider</td><td>Local Passphrase</td></tr>
+            <tr><td>Storage</td><td>Firestore (real-time sync)</td></tr>
             <tr><td>Status</td><td><span class="badge badge-success">Authenticated</span></td></tr>
             <tr><td>Session</td><td>Active (clears on page reload)</td></tr>
           </table>
@@ -292,8 +311,8 @@ async function renderAdminDashboard(page) {
   // Upload shapefile (generic)
   page.querySelector('#btn-admin-upload').addEventListener('click', () => openUploadWizard());
 
-  // Tracker: Upload buttons
-  page.querySelectorAll('.tracker-upload, .tracker-reupload').forEach(btn => {
+  // Tracker: Upload / Add More buttons
+  page.querySelectorAll('.tracker-upload').forEach(btn => {
     btn.addEventListener('click', () => {
       const expectedId = btn.dataset.expectedId;
       const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
@@ -303,14 +322,25 @@ async function renderAdminDashboard(page) {
     });
   });
 
-  // Tracker: Unlink buttons
-  page.querySelectorAll('.tracker-remove').forEach(btn => {
+  // Tracker: Remove single file buttons
+  page.querySelectorAll('.tracker-remove-one').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const expectedId = btn.dataset.expectedId;
+      const layerId = btn.dataset.layerId;
+      untrackLayer(expectedId, layerId);
+      await setSetting('layerTracker', getAppState().layerTracker);
+      renderAdminPage();
+    });
+  });
+
+  // Tracker: Clear All buttons (remove all files for an expected layer)
+  page.querySelectorAll('.tracker-remove-all').forEach(btn => {
     btn.addEventListener('click', async () => {
       const expectedId = btn.dataset.expectedId;
       const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
-      if (!confirm(`Unlink "${expected?.name || expectedId}" from its uploaded data? The uploaded layer will remain in storage but won't appear on the dashboard.`)) return;
+      if (!confirm(`Remove all uploaded files for "${expected?.name || expectedId}"? The files remain in storage but won't appear on the dashboard.`)) return;
 
-      untrackLayer(expectedId);
+      untrackLayer(expectedId, null);
       await setSetting('layerTracker', getAppState().layerTracker);
       renderAdminPage();
     });
