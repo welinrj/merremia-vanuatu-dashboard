@@ -18,7 +18,8 @@ export default defineConfig({
       output: {
         manualChunks: {
           turf: ['@turf/turf'],
-          leaflet: ['leaflet']
+          leaflet: ['leaflet'],
+          firebase: ['firebase/app', 'firebase/firestore']
         }
       }
     }
