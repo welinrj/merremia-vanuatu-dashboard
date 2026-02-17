@@ -97,15 +97,69 @@ const EXPECTED_LAYERS = [
     countsToward30x30: true,
     description: 'OECMs contributing to in-situ conservation outside protected areas'
   },
-  // Target 4: Species Distribution
+  // Target 4: Species & Biodiversity Distribution
   {
-    id: 'species-distribution',
-    name: 'Significant Species Distribution',
-    category: 'SPECIES_DIST',
+    id: 'megapode-distribution',
+    name: 'Vanuatu Megapode Distribution',
+    category: 'MEGAPODE',
     target: 'T4',
     realm: 'terrestrial',
     countsToward30x30: false,
-    description: 'Distribution maps of significant species and key biodiversity areas'
+    description: 'Distribution range and nesting sites of Megapodius layardi (Vanuatu Megapode) — endemic ground-nesting bird'
+  },
+  {
+    id: 'starling-distribution',
+    name: 'Vanuatu Mountain Starling Distribution',
+    category: 'STARLING',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Distribution range of Aplonis santovestris (Vanuatu Mountain Starling) — critically endangered endemic bird'
+  },
+  {
+    id: 'fantail-distribution',
+    name: 'Vanuatu Streaked Fantail Distribution',
+    category: 'FANTAIL',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Distribution range of Rhipidura spilodera (Vanuatu Streaked Fantail) — endemic passerine bird'
+  },
+  {
+    id: 'kingfisher-distribution',
+    name: 'Vanuatu Kingfisher Distribution',
+    category: 'KINGFISHER',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Distribution range of Todiramphus farquhari (Vanuatu Kingfisher) — endemic kingfisher species'
+  },
+  {
+    id: 'flying-fox-distribution',
+    name: 'Vanuatu Flying Fox Distribution',
+    category: 'FLYING_FOX',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Distribution range and roost sites of Pteropus anetianus (Vanuatu Flying Fox) — endemic fruit bat'
+  },
+  {
+    id: 'plerandra-distribution',
+    name: 'Plerandra vanuatuensis Distribution',
+    category: 'PLERANDRA',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Distribution range of Plerandra vanuatuensis — endemic plant species of Vanuatu'
+  },
+  {
+    id: 'kba-t4',
+    name: 'Key Biodiversity Areas',
+    category: 'KBA',
+    target: 'T4',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Key Biodiversity Areas (KBAs) of Vanuatu — sites of global importance for biodiversity (BirdLife / KBA Partnership)'
   },
   // Target 6: Invasive Alien Species
   {

@@ -49,6 +49,30 @@ export default {
     "name": ["species_name", "SPECIES_NAME", "common_name", "sci_name"],
     "type": ["species_type", "taxa", "TAXA", "group"]
   },
+  "MEGAPODE": {
+    "name": ["site_name", "SITE_NAME", "nesting_site", "location", "name"],
+    "type": ["obs_type", "record_type", "method", "status"]
+  },
+  "STARLING": {
+    "name": ["site_name", "SITE_NAME", "location", "name"],
+    "type": ["obs_type", "record_type", "method", "status"]
+  },
+  "FANTAIL": {
+    "name": ["site_name", "SITE_NAME", "location", "name"],
+    "type": ["obs_type", "record_type", "method", "status"]
+  },
+  "KINGFISHER": {
+    "name": ["site_name", "SITE_NAME", "location", "name"],
+    "type": ["obs_type", "record_type", "method", "status"]
+  },
+  "FLYING_FOX": {
+    "name": ["site_name", "SITE_NAME", "roost_name", "colony", "location", "name"],
+    "type": ["obs_type", "record_type", "colony_type", "method", "status"]
+  },
+  "PLERANDRA": {
+    "name": ["site_name", "SITE_NAME", "population", "location", "name"],
+    "type": ["obs_type", "record_type", "habitat_type", "method", "status"]
+  },
   "INVASIVE": {
     "name": ["species_name", "SPECIES", "invasive_name", "ias_name"],
     "type": ["invasive_type", "threat_type", "species_type", "ias_type"]
