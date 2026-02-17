@@ -1539,3 +1539,424 @@ html, body {
   background: var(--bg-white);
   flex-shrink: 0;
 }
+
+/* ════════════════════════════════════════════════════════════
+   Print Map — Standardized Cartographic Map Template
+   ════════════════════════════════════════════════════════════ */
+
+/* ── Print Overlay (full-screen container) ─────────────── */
+.print-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 10000;
+  background: #e8e8e8;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+body.print-mode {
+  overflow: hidden;
+}
+
+/* ── Print Toolbar (on-screen only) ────────────────────── */
+.print-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: #fff;
+  border-bottom: 2px solid var(--primary);
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+/* ── Print Pages Container ─────────────────────────────── */
+.print-pages {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  gap: 32px;
+}
+
+/* ── Individual Print Page ─────────────────────────────── */
+.print-page {
+  width: 297mm;
+  min-height: 210mm;
+  background: #fff;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.12);
+  padding: 14mm 16mm 12mm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  page-break-after: always;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── Title Block ───────────────────────────────────────── */
+.print-title-block {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #006B3F;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.print-title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.print-title-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.print-title-main {
+  font-size: 16px;
+  font-weight: 700;
+  color: #006B3F;
+  line-height: 1.2;
+}
+
+.print-title-sub {
+  font-size: 10px;
+  color: #666;
+  letter-spacing: 0.02em;
+}
+
+.print-title-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.print-title-date {
+  font-size: 11px;
+  font-weight: 600;
+  color: #333;
+}
+
+.print-title-crs {
+  font-size: 10px;
+  color: #888;
+  margin-top: 2px;
+}
+
+/* ── Target Bar ────────────────────────────────────────── */
+.print-target-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #f0f7f3;
+  border: 1px solid #c8e6d5;
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 8px;
+}
+
+.print-target-code {
+  background: #006B3F;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  letter-spacing: 0.03em;
+}
+
+.print-target-info {
+  flex: 1;
+}
+
+.print-target-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1a3a2a;
+}
+
+.print-target-desc {
+  font-size: 10px;
+  color: #555;
+  margin-top: 1px;
+  line-height: 1.3;
+}
+
+/* ── Metrics Row ───────────────────────────────────────── */
+.print-metrics-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.print-metric {
+  flex: 1;
+  background: #f8fafb;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 6px 10px;
+  text-align: center;
+}
+
+.print-metric-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 800;
+  color: #006B3F;
+  line-height: 1.2;
+}
+
+.print-metric-label {
+  display: block;
+  font-size: 9px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+/* ── Map Area ──────────────────────────────────────────── */
+.print-map-area {
+  flex: 1;
+  position: relative;
+  min-height: 100mm;
+  margin-bottom: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.print-map-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100mm;
+  background: #f5f5f5;
+}
+
+/* ── Map Furniture (overlaid on map) ───────────────────── */
+.print-map-furniture {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.print-legend-box {
+  background: rgba(255,255,255,0.94);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px 10px;
+  min-width: 140px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+.print-legend-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #333;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 3px;
+}
+
+.print-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: #444;
+  padding: 2px 0;
+}
+
+.print-legend-swatch {
+  width: 14px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  border: 0.5px solid rgba(0,0,0,0.2);
+}
+
+.print-legend-swatch-province {
+  background: transparent;
+  border: 1.5px dashed #777;
+}
+
+/* ── North Arrow ───────────────────────────────────────── */
+.print-north-arrow {
+  background: rgba(255,255,255,0.94);
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 4px 6px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Province labels on print map ──────────────────────── */
+.print-province-label {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 9px !important;
+  font-weight: 600 !important;
+  color: #555 !important;
+  text-shadow: 1px 1px 2px #fff, -1px -1px 2px #fff, 1px -1px 2px #fff, -1px 1px 2px #fff !important;
+}
+
+/* ── Bottom Section (Province Table + Data Sources) ────── */
+.print-bottom-section {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 6px;
+}
+
+.print-prov-table {
+  flex: 1;
+  min-width: 0;
+}
+
+.print-prov-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9px;
+}
+
+.print-prov-table th {
+  font-weight: 700;
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1.5px solid #ccc;
+  color: #333;
+  font-size: 9px;
+}
+
+.print-prov-table td {
+  padding: 2px 6px;
+  border-bottom: 0.5px solid #eee;
+  color: #555;
+}
+
+.print-data-sources {
+  flex: 1;
+  min-width: 0;
+}
+
+.print-section-title {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.print-source-tag {
+  display: inline-block;
+  background: #f0f4f8;
+  border: 1px solid #d8e2ec;
+  border-radius: 3px;
+  padding: 2px 6px;
+  font-size: 9px;
+  color: #555;
+  margin: 0 4px 3px 0;
+}
+
+/* ── Footer ────────────────────────────────────────────── */
+.print-footer {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1.5px solid #006B3F;
+  padding-top: 5px;
+  margin-top: auto;
+}
+
+.print-footer-left {
+  font-size: 9px;
+  color: #555;
+}
+
+.print-footer-right {
+  font-size: 9px;
+  color: #888;
+  text-align: right;
+}
+
+/* ════════════════════════════════════════════════════════════
+   @media print — Hide everything except the print overlay
+   ════════════════════════════════════════════════════════════ */
+
+@media print {
+  /* Hide the main app */
+  .app-container,
+  .no-print,
+  .print-toolbar {
+    display: none !important;
+  }
+
+  /* The overlay itself fills the page */
+  .print-overlay {
+    position: static;
+    background: none;
+    overflow: visible;
+  }
+
+  .print-pages {
+    padding: 0;
+    gap: 0;
+  }
+
+  .print-page {
+    box-shadow: none;
+    margin: 0;
+    width: 100%;
+    min-height: auto;
+    page-break-after: always;
+    page-break-inside: avoid;
+    padding: 8mm 10mm 6mm;
+  }
+
+  .print-page:last-child {
+    page-break-after: auto;
+  }
+
+  /* Ensure map containers are visible */
+  .print-map-container {
+    min-height: 90mm !important;
+  }
+
+  .print-map-area {
+    min-height: 90mm;
+  }
+
+  /* Leaflet tile images */
+  .print-map-container .leaflet-tile {
+    visibility: visible !important;
+  }
+
+  /* Remove Leaflet attribution in print */
+  .leaflet-control-attribution {
+    display: none !important;
+  }
+
+  /* Page setup */
+  @page {
+    size: A4 landscape;
+    margin: 6mm;
+  }
+
+  body {
+    overflow: visible !important;
+  }
+}
