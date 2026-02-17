@@ -470,6 +470,13 @@ html, body {
   margin-top: 2px;
 }
 
+.kpi-methodology-note {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  padding: 6px 0 0;
+  font-style: italic;
+}
+
 /* Progress bars */
 .progress-bar-container {
   background: var(--gray-100);

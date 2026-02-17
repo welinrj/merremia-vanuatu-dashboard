@@ -1,7 +1,11 @@
 /**
- * Geodesic area calculation module.
+ * Geodesic area calculation module with polygon dissolution.
  * Uses turf.area() for accurate geodesic area on WGS84 coordinates.
- * Converts results to hectares (m² / 10000).
+ * Uses turf.union() to dissolve overlapping polygons for net coverage area.
+ *
+ * Dissolution follows UNEP-WCMC / GBF methodology: overlapping protected
+ * areas are dissolved (unioned) to prevent double-counting, ensuring each
+ * point on Earth's surface is counted only once toward coverage targets.
  */
 import * as turf from '@turf/turf';
 import ENV from '../config/env.js';
@@ -42,31 +46,81 @@ export function computeFeatureAreas(geojson) {
 }
 
 /**
- * Computes 30x30 metrics from a set of layers.
- * @param {Array<{ metadata: object, geojson: object }>} layers - All loaded layers
+ * Dissolves (unions) an array of GeoJSON polygon features into a single geometry.
+ * Eliminates overlapping areas so each point on the ground is counted once.
+ *
+ * Uses batch union with iterative fallback for robustness against
+ * invalid/self-intersecting geometries common in field-collected GIS data.
+ *
+ * @param {Array} features - Array of GeoJSON Feature objects
+ * @returns {Feature|null} Dissolved polygon feature, or null if no valid polygons
+ */
+export function dissolveFeatures(features) {
+  const polygons = features.filter(f =>
+    f && f.geometry &&
+    (f.geometry.type === 'Polygon' || f.geometry.type === 'MultiPolygon')
+  );
+
+  if (polygons.length === 0) return null;
+  if (polygons.length === 1) return polygons[0];
+
+  // Try batch union first (faster for turf v7)
+  try {
+    const fc = turf.featureCollection(polygons);
+    const result = turf.union(fc);
+    if (result) return result;
+  } catch {
+    // Fall through to iterative approach
+  }
+
+  // Iterative union as fallback (handles invalid geometries better)
+  let result = null;
+  for (const poly of polygons) {
+    if (!result) {
+      result = poly;
+      continue;
+    }
+    try {
+      const merged = turf.union(turf.featureCollection([result, poly]));
+      if (merged) result = merged;
+    } catch {
+      // Skip features that cause union errors
+    }
+  }
+
+  return result;
+}
+
+// ─── 30x30 METRICS (Target 3) ───────────────────────────────────────────────
+
+/**
+ * Computes 30x30 metrics with polygon dissolution per UNEP-WCMC methodology.
+ *
+ * - Overlapping terrestrial areas dissolved into single coverage polygon
+ * - Overlapping marine areas dissolved separately
+ * - Net area (dissolved) used for official coverage percentages
+ * - Gross area (sum) reported for transparency
+ * - Province breakdown: features dissolved within each province
+ *
+ * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters - Active filters { targets, province }
- * @returns {object} Metrics:
- *   { terrestrial_ha, marine_ha, terrestrial_pct, marine_pct,
- *     terrestrial_remaining_pct, marine_remaining_pct,
- *     total_features, provinceBreakdown }
+ * @returns {object} Metrics with net/gross breakdown
  */
 export function compute30x30Metrics(layers, filters = {}) {
   const baselines = ENV.nationalBaselines;
-
-  let terrestrialHa = 0;
-  let marineHa = 0;
+  const terrestrialFeatures = [];
+  const marineFeatures = [];
+  let grossTerrestrial = 0;
+  let grossMarine = 0;
   let totalFeatures = 0;
-  const provinceMap = {};
+  const provinceFeatures = {};
 
   for (const layer of layers) {
     const meta = layer.metadata;
-
-    // Only count layers tagged with T3 and marked countsToward30x30
     if (!meta.countsToward30x30) continue;
     if (!meta.targets || !meta.targets.includes('T3')) continue;
 
     const features = (layer.geojson?.features || []).filter(f => {
-      // Apply province filter
       if (filters.province && filters.province !== 'All') {
         if (f.properties.province !== filters.province) return false;
       }
@@ -78,66 +132,90 @@ export function compute30x30Metrics(layers, filters = {}) {
       const realm = f.properties.realm || meta.realm || 'terrestrial';
 
       if (realm === 'marine') {
-        marineHa += areaHa;
+        marineFeatures.push(f);
+        grossMarine += areaHa;
       } else {
-        terrestrialHa += areaHa;
+        terrestrialFeatures.push(f);
+        grossTerrestrial += areaHa;
       }
       totalFeatures++;
 
-      // Province breakdown
       const prov = f.properties.province || 'Unassigned';
-      if (!provinceMap[prov]) {
-        provinceMap[prov] = { terrestrial_ha: 0, marine_ha: 0, features: 0 };
+      if (!provinceFeatures[prov]) {
+        provinceFeatures[prov] = { terrestrial: [], marine: [] };
       }
       if (realm === 'marine') {
-        provinceMap[prov].marine_ha += areaHa;
+        provinceFeatures[prov].marine.push(f);
       } else {
-        provinceMap[prov].terrestrial_ha += areaHa;
+        provinceFeatures[prov].terrestrial.push(f);
       }
-      provinceMap[prov].features++;
     }
   }
 
-  const terrestrialPct = baselines.terrestrial_ha > 0
-    ? (terrestrialHa / baselines.terrestrial_ha) * 100 : 0;
-  const marinePct = baselines.marine_ha > 0
-    ? (marineHa / baselines.marine_ha) * 100 : 0;
+  // Dissolve by realm for net coverage area
+  const dissolvedTerrestrial = dissolveFeatures(terrestrialFeatures);
+  const dissolvedMarine = dissolveFeatures(marineFeatures);
+  const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : 0;
+  const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : 0;
 
-  const provinceBreakdown = Object.entries(provinceMap).map(([name, data]) => ({
-    province: name,
-    ...data,
-    total_ha: data.terrestrial_ha + data.marine_ha
-  })).sort((a, b) => b.total_ha - a.total_ha);
+  const terrestrialPct = baselines.terrestrial_ha > 0
+    ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  const marinePct = baselines.marine_ha > 0
+    ? (netMarine / baselines.marine_ha) * 100 : 0;
+
+  // Province breakdown with per-province dissolution
+  const provinceBreakdown = Object.entries(provinceFeatures).map(([name, data]) => {
+    const tDissolved = dissolveFeatures(data.terrestrial);
+    const mDissolved = dissolveFeatures(data.marine);
+    const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
+    const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
+    return {
+      province: name,
+      terrestrial_ha: round2(tNet),
+      marine_ha: round2(mNet),
+      total_ha: round2(tNet + mNet),
+      features: data.terrestrial.length + data.marine.length
+    };
+  }).sort((a, b) => b.total_ha - a.total_ha);
 
   return {
-    terrestrial_ha: Math.round(terrestrialHa * 100) / 100,
-    marine_ha: Math.round(marineHa * 100) / 100,
-    terrestrial_pct: Math.round(terrestrialPct * 1000) / 1000,
-    marine_pct: Math.round(marinePct * 1000) / 1000,
-    terrestrial_remaining_pct: Math.round((30 - terrestrialPct) * 1000) / 1000,
-    marine_remaining_pct: Math.round((30 - marinePct) * 1000) / 1000,
+    // Net (dissolved) — official coverage figures
+    terrestrial_ha: round2(netTerrestrial),
+    marine_ha: round2(netMarine),
+    terrestrial_pct: round3(terrestrialPct),
+    marine_pct: round3(marinePct),
+    terrestrial_remaining_pct: round3(Math.max(0, 30 - terrestrialPct)),
+    marine_remaining_pct: round3(Math.max(0, 30 - marinePct)),
+    // Gross (sum) — for transparency
+    gross_terrestrial_ha: round2(grossTerrestrial),
+    gross_marine_ha: round2(grossMarine),
     total_features: totalFeatures,
     provinceBreakdown,
-    baselines
+    baselines,
+    // Dissolved geometries for map rendering
+    dissolvedTerrestrial,
+    dissolvedMarine
   };
 }
 
+// ─── GENERAL METRICS ─────────────────────────────────────────────────────────
+
 /**
- * Computes general layer summary metrics (for non-T3 targets).
+ * Computes general layer summary metrics with dissolution.
  * @param {Array} layers
  * @param {object} filters
  * @returns {object}
  */
 export function computeGeneralMetrics(layers, filters = {}) {
   let totalFeatures = 0;
-  let totalAreaHa = 0;
+  let grossAreaHa = 0;
+  const allFeatures = [];
   const categoryCounts = {};
   const realmCounts = { terrestrial: 0, marine: 0 };
 
   for (const layer of layers) {
     const meta = layer.metadata;
 
-    // Apply target filter
     if (filters.targets && filters.targets.length > 0) {
       if (!meta.targets.some(t => filters.targets.includes(t))) continue;
     }
@@ -151,7 +229,8 @@ export function computeGeneralMetrics(layers, filters = {}) {
 
     for (const f of features) {
       totalFeatures++;
-      totalAreaHa += f.properties.area_ha || 0;
+      grossAreaHa += f.properties.area_ha || 0;
+      allFeatures.push(f);
 
       const cat = meta.category || 'OTHER';
       categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
@@ -161,18 +240,29 @@ export function computeGeneralMetrics(layers, filters = {}) {
     }
   }
 
+  const dissolved = dissolveFeatures(allFeatures);
+  const netAreaHa = dissolved ? computeAreaHa(dissolved) : 0;
+
   return {
     totalFeatures,
-    totalAreaHa: Math.round(totalAreaHa * 100) / 100,
+    totalAreaHa: round2(netAreaHa),
+    grossAreaHa: round2(grossAreaHa),
     categoryCounts,
     realmCounts
   };
 }
 
+// ─── TARGET-SPECIFIC METRICS ─────────────────────────────────────────────────
+
 /**
- * Computes detailed target-specific metrics from a set of layers.
- * Provides province breakdown, category breakdown, and species/type breakdown
- * suitable for per-target KPI dashboards.
+ * Computes detailed target-specific metrics with polygon dissolution.
+ *
+ * For each target:
+ * - All features dissolved for net coverage area
+ * - Per-realm dissolution for terrestrial/marine breakdown
+ * - Per-category dissolution for category breakdown
+ * - Per-province dissolution for province breakdown
+ * - Gross (sum) totals alongside net for transparency
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {string} targetCode - e.g. 'T1', 'T6', 'T10'
@@ -181,29 +271,29 @@ export function computeGeneralMetrics(layers, filters = {}) {
  */
 export function computeTargetMetrics(layers, targetCode, filters = {}) {
   let totalFeatures = 0;
-  let totalAreaHa = 0;
+  let grossAreaHa = 0;
   let layerCount = 0;
-  const provinceMap = {};
-  const categoryMap = {};
+  const allFeatures = [];
+  const provinceFeatures = {};
+  const categoryFeatures = {};
   const typeMap = {};
-  const realmTotals = { terrestrial_ha: 0, marine_ha: 0 };
+  const realmFeatures = { terrestrial: [], marine: [] };
+  let grossTerrestrial = 0;
+  let grossMarine = 0;
 
   for (const layer of layers) {
     const meta = layer.metadata;
-
-    // Only include layers tagged with the requested target
     if (!meta.targets || !meta.targets.includes(targetCode)) continue;
 
-    // Apply category filter
     if (filters.category && filters.category !== 'All') {
       if (meta.category !== filters.category) continue;
     }
-    // Apply realm filter
     if (filters.realm && filters.realm !== 'All') {
       if (meta.realm !== filters.realm) continue;
     }
 
     layerCount++;
+    const cat = meta.category || 'OTHER';
 
     const features = (layer.geojson?.features || []).filter(f => {
       if (filters.province && filters.province !== 'All') {
@@ -216,42 +306,41 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
       return true;
     });
 
-    const cat = meta.category || 'OTHER';
-
     for (const f of features) {
       const areaHa = f.properties.area_ha || 0;
       const realm = f.properties.realm || meta.realm || 'terrestrial';
 
       totalFeatures++;
-      totalAreaHa += areaHa;
+      grossAreaHa += areaHa;
+      allFeatures.push(f);
 
-      // Realm totals
+      // Realm grouping
       if (realm === 'marine') {
-        realmTotals.marine_ha += areaHa;
+        realmFeatures.marine.push(f);
+        grossMarine += areaHa;
       } else {
-        realmTotals.terrestrial_ha += areaHa;
+        realmFeatures.terrestrial.push(f);
+        grossTerrestrial += areaHa;
       }
 
-      // Province breakdown
+      // Province grouping
       const prov = f.properties.province || 'Unassigned';
-      if (!provinceMap[prov]) {
-        provinceMap[prov] = { terrestrial_ha: 0, marine_ha: 0, features: 0 };
+      if (!provinceFeatures[prov]) {
+        provinceFeatures[prov] = { terrestrial: [], marine: [] };
       }
       if (realm === 'marine') {
-        provinceMap[prov].marine_ha += areaHa;
+        provinceFeatures[prov].marine.push(f);
       } else {
-        provinceMap[prov].terrestrial_ha += areaHa;
+        provinceFeatures[prov].terrestrial.push(f);
       }
-      provinceMap[prov].features++;
 
-      // Category breakdown
-      if (!categoryMap[cat]) {
-        categoryMap[cat] = { area_ha: 0, features: 0 };
+      // Category grouping
+      if (!categoryFeatures[cat]) {
+        categoryFeatures[cat] = [];
       }
-      categoryMap[cat].area_ha += areaHa;
-      categoryMap[cat].features++;
+      categoryFeatures[cat].push(f);
 
-      // Type/species breakdown (uses the mapped 'type' or 'name' property)
+      // Type/species grouping
       const typeName = f.properties.type || f.properties.species_name || f.properties.name || meta.name || 'Unknown';
       if (!typeMap[typeName]) {
         typeMap[typeName] = { area_ha: 0, features: 0 };
@@ -261,19 +350,49 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     }
   }
 
-  // Sort breakdowns by area descending
-  const provinceBreakdown = Object.entries(provinceMap)
-    .map(([name, data]) => ({
+  // Dissolve all features for net total
+  const dissolvedAll = dissolveFeatures(allFeatures);
+  const netAreaHa = dissolvedAll ? computeAreaHa(dissolvedAll) : 0;
+
+  // Dissolve by realm
+  const dissolvedTerrestrial = dissolveFeatures(realmFeatures.terrestrial);
+  const dissolvedMarine = dissolveFeatures(realmFeatures.marine);
+  const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : 0;
+  const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : 0;
+
+  // Province breakdown with per-province dissolution
+  const provinceBreakdown = Object.entries(provinceFeatures).map(([name, data]) => {
+    const tDissolved = dissolveFeatures(data.terrestrial);
+    const mDissolved = dissolveFeatures(data.marine);
+    const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
+    const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
+    return {
       province: name,
-      ...data,
-      total_ha: data.terrestrial_ha + data.marine_ha
-    }))
-    .sort((a, b) => b.total_ha - a.total_ha);
+      terrestrial_ha: round2(tNet),
+      marine_ha: round2(mNet),
+      total_ha: round2(tNet + mNet),
+      features: data.terrestrial.length + data.marine.length
+    };
+  }).sort((a, b) => b.total_ha - a.total_ha);
 
-  const categoryBreakdown = Object.entries(categoryMap)
-    .map(([name, data]) => ({ category: name, ...data }))
-    .sort((a, b) => b.area_ha - a.area_ha);
+  // Category breakdown with per-category dissolution + map geometries
+  const dissolvedByCategory = {};
+  const categoryBreakdown = [];
+  for (const [cat, features] of Object.entries(categoryFeatures)) {
+    const dissolved = dissolveFeatures(features);
+    dissolvedByCategory[cat] = dissolved;
+    const netCatArea = dissolved ? computeAreaHa(dissolved) : 0;
+    const grossCatArea = features.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
+    categoryBreakdown.push({
+      category: cat,
+      area_ha: round2(netCatArea),
+      gross_area_ha: round2(grossCatArea),
+      features: features.length
+    });
+  }
+  categoryBreakdown.sort((a, b) => b.area_ha - a.area_ha);
 
+  // Type breakdown (kept as gross — types are typically distinct)
   const typeBreakdown = Object.entries(typeMap)
     .map(([name, data]) => ({ type: name, ...data }))
     .sort((a, b) => b.area_ha - a.area_ha);
@@ -281,14 +400,28 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
   return {
     targetCode,
     totalFeatures,
-    totalAreaHa: Math.round(totalAreaHa * 100) / 100,
+    totalAreaHa: round2(netAreaHa),
+    grossAreaHa: round2(grossAreaHa),
     layerCount,
     realmTotals: {
-      terrestrial_ha: Math.round(realmTotals.terrestrial_ha * 100) / 100,
-      marine_ha: Math.round(realmTotals.marine_ha * 100) / 100
+      terrestrial_ha: round2(netTerrestrial),
+      marine_ha: round2(netMarine),
+      gross_terrestrial_ha: round2(grossTerrestrial),
+      gross_marine_ha: round2(grossMarine)
     },
     provinceBreakdown,
     categoryBreakdown,
-    typeBreakdown
+    typeBreakdown,
+    dissolvedByCategory
   };
+}
+
+// ─── Utility ─────────────────────────────────────────────────────────────────
+
+function round2(val) {
+  return Math.round(val * 100) / 100;
+}
+
+function round3(val) {
+  return Math.round(val * 1000) / 1000;
 }

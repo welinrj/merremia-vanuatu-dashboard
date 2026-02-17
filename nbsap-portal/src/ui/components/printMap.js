@@ -3,7 +3,7 @@
  *
  * Creates a full-screen print overlay with a professional map layout:
  *   - Title block (target name, description, NBSAP branding)
- *   - Leaflet map showing only the target's layers over province boundaries
+ *   - Leaflet map showing dissolved (union) boundaries per category
  *   - Legend (category colours used by the target)
  *   - North arrow
  *   - Scale bar (Leaflet built-in)
@@ -11,6 +11,9 @@
  *
  * Uses @media print CSS to hide everything except the print overlay,
  * so the user can call window.print() or Ctrl+P for a clean output.
+ *
+ * Polygon dissolution follows UNEP-WCMC methodology: overlapping features
+ * are unioned per category for clean cartographic boundaries.
  */
 import L from 'leaflet';
 import ENV from '../../config/env.js';
@@ -18,7 +21,7 @@ import { CATEGORIES } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import EXPECTED_LAYERS from '../../config/expectedLayers.js';
 import { getAppState, getDashboardLayers } from '../state.js';
-import { compute30x30Metrics, computeTargetMetrics } from '../../gis/areaCalc.js';
+import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
 
 const OVERLAY_ID = 'print-map-overlay';
 
@@ -139,7 +142,7 @@ function renderTargetPage(container, targetCode, target) {
   const layers = getTargetLayers(targetCode);
   const expected = getExpectedForTarget(targetCode);
 
-  // Compute metrics
+  // Compute metrics (now includes dissolution)
   let metrics;
   if (targetCode === 'T3') {
     metrics = compute30x30Metrics(layers, { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' });
@@ -157,13 +160,14 @@ function renderTargetPage(container, targetCode, target) {
     usedCategories.add(el.category);
   }
 
-  // Count features and area
+  // Count features and area (use dissolved net area from metrics)
   let totalFeatures = 0;
-  let totalAreaHa = 0;
   for (const l of layers) {
     totalFeatures += l.geojson?.features?.length || 0;
-    totalAreaHa += l.metadata?.totalAreaHa || 0;
   }
+  const totalAreaHa = (targetCode === 'T3')
+    ? (metrics.terrestrial_ha + metrics.marine_ha)
+    : (metrics.totalAreaHa || 0);
 
   // Build the page
   const page = document.createElement('div');
@@ -187,8 +191,8 @@ function renderTargetPage(container, targetCode, target) {
       <div class="print-metrics-row">
         <div class="print-metric"><span class="print-metric-value">${metrics.terrestrial_pct?.toFixed(1) || 0}%</span><span class="print-metric-label">Terrestrial</span></div>
         <div class="print-metric"><span class="print-metric-value">${metrics.marine_pct?.toFixed(1) || 0}%</span><span class="print-metric-label">Marine</span></div>
-        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.terrestrial_ha || 0)}</span><span class="print-metric-label">Terrestrial ha</span></div>
-        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.marine_ha || 0)}</span><span class="print-metric-label">Marine ha</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.terrestrial_ha || 0)}</span><span class="print-metric-label">Terrestrial ha (net)</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.marine_ha || 0)}</span><span class="print-metric-label">Marine ha (net)</span></div>
       </div>
     `;
   } else {
@@ -196,16 +200,14 @@ function renderTargetPage(container, targetCode, target) {
       <div class="print-metrics-row">
         <div class="print-metric"><span class="print-metric-value">${layers.length}</span><span class="print-metric-label">Layers</span></div>
         <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Features</span></div>
-        <div class="print-metric"><span class="print-metric-value">${fmtHa(totalAreaHa)}</span><span class="print-metric-label">Total Area (ha)</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(totalAreaHa)}</span><span class="print-metric-label">Net Area (ha)</span></div>
         <div class="print-metric"><span class="print-metric-value">${usedCategories.size}</span><span class="print-metric-label">Categories</span></div>
       </div>
     `;
   }
 
   // Province breakdown mini-table
-  const provBreakdown = (targetCode === 'T3')
-    ? (metrics?.provinceBreakdown || [])
-    : (metrics?.provinceBreakdown || []);
+  const provBreakdown = metrics?.provinceBreakdown || [];
 
   let provTableHtml = '';
   if (provBreakdown.length > 0) {
@@ -217,7 +219,7 @@ function renderTargetPage(container, targetCode, target) {
     }).join('');
     provTableHtml = `
       <div class="print-prov-table">
-        <div class="print-section-title">Provincial Breakdown</div>
+        <div class="print-section-title">Provincial Breakdown (net area, dissolved)</div>
         <table>
           <thead><tr><th>Province</th><th style="text-align:right">Area</th><th style="text-align:right">Features</th></tr></thead>
           <tbody>${rows}</tbody>
@@ -292,7 +294,7 @@ function renderTargetPage(container, targetCode, target) {
         <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
-        Printed: ${new Date().toLocaleString('en-GB')} &bull; Map Projection: WGS 84
+        Printed: ${new Date().toLocaleString('en-GB')} &bull; Map Projection: WGS 84 &bull; Areas dissolved (UNEP-WCMC)
       </div>
     </div>
   `;
@@ -307,6 +309,7 @@ function renderTargetPage(container, targetCode, target) {
 
 /**
  * Initializes a Leaflet map inside the print page for a specific target.
+ * Renders dissolved (unioned) boundaries per category for clean cartographic output.
  */
 function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) {
   const el = document.getElementById(containerId);
@@ -353,35 +356,65 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
     }).addTo(printMap);
   }
 
-  // Data layers
+  // Collect features per category for dissolution
+  const categoryPolygons = {};
   const featureGroup = L.featureGroup();
 
   for (const layerData of layers) {
     const meta = layerData.metadata;
-    const catConfig = CATEGORIES[meta?.category] || CATEGORIES.OTHER;
+    const cat = meta?.category || 'OTHER';
     const features = layerData.geojson?.features || [];
 
-    if (features.length === 0) continue;
-
-    const geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
-      style: () => ({
-        color: catConfig.color,
-        weight: 2,
-        fillOpacity: 0.3,
-        fillColor: catConfig.color
-      }),
-      pointToLayer: (feature, latlng) => {
-        return L.circleMarker(latlng, {
-          radius: 5,
-          fillColor: catConfig.color,
-          color: '#fff',
-          weight: 1,
-          fillOpacity: 0.8
-        });
+    for (const f of features) {
+      const geomType = f.geometry?.type;
+      if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+        if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
+        categoryPolygons[cat].push(f);
       }
-    });
+    }
+  }
 
-    featureGroup.addLayer(geoLayer);
+  // Render dissolved boundaries per category
+  for (const [cat, features] of Object.entries(categoryPolygons)) {
+    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
+    const dissolved = dissolveFeatures(features);
+
+    if (dissolved) {
+      const geoLayer = L.geoJSON(dissolved, {
+        style: () => ({
+          color: catConfig.color,
+          weight: 2,
+          fillOpacity: 0.3,
+          fillColor: catConfig.color
+        })
+      });
+      featureGroup.addLayer(geoLayer);
+    }
+  }
+
+  // Also render point features (non-polygon) normally
+  for (const layerData of layers) {
+    const meta = layerData.metadata;
+    const catConfig = CATEGORIES[meta?.category] || CATEGORIES.OTHER;
+    const features = layerData.geojson?.features || [];
+    const points = features.filter(f =>
+      f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint'
+    );
+
+    if (points.length > 0) {
+      const geoLayer = L.geoJSON({ type: 'FeatureCollection', features: points }, {
+        pointToLayer: (feature, latlng) => {
+          return L.circleMarker(latlng, {
+            radius: 5,
+            fillColor: catConfig.color,
+            color: '#fff',
+            weight: 1,
+            fillOpacity: 0.8
+          });
+        }
+      });
+      featureGroup.addLayer(geoLayer);
+    }
   }
 
   featureGroup.addTo(printMap);

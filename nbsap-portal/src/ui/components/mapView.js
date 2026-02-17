@@ -1,12 +1,17 @@
 /**
  * Leaflet Map component.
  * Renders the interactive map with basemap selector, layer controls,
- * and popups showing standardized attributes.
+ * dissolved category boundaries, and popups showing standardized attributes.
+ *
+ * Dissolution: overlapping polygons within each category are dissolved
+ * (unioned) into a single boundary for clean cartographic display.
+ * Individual features are rendered as thin outlines for popup interactivity.
  */
 import L from 'leaflet';
 import ENV from '../../config/env.js';
 import { CATEGORIES } from '../../config/categories.js';
 import { getAppState, getDashboardLayers } from '../state.js';
+import { dissolveFeatures } from '../../gis/areaCalc.js';
 
 let map = null;
 let baseLayers = {};
@@ -56,6 +61,8 @@ export function initMap(containerId) {
 
 /**
  * Updates map layers based on current app state and filters.
+ * Renders dissolved category boundaries for clean cartographic display,
+ * with individual feature outlines for popup interactivity.
  */
 export function updateMapLayers() {
   if (!map) return;
@@ -86,7 +93,11 @@ export function updateMapLayers() {
     }).addTo(map);
   }
 
-  // Render data layers
+  // Collect features per category for dissolution
+  const categoryPolygons = {};
+  const categoryPointFeatures = [];
+
+  // Pass 1: Collect and classify features
   for (const layerData of layers) {
     const meta = layerData.metadata;
 
@@ -100,19 +111,80 @@ export function updateMapLayers() {
       if (meta.category !== filters.category) continue;
     }
 
-    const catConfig = CATEGORIES[meta.category] || CATEGORIES.OTHER;
+    const cat = meta.category || 'OTHER';
+    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
     const features = filterFeatures(layerData.geojson?.features || [], filters);
 
     if (features.length === 0) continue;
 
-    const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+    for (const f of features) {
+      const geomType = f.geometry?.type;
+      if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+        if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
+        categoryPolygons[cat].push(f);
+      } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+        categoryPointFeatures.push({ feature: f, meta, catConfig });
+      }
+    }
+  }
+
+  // Pass 2: Render dissolved category boundaries (fill + outline)
+  for (const [cat, features] of Object.entries(categoryPolygons)) {
+    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
+    const dissolved = dissolveFeatures(features);
+
+    if (dissolved) {
+      const dissolvedLayer = L.geoJSON(dissolved, {
+        style: () => ({
+          color: catConfig.color,
+          weight: 2.5,
+          fillOpacity: 0.25,
+          fillColor: catConfig.color
+        }),
+        interactive: false
+      });
+      overlayGroup.addLayer(dissolvedLayer);
+    }
+  }
+
+  // Pass 3: Render individual polygon features as thin outlines (for popups)
+  for (const layerData of layers) {
+    const meta = layerData.metadata;
+
+    if (filters.targets.length > 0) {
+      if (!meta.targets.some(t => filters.targets.includes(t))) continue;
+    }
+    if (filters.category && filters.category !== 'All') {
+      if (meta.category !== filters.category) continue;
+    }
+
+    const catConfig = CATEGORIES[meta.category] || CATEGORIES.OTHER;
+    const features = filterFeatures(layerData.geojson?.features || [], filters);
+    const polygonFeatures = features.filter(f =>
+      f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
+    );
+
+    if (polygonFeatures.length === 0) continue;
+
+    const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: polygonFeatures }, {
       style: () => ({
         color: catConfig.color,
-        weight: 2,
-        fillOpacity: 0.25,
-        fillColor: catConfig.color
+        weight: 1,
+        fillOpacity: 0,
+        dashArray: '4 3'
       }),
-      pointToLayer: (feature, latlng) => {
+      onEachFeature: (feature, layer) => {
+        buildPopup(feature, layer, meta);
+      }
+    });
+
+    overlayGroup.addLayer(geojsonLayer);
+  }
+
+  // Pass 4: Render point features
+  for (const { feature, meta, catConfig } of categoryPointFeatures) {
+    const pointLayer = L.geoJSON(feature, {
+      pointToLayer: (f, latlng) => {
         return L.circleMarker(latlng, {
           radius: 6,
           fillColor: catConfig.color,
@@ -121,38 +193,44 @@ export function updateMapLayers() {
           fillOpacity: 0.8
         });
       },
-      onEachFeature: (feature, layer) => {
-        const p = feature.properties;
-        const popup = `
-          <div style="min-width:200px">
-            <strong>${p.name || 'Unnamed'}</strong><br>
-            <small>${meta.category} | ${p.realm || ''} | ${p.province || 'No province'}</small>
-            <hr style="margin:6px 0;border:none;border-top:1px solid #eee">
-            <table style="font-size:12px;width:100%">
-              <tr><td><b>Type:</b></td><td>${p.type || '-'}</td></tr>
-              <tr><td><b>Status:</b></td><td>${p.status || '-'}</td></tr>
-              <tr><td><b>Year:</b></td><td>${p.year || '-'}</td></tr>
-              <tr><td><b>Area:</b></td><td>${p.area_ha ? p.area_ha.toFixed(2) + ' ha' : '-'}</td></tr>
-              <tr><td><b>Source:</b></td><td>${p.source || '-'}</td></tr>
-              <tr><td><b>Targets:</b></td><td>${(p.targets || []).join(', ')}</td></tr>
-            </table>
-            ${p.notes ? `<p style="font-size:11px;margin-top:6px;color:#666">${p.notes}</p>` : ''}
-          </div>
-        `;
-        layer.bindPopup(popup);
+      onEachFeature: (f, layer) => {
+        buildPopup(f, layer, meta);
       }
     });
-
-    overlayGroup.addLayer(geojsonLayer);
+    overlayGroup.addLayer(pointLayer);
   }
 
-  // Fit bounds to visible features (only when overlayGroup has layers)
+  // Fit bounds to visible features
   if (overlayGroup.getLayers().length > 0) {
     const bounds = overlayGroup.getBounds();
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
     }
   }
+}
+
+/**
+ * Builds a popup for a feature.
+ */
+function buildPopup(feature, layer, meta) {
+  const p = feature.properties;
+  const popup = `
+    <div style="min-width:200px">
+      <strong>${p.name || 'Unnamed'}</strong><br>
+      <small>${meta.category} | ${p.realm || ''} | ${p.province || 'No province'}</small>
+      <hr style="margin:6px 0;border:none;border-top:1px solid #eee">
+      <table style="font-size:12px;width:100%">
+        <tr><td><b>Type:</b></td><td>${p.type || '-'}</td></tr>
+        <tr><td><b>Status:</b></td><td>${p.status || '-'}</td></tr>
+        <tr><td><b>Year:</b></td><td>${p.year || '-'}</td></tr>
+        <tr><td><b>Area:</b></td><td>${p.area_ha ? p.area_ha.toFixed(2) + ' ha' : '-'}</td></tr>
+        <tr><td><b>Source:</b></td><td>${p.source || '-'}</td></tr>
+        <tr><td><b>Targets:</b></td><td>${(p.targets || []).join(', ')}</td></tr>
+      </table>
+      ${p.notes ? `<p style="font-size:11px;margin-top:6px;color:#666">${p.notes}</p>` : ''}
+    </div>
+  `;
+  layer.bindPopup(popup);
 }
 
 /**

@@ -1,9 +1,11 @@
 /**
  * KPI Widgets component.
- * Renders target-specific metric dashboards.
- * - T3: 30x30 progress bars with terrestrial/marine breakdown
- * - T6: Invasive species with species breakdown (Merremia, Fire Ants, etc.)
- * - All others: General target metrics with area, features, category breakdown
+ * Renders target-specific metric dashboards with dissolved (net) area
+ * as the primary metric and gross (sum) as secondary for transparency.
+ *
+ * - T3: 30x30 progress bars with dissolved terrestrial/marine breakdown
+ * - T6: Invasive species with species breakdown
+ * - All others: General target metrics with net/gross area display
  */
 import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
@@ -60,17 +62,21 @@ function renderTarget3KPIs(container, layers, filters) {
   const tPctClamped = Math.min(m.terrestrial_pct, 100);
   const mPctClamped = Math.min(m.marine_pct, 100);
 
+  // Show gross vs net indicator only when they differ
+  const tHasOverlap = m.gross_terrestrial_ha > 0 && Math.abs(m.gross_terrestrial_ha - m.terrestrial_ha) > 1;
+  const mHasOverlap = m.gross_marine_ha > 0 && Math.abs(m.gross_marine_ha - m.marine_ha) > 1;
+
   container.innerHTML = `
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">Conserved area</div>
+        <div class="kpi-sublabel">Net coverage (dissolved)${tHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.gross_terrestrial_ha)} ha</span>` : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
         <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">Conserved area</div>
+        <div class="kpi-sublabel">Net coverage (dissolved)${mHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.gross_marine_ha)} ha</span>` : ''}</div>
       </div>
 
       <div class="kpi-card wide">
@@ -114,6 +120,9 @@ function renderTarget3KPIs(container, layers, filters) {
         <div class="kpi-sublabel">With conservation areas</div>
       </div>
     </div>
+    <div class="kpi-methodology-note">
+      Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.
+    </div>
   `;
 }
 
@@ -127,12 +136,14 @@ function renderInvasiveKPIs(container, layers, filters) {
   const merremiaTypes = m.categoryBreakdown.find(c => c.category === 'MERREMIA');
   const otherIAS = m.categoryBreakdown.find(c => c.category === 'INVASIVE');
 
+  const hasOverlap = m.grossAreaHa > 0 && Math.abs(m.grossAreaHa - m.totalAreaHa) > 1;
+
   container.innerHTML = `
     <div class="kpi-grid">
       <div class="kpi-card accent-red">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
         <div class="kpi-label">Total IAS Area (ha)</div>
-        <div class="kpi-sublabel">${m.totalFeatures} detections across ${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''}</div>
+        <div class="kpi-sublabel">${m.totalFeatures} detections across ${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''}${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
       </div>
       <div class="kpi-card accent-red">
         <div class="kpi-value">${formatNumber(merremiaTypes ? merremiaTypes.area_ha : 0)}</div>
@@ -160,6 +171,8 @@ function renderTargetKPIs(container, layers, filters, targetCode) {
   const m = computeTargetMetrics(layers, targetCode, filters);
   const meta = TARGET_META[targetCode] || { icon: '', label: targetCode, unit: 'ha' };
 
+  const hasOverlap = m.grossAreaHa > 0 && Math.abs(m.grossAreaHa - m.totalAreaHa) > 1;
+
   // Build category badges
   const catBadges = m.categoryBreakdown.map(c => {
     const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
@@ -172,8 +185,8 @@ function renderTargetKPIs(container, layers, filters, targetCode) {
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
-        <div class="kpi-label">Total Area (ha)</div>
-        <div class="kpi-sublabel">${meta.unit}</div>
+        <div class="kpi-label">Net Area (ha)</div>
+        <div class="kpi-sublabel">${meta.unit}${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
@@ -197,6 +210,8 @@ function renderTargetKPIs(container, layers, filters, targetCode) {
 function renderGeneralKPIs(container, layers, filters) {
   const m = computeGeneralMetrics(layers, filters);
 
+  const hasOverlap = m.grossAreaHa > 0 && Math.abs(m.grossAreaHa - m.totalAreaHa) > 1;
+
   container.innerHTML = `
     <div class="kpi-grid">
       <div class="kpi-card">
@@ -205,7 +220,8 @@ function renderGeneralKPIs(container, layers, filters) {
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
-        <div class="kpi-label">Total Area (ha)</div>
+        <div class="kpi-label">Net Area (ha)</div>
+        ${hasOverlap ? `<div class="kpi-sublabel"><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span></div>` : ''}
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.realmCounts.terrestrial || 0}</div>
