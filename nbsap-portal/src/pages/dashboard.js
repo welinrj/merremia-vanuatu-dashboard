@@ -8,6 +8,7 @@ import { renderKPIWidgets } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
+import { openPrintMap, openPrintAllMaps } from '../ui/components/printMap.js';
 import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
@@ -50,6 +51,17 @@ export function initDashboard() {
             PNG
           </button>
         </div>
+        <div class="sidebar-section-title">Print Maps</div>
+        <div class="export-toolbar">
+          <button class="btn btn-sm btn-outline" id="btn-print-target" title="Print map for the selected target" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Target
+          </button>
+          <button class="btn btn-sm btn-primary" id="btn-print-all" title="Print maps for all 9 NBSAP targets">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            All Targets
+          </button>
+        </div>
       </div>
       <div class="dashboard-main">
         <div id="target-header-container"></div>
@@ -89,6 +101,15 @@ export function initDashboard() {
   document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
   document.getElementById('btn-export-json').addEventListener('click', exportTORSnapshot);
   document.getElementById('btn-export-png').addEventListener('click', exportMapPNG);
+
+  // Print map buttons
+  document.getElementById('btn-print-all').addEventListener('click', openPrintAllMaps);
+  document.getElementById('btn-print-target').addEventListener('click', () => {
+    const state = getAppState();
+    if (state.filters.targets.length === 1) {
+      openPrintMap(state.filters.targets[0]);
+    }
+  });
 }
 
 /**
@@ -115,18 +136,36 @@ export function refreshDashboard() {
 
   // Render target header
   const headerContainer = document.getElementById('target-header-container');
+  const printTargetBtn = document.getElementById('btn-print-target');
   if (headerContainer) {
     if (activeTargets.length === 1) {
       const t = activeTargets[0];
       const hdr = TARGET_HEADERS[t] || { title: t, desc: '' };
       headerContainer.innerHTML = `
         <div class="target-header-bar">
-          <strong>${hdr.title}</strong>
-          <span style="color:var(--text-secondary);font-size:13px;margin-left:12px">${hdr.desc}</span>
+          <div style="flex:1">
+            <strong>${hdr.title}</strong>
+            <span style="color:var(--text-secondary);font-size:13px;margin-left:12px">${hdr.desc}</span>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-print-header" title="Print map for ${t}" style="flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Map
+          </button>
         </div>
       `;
+      // Wire header print button
+      document.getElementById('btn-print-header').addEventListener('click', () => openPrintMap(t));
+      // Enable sidebar print target button
+      if (printTargetBtn) {
+        printTargetBtn.disabled = false;
+        printTargetBtn.title = `Print map for ${t}`;
+      }
     } else {
       headerContainer.innerHTML = '';
+      if (printTargetBtn) {
+        printTargetBtn.disabled = true;
+        printTargetBtn.title = 'Select a single target first';
+      }
     }
   }
 
