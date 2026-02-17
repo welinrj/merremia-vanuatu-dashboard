@@ -9,6 +9,7 @@ import * as firestoreStorage from './storageFirestore.js';
 
 export const {
   listLayers,
+  countLayers,
   getLayer,
   saveLayer,
   deleteLayer,

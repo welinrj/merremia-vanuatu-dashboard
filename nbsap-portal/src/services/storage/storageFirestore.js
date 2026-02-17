@@ -10,6 +10,9 @@
  */
 import { initializeApp } from 'firebase/app';
 import {
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   getFirestore,
   collection,
   doc,
@@ -17,8 +20,6 @@ import {
   getDoc,
   setDoc,
   deleteDoc,
-  query,
-  orderBy,
   onSnapshot,
   writeBatch
 } from 'firebase/firestore';
@@ -35,7 +36,20 @@ const firebaseConfig = {
 
 // Use a separate app name to avoid conflicts if both portals load on the same page
 const app = initializeApp(firebaseConfig, 'nbsap-portal');
-const db = getFirestore(app);
+
+// Enable offline persistence so data is cached locally in IndexedDB.
+// After the first successful load, subsequent loads (on iPad, etc.) are instant.
+let db;
+try {
+  db = initializeFirestore(app, {
+    localCache: persistentLocalCache({
+      tabManager: persistentMultipleTabManager()
+    })
+  });
+} catch (e) {
+  console.warn('Firestore persistence not available, using default:', e.message);
+  db = getFirestore(app);
+}
 
 // Collection names (prefixed to avoid collision with the React app's 'datasets')
 const COL_LAYERS = 'nbsap_layers';
@@ -48,6 +62,9 @@ const CHUNK_SIZE = 800_000; // 800 KB per chunk
 // ─── Chunk helpers ──────────────────────────────────────────
 
 async function writeChunkedGeoJSON(layerId, geojsonObj) {
+  // Delete old chunks first to prevent orphans when data shrinks
+  await deleteChunks(layerId);
+
   const json = JSON.stringify(geojsonObj);
   const numChunks = Math.ceil(json.length / CHUNK_SIZE);
 
@@ -97,25 +114,44 @@ async function deleteChunks(layerId) {
 // ─── Layer operations ───────────────────────────────────────
 
 export async function listLayers() {
-  const q = query(collection(db, COL_LAYERS), orderBy('metadata.uploadTimestamp', 'desc'));
-  let snap;
-  try {
-    snap = await getDocs(q);
-  } catch {
-    // If the index doesn't exist yet, fall back to unordered
-    snap = await getDocs(collection(db, COL_LAYERS));
-  }
+  // Simple query without orderBy to avoid requiring a Firestore composite index
+  const snap = await getDocs(collection(db, COL_LAYERS));
+  if (snap.empty) return [];
 
-  const layers = [];
-  for (const d of snap.docs) {
-    const data = d.data();
-    // Read geojson from chunks
-    const geojson = await readChunkedGeoJSON(d.id);
-    if (geojson) {
-      layers.push({ id: d.id, metadata: data.metadata, geojson });
-    }
-  }
+  // Load all layers' GeoJSON chunks in PARALLEL (much faster than sequential)
+  const results = await Promise.allSettled(
+    snap.docs.map(async (d) => {
+      const data = d.data();
+      const geojson = await readChunkedGeoJSON(d.id);
+      if (!geojson) {
+        console.warn(`Layer ${d.id}: no GeoJSON chunks found`);
+        return null;
+      }
+      return { id: d.id, metadata: data.metadata, geojson };
+    })
+  );
+
+  const layers = results
+    .filter(r => r.status === 'fulfilled' && r.value !== null)
+    .map(r => r.value);
+
+  // Sort by upload timestamp (newest first) in JS instead of Firestore query
+  layers.sort((a, b) => {
+    const ta = a.metadata?.uploadTimestamp || '';
+    const tb = b.metadata?.uploadTimestamp || '';
+    return tb.localeCompare(ta);
+  });
+
   return layers;
+}
+
+/**
+ * Returns the count of layer documents in Firestore (metadata only, no chunks).
+ * Fast check to determine if any data exists before falling back to demo data.
+ */
+export async function countLayers() {
+  const snap = await getDocs(collection(db, COL_LAYERS));
+  return snap.size;
 }
 
 export async function getLayer(id) {

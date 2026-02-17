@@ -3,7 +3,7 @@
  * Initializes the app shell, loads data from Firestore, wires up tab navigation,
  * and subscribes to real-time updates for cross-device sync.
  */
-import { listLayers, saveLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
+import { listLayers, countLayers, saveLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
 import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
@@ -73,10 +73,43 @@ async function init() {
 }
 
 /**
+ * Shows a loading status banner on the dashboard page.
+ */
+function showLoadingStatus(message) {
+  let el = document.getElementById('nbsap-loading-status');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'nbsap-loading-status';
+    el.style.cssText = `
+      position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+      z-index: 9998; background: #006B3F; color: white; padding: 8px 20px;
+      border-radius: 8px; font-size: 13px; font-weight: 500;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: flex; align-items: center; gap: 8px;
+    `;
+    document.body.appendChild(el);
+  }
+  el.innerHTML = `
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation: spin 1s linear infinite">
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+    ${message}
+  `;
+  el.style.display = 'flex';
+}
+
+function hideLoadingStatus() {
+  const el = document.getElementById('nbsap-loading-status');
+  if (el) el.style.display = 'none';
+}
+
+/**
  * Loads provinces and layer data, then refreshes the UI.
  */
 async function loadAppData() {
   const base = getBaseUrl();
+
+  showLoadingStatus('Loading data from Firestore...');
 
   // Load provinces boundary data
   try {
@@ -91,19 +124,32 @@ async function loadAppData() {
 
   // Load layer tracker state
   try {
-    const tracker = await withTimeout(getSetting('layerTracker'), 5000);
+    const tracker = await withTimeout(getSetting('layerTracker'), 10000);
     if (tracker) setLayerTracker(tracker);
   } catch (err) {
     console.warn('Failed to load layer tracker:', err);
   }
 
-  // Load layers from Firestore (with generous timeout for network)
+  // Load layers from Firestore (generous 60s timeout for large datasets over slow networks)
   try {
-    const stored = await withTimeout(listLayers(), 15000);
+    const stored = await withTimeout(listLayers(), 60000);
     if (stored.length > 0) {
       setLayers(stored);
+      console.log(`Loaded ${stored.length} layers from Firestore`);
     } else {
-      await loadDemoData(base);
+      // Before falling back to demo data, check if Firestore has documents
+      // whose GeoJSON chunks may have failed to load
+      try {
+        const docCount = await withTimeout(countLayers(), 10000);
+        if (docCount > 0) {
+          console.warn(`Firestore has ${docCount} layer docs but GeoJSON failed to load. Real-time listener will retry.`);
+          // Don't load demo data — the real-time listener will pick up the layers
+        } else {
+          await loadDemoData(base);
+        }
+      } catch {
+        await loadDemoData(base);
+      }
     }
   } catch (err) {
     console.warn('Failed to load stored layers:', err);
@@ -114,6 +160,7 @@ async function loadAppData() {
     }
   }
 
+  hideLoadingStatus();
   initialLoadComplete = true;
 
   // Refresh all visible components with loaded data
@@ -124,8 +171,13 @@ async function loadAppData() {
  * Subscribes to real-time Firestore updates.
  * When another device uploads or modifies a layer, this
  * device sees the change and refreshes automatically.
+ *
+ * The first onSnapshot fires with ALL existing documents as 'added'.
+ * We use this to load any layers that the initial listLayers() missed.
  */
 function subscribeToRealtimeUpdates() {
+  let isFirstSnapshot = true;
+
   // Listen for layer changes
   onLayersChanged(async (changes) => {
     if (!initialLoadComplete) return;
@@ -136,15 +188,35 @@ function subscribeToRealtimeUpdates() {
 
     if (!hasChanges) return;
 
-    // Fetch full data for added or modified layers
+    const state = getAppState();
+    const existingIds = new Set(state.layers.map(l => l.id));
+
+    // On first snapshot, only load layers we don't already have
+    // On subsequent snapshots, load all added/modified layers
+    const layerIdsToLoad = [];
     for (const layerId of [...changes.added, ...changes.modified]) {
-      try {
-        const layer = await getLayer(layerId);
-        if (layer) {
-          addLayer(layer);
+      if (isFirstSnapshot && existingIds.has(layerId)) continue;
+      layerIdsToLoad.push(layerId);
+    }
+
+    isFirstSnapshot = false;
+
+    if (layerIdsToLoad.length === 0 && changes.removed.length === 0) return;
+
+    // Load layers in parallel for speed
+    if (layerIdsToLoad.length > 0) {
+      const results = await Promise.allSettled(
+        layerIdsToLoad.map(async (layerId) => {
+          const layer = await getLayer(layerId);
+          if (layer) addLayer(layer);
+          return layerId;
+        })
+      );
+
+      for (const r of results) {
+        if (r.status === 'rejected') {
+          console.warn('Failed to load layer via real-time sync:', r.reason);
         }
-      } catch (err) {
-        console.warn(`Failed to load layer ${layerId}:`, err);
       }
     }
 
@@ -153,8 +225,14 @@ function subscribeToRealtimeUpdates() {
       removeLayer(layerId);
     }
 
-    // Show a brief sync notification
-    showSyncNotification(changes);
+    // Show a brief sync notification (only for non-first snapshots with actual changes)
+    if (layerIdsToLoad.length > 0 || changes.removed.length > 0) {
+      showSyncNotification({
+        added: layerIdsToLoad.filter(id => changes.added.includes(id)),
+        modified: layerIdsToLoad.filter(id => changes.modified.includes(id)),
+        removed: changes.removed
+      });
+    }
   });
 
   // Listen for settings changes (layer tracker sync)
