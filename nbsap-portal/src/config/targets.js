@@ -24,9 +24,9 @@ export default {
     {
       "code": "T4",
       "name": "Target 4: Species & Biodiversity Distribution",
-      "description": "Distribution map of significant species and key biodiversity areas of Vanuatu.",
+      "description": "Distribution maps of significant species (Vanuatu Megapode, Mountain Starling, Streaked Fantail, Kingfisher, Flying Fox, Plerandra vanuatuensis) and Key Biodiversity Areas.",
       "isMetricTarget": true,
-      "recommendedCategories": ["SPECIES_DIST", "KBA"]
+      "recommendedCategories": ["MEGAPODE", "STARLING", "FANTAIL", "KINGFISHER", "FLYING_FOX", "PLERANDRA", "KBA", "SPECIES_DIST"]
     },
     {
       "code": "T6",

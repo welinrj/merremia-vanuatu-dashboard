@@ -39,6 +39,8 @@ export function renderKPIWidgets(container) {
     const target = activeTargets[0];
     if (target === 'T3') {
       renderTarget3KPIs(container, layers, filters);
+    } else if (target === 'T4') {
+      renderSpeciesKPIs(container, layers, filters);
     } else if (target === 'T6') {
       renderInvasiveKPIs(container, layers, filters);
     } else {
@@ -123,6 +125,88 @@ function renderTarget3KPIs(container, layers, filters) {
     <div class="kpi-methodology-note">
       Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.
     </div>
+  `;
+}
+
+/** Species categories for T4 dashboard */
+const T4_SPECIES = [
+  { key: 'MEGAPODE', name: 'Vanuatu Megapode', scientific: 'Megapodius layardi', taxa: 'Bird' },
+  { key: 'STARLING', name: 'Vanuatu Mountain Starling', scientific: 'Aplonis santovestris', taxa: 'Bird' },
+  { key: 'FANTAIL', name: 'Vanuatu Streaked Fantail', scientific: 'Rhipidura spilodera', taxa: 'Bird' },
+  { key: 'KINGFISHER', name: 'Vanuatu Kingfisher', scientific: 'Todiramphus farquhari', taxa: 'Bird' },
+  { key: 'FLYING_FOX', name: 'Vanuatu Flying Fox', scientific: 'Pteropus anetianus', taxa: 'Mammal' },
+  { key: 'PLERANDRA', name: 'Plerandra vanuatuensis', scientific: 'Plerandra vanuatuensis', taxa: 'Plant' }
+];
+
+/**
+ * Renders Target 4 (Species & Biodiversity) KPIs with per-species breakdown.
+ */
+function renderSpeciesKPIs(container, layers, filters) {
+  const m = computeTargetMetrics(layers, 'T4', filters);
+
+  // Count species with data
+  const speciesWithData = T4_SPECIES.filter(sp =>
+    m.categoryBreakdown.some(c => c.category === sp.key && c.features > 0)
+  );
+  const kba = m.categoryBreakdown.find(c => c.category === 'KBA');
+  const otherDist = m.categoryBreakdown.find(c => c.category === 'SPECIES_DIST');
+
+  // Build species cards
+  const speciesCards = T4_SPECIES.map(sp => {
+    const cat = m.categoryBreakdown.find(c => c.category === sp.key);
+    const catDef = CATEGORIES[sp.key] || { color: '#95a5a6' };
+    const hasData = cat && cat.features > 0;
+    return `
+      <div class="species-card ${hasData ? '' : 'species-no-data'}" style="border-left:4px solid ${catDef.color}">
+        <div class="species-card-header">
+          <span class="species-common-name">${sp.name}</span>
+          <span class="species-taxa-badge">${sp.taxa}</span>
+        </div>
+        <div class="species-scientific"><i>${sp.scientific}</i></div>
+        ${hasData
+          ? `<div class="species-stats">
+              <span class="species-stat-value">${formatNumber(cat.area_ha)} ha</span>
+              <span class="species-stat-label">${cat.features} record${cat.features !== 1 ? 's' : ''}</span>
+            </div>`
+          : '<div class="species-no-data-label">No data uploaded</div>'}
+      </div>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
+        <div class="kpi-label">Total Distribution (ha)</div>
+        <div class="kpi-sublabel">Net coverage (dissolved)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${speciesWithData.length} / ${T4_SPECIES.length}</div>
+        <div class="kpi-label">Species Mapped</div>
+        <div class="kpi-sublabel">${m.totalFeatures} total records</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${formatNumber(kba ? kba.area_ha : 0)}</div>
+        <div class="kpi-label">KBA Area (ha)</div>
+        <div class="kpi-sublabel">${kba ? kba.features : 0} Key Biodiversity Areas</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.provinceBreakdown.length}</div>
+        <div class="kpi-label">Provinces</div>
+        <div class="kpi-sublabel">With species records</div>
+      </div>
+    </div>
+    <div class="species-breakdown">
+      <div class="breakdown-header" style="font-size:13px;font-weight:600;margin:12px 0 8px">Significant Species</div>
+      <div class="species-grid">${speciesCards}</div>
+    </div>
+    ${otherDist && otherDist.features > 0 ? `
+      <div class="kpi-cat-badges" style="margin-top:8px">
+        <span class="cat-badge" style="background:${CATEGORIES.SPECIES_DIST.color}20;color:${CATEGORIES.SPECIES_DIST.color};border:1px solid ${CATEGORIES.SPECIES_DIST.color}40">
+          Other Species: ${formatNumber(otherDist.area_ha)} ha (${otherDist.features})
+        </span>
+      </div>
+    ` : ''}
   `;
 }
 
