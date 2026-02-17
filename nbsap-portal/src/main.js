@@ -3,7 +3,7 @@
  * Initializes the app shell, loads data from Firestore, wires up tab navigation,
  * and subscribes to real-time updates for cross-device sync.
  */
-import { listLayers, countLayers, saveLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
+import { listLayers, countLayers, saveLayer, deleteLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
 import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
@@ -133,17 +133,29 @@ async function loadAppData() {
   // Load layers from Firestore (generous 60s timeout for large datasets over slow networks)
   try {
     const stored = await withTimeout(listLayers(), 60000);
-    if (stored.length > 0) {
+
+    // Separate demo layers from real user-uploaded layers
+    const realLayers = stored.filter(l => !isDemoLayer(l));
+    const demoLayers = stored.filter(l => isDemoLayer(l));
+
+    if (realLayers.length > 0) {
+      // User has real data — use only real layers, clean up any demo data from Firestore
+      setLayers(realLayers);
+      console.log(`Loaded ${realLayers.length} layers from Firestore (excluded ${demoLayers.length} demo layers)`);
+
+      // Remove demo layers from Firestore in background so they don't persist
+      if (demoLayers.length > 0) {
+        cleanupDemoLayers(demoLayers);
+      }
+    } else if (stored.length > 0) {
+      // Only demo data exists — show it for now
       setLayers(stored);
-      console.log(`Loaded ${stored.length} layers from Firestore`);
     } else {
-      // Before falling back to demo data, check if Firestore has documents
-      // whose GeoJSON chunks may have failed to load
+      // No data at all — check for failed chunk loads, then fall back to demo
       try {
         const docCount = await withTimeout(countLayers(), 10000);
         if (docCount > 0) {
           console.warn(`Firestore has ${docCount} layer docs but GeoJSON failed to load. Real-time listener will retry.`);
-          // Don't load demo data — the real-time listener will pick up the layers
         } else {
           await loadDemoData(base);
         }
@@ -311,7 +323,35 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * Loads demo CCA and MPA layers.
+ * Detects whether a layer is demo/sample data (not user-uploaded).
+ * Demo layers are identified by their uploadedBy field or name prefix.
+ */
+function isDemoLayer(layer) {
+  const meta = layer.metadata;
+  if (!meta) return false;
+  if (meta.uploadedBy === 'system') return true;
+  if (meta._isDemo) return true;
+  const name = (meta.name || '').toLowerCase();
+  return name.startsWith('demo ');
+}
+
+/**
+ * Removes demo layers from Firestore (background cleanup).
+ * Called when real user data exists so demos don't pollute metrics.
+ */
+function cleanupDemoLayers(demoLayers) {
+  for (const layer of demoLayers) {
+    deleteLayer(layer.id).then(() => {
+      console.log(`Cleaned up demo layer from Firestore: ${layer.metadata?.name || layer.id}`);
+    }).catch(err => {
+      console.warn(`Failed to clean up demo layer ${layer.id}:`, err);
+    });
+  }
+}
+
+/**
+ * Loads demo CCA and MPA layers into memory only (NOT saved to Firestore).
+ * Demo data is for first-time visitors who haven't uploaded any real data yet.
  */
 async function loadDemoData(base) {
   if (!base) base = getBaseUrl();
@@ -341,11 +381,12 @@ async function loadDemoData(base) {
         validGeometryCount: withAreas.features.length,
         totalAreaHa: withAreas.features.reduce((s, f) => s + (f.properties.area_ha || 0), 0),
         status: 'Clean',
-        uploadedBy: 'system'
+        uploadedBy: 'system',
+        _isDemo: true
       });
 
       const record = { id: meta.id, metadata: meta, geojson: withAreas };
-      await saveLayer(record);
+      // Memory only — do NOT save to Firestore
       addLayer(record);
     } catch (err) {
       console.warn(`Failed to load demo data ${demo.name}:`, err);

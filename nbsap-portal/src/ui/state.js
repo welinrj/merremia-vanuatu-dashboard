@@ -207,13 +207,32 @@ export function hasUserLayers() {
 /**
  * Returns layers for the dashboard display.
  * When any tracked layers exist, returns only those (user-uploaded data).
- * Otherwise falls back to all layers (demo data).
+ * Otherwise, if any non-demo layers exist, returns only non-demo layers.
+ * Falls back to all layers (including demo) only when no real data exists.
  */
 export function getDashboardLayers() {
+  // If the user has explicitly tracked layers, show only those
   if (hasUserLayers()) {
     return getUserLayers();
   }
+
+  // Otherwise, exclude demo/system layers if any real layers exist
+  const realLayers = appState.layers.filter(l => !isDemoLayer(l));
+  if (realLayers.length > 0) return realLayers;
+
+  // No real data at all — show demo data
   return appState.layers;
+}
+
+/**
+ * Detects whether a layer is demo/sample data (not user-uploaded).
+ */
+function isDemoLayer(layer) {
+  const m = layer.metadata;
+  if (!m) return false;
+  if (m._isDemo) return true;
+  if (m.uploadedBy === 'system') return true;
+  return (m.name || '').toLowerCase().startsWith('demo ');
 }
 
 /**
