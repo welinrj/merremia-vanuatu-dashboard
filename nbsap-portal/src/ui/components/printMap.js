@@ -71,6 +71,32 @@ export function openPrintMap(targetCode) {
 }
 
 /**
+ * Opens the print view for a single target with one map page per province.
+ */
+export function openPrintProvinceMaps(targetCode) {
+  closePrintOverlay();
+  const target = getTargetConfig(targetCode);
+  if (!target) return;
+
+  const state = getAppState();
+  const provinces = state.provinces || [];
+  if (provinces.length === 0) return;
+
+  const overlay = buildOverlay([targetCode], `${targetCode} — By Province (${provinces.length})`);
+  document.body.appendChild(overlay);
+  document.body.classList.add('print-mode');
+
+  const pageContainer = overlay.querySelector('#print-pages');
+
+  for (const province of provinces) {
+    renderProvincePage(pageContainer, targetCode, target, province);
+  }
+
+  overlay.querySelector('#print-close-btn').addEventListener('click', closePrintOverlay);
+  overlay.querySelector('#print-print-btn').addEventListener('click', () => window.print());
+}
+
+/**
  * Opens the print view for all targets (one map page per target).
  */
 export function openPrintAllMaps() {
@@ -105,14 +131,16 @@ export function closePrintOverlay() {
 /**
  * Builds the outer overlay DOM with toolbar.
  */
-function buildOverlay(targetCodes) {
+function buildOverlay(targetCodes, customLabel) {
   const overlay = document.createElement('div');
   overlay.id = OVERLAY_ID;
   overlay.className = 'print-overlay';
 
-  const label = targetCodes.length === 1
-    ? `Print Map: ${targetCodes[0]}`
-    : `Print All Target Maps (${targetCodes.length})`;
+  const label = customLabel
+    ? `Print Maps: ${customLabel}`
+    : targetCodes.length === 1
+      ? `Print Map: ${targetCodes[0]}`
+      : `Print All Target Maps (${targetCodes.length})`;
 
   overlay.innerHTML = `
     <div class="print-toolbar no-print">
@@ -310,10 +338,158 @@ function renderTargetPage(container, targetCode, target) {
 }
 
 /**
+ * Renders one print page for a target filtered to a single province.
+ */
+function renderProvincePage(container, targetCode, target, provinceName) {
+  const state = getAppState();
+  const layers = getTargetLayers(targetCode);
+  const provinceFilter = { targets: [targetCode], province: provinceName, category: 'All', realm: 'All', year: 'All' };
+
+  // Compute metrics filtered to this province
+  let metrics;
+  if (targetCode === 'T3') {
+    metrics = compute30x30Metrics(layers, provinceFilter);
+  } else {
+    metrics = computeTargetMetrics(layers, targetCode, provinceFilter);
+  }
+
+  // Categories used
+  const usedCategories = new Set();
+  for (const l of layers) {
+    if (l.metadata?.category) usedCategories.add(l.metadata.category);
+  }
+
+  // Count features in this province (excluding reference layers)
+  let totalFeatures = 0;
+  for (const l of layers) {
+    if (l.metadata?.isReference) continue;
+    const feats = (l.geojson?.features || []).filter(f => f.properties.province === provinceName);
+    totalFeatures += feats.length;
+  }
+
+  const totalAreaHa = (targetCode === 'T3')
+    ? (metrics.terrestrial_ha + metrics.marine_ha)
+    : (metrics.totalAreaHa || 0);
+
+  const page = document.createElement('div');
+  page.className = 'print-page';
+
+  const mapId = `print-map-${targetCode}-${provinceName.replace(/\s+/g, '-')}`;
+
+  // Legend
+  const legendItems = [...usedCategories].map(cat => {
+    const c = CATEGORIES[cat] || { label: cat, color: '#95a5a6' };
+    return `<div class="print-legend-item">
+      <span class="print-legend-swatch" style="background:${c.color}"></span>
+      <span>${c.label}</span>
+    </div>`;
+  }).join('');
+
+  // Metrics row
+  let metricsHtml;
+  if (targetCode === 'T3' && metrics) {
+    metricsHtml = `
+      <div class="print-metrics-row">
+        <div class="print-metric"><span class="print-metric-value">${metrics.terrestrial_pct?.toFixed(1) || 0}%</span><span class="print-metric-label">Terrestrial</span></div>
+        <div class="print-metric"><span class="print-metric-value">${metrics.marine_pct?.toFixed(1) || 0}%</span><span class="print-metric-label">Marine</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.terrestrial_ha || 0)}</span><span class="print-metric-label">Terrestrial ha (net)</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(metrics.marine_ha || 0)}</span><span class="print-metric-label">Marine ha (net)</span></div>
+      </div>
+    `;
+  } else {
+    metricsHtml = `
+      <div class="print-metrics-row">
+        <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Features</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(totalAreaHa)}</span><span class="print-metric-label">Net Area (ha)</span></div>
+        <div class="print-metric"><span class="print-metric-value">${usedCategories.size}</span><span class="print-metric-label">Categories</span></div>
+        <div class="print-metric"><span class="print-metric-value">${layers.length}</span><span class="print-metric-label">Layers</span></div>
+      </div>
+    `;
+  }
+
+  // Data sources
+  const sourcesList = layers.map(l => {
+    const name = l.metadata?.name || l.id;
+    const cat = CATEGORIES[l.metadata?.category]?.label || l.metadata?.category || '';
+    const count = (l.geojson?.features || []).filter(f => f.properties.province === provinceName).length;
+    return count > 0 ? `<span class="print-source-tag">${name} (${cat}, ${count} features)</span>` : '';
+  }).filter(Boolean).join(' ');
+
+  page.innerHTML = `
+    <div class="print-title-block">
+      <div class="print-title-left">
+        <div class="print-title-brand">
+          <svg width="48" height="36" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border:0.5px solid #ccc;border-radius:2px;flex-shrink:0"><defs><clipPath id="vu-a"><path d="M0 0v475l420-195h480v-85H420Z"/></clipPath></defs><path fill="#009543" d="M0 0h640v480H0z"/><path fill="#d21034" d="M0 0h640v240H0z"/><g clip-path="url(#vu-a)" transform="scale(.71111 1.01053)"><path stroke="#fdce12" stroke-width="110" d="m0 0 420 195h480v85H420L0 475"/><path fill="none" stroke="#000" stroke-width="60" d="m0 0 420 195h480m0 85H420L0 475"/></g><g fill="#fdce12" transform="translate(-22)scale(1.01053)"><path d="M106.9 283v27c23.5 0 69.7-18 69.7-76.1s-49.3-68.9-64-68.9-60.3 10.6-60.3 58c0 47.6 44.7 52 53.5 52s41.8-8 38-43.6a35.5 35.5 0 0 1-35.4 31.5c-24 0-39-17.8-39-35.4s14.6-41.2 39.9-41.2 43.8 22.5 43.8 45.1-17.8 51.5-46.2 51.5z"/><g id="vu-b"><path stroke="#fdce12" stroke-width=".8" d="m86.2 247.7 1.4 1s11.2-25.5 41.1-43.6c-3.8 2-23.8 12-42.5 42.6z"/><path d="M89.1 243.3s-3.4-7-.4-10.2 1.7 8.3 1.7 8.3l1.3-1.9s-2-8.6.2-10.4 1.2 8.3 1.2 8.3l1.4-1.8s-1.5-8.4.7-10 .9 8 .9 8l1.6-2s-1.2-8 1.5-9.9.3 7.6.3 7.6l1.8-2s-.8-7.3 1.5-9c2.3-1.6.4 7 .4 7l1.6-1.8s-.5-6.8 1.7-8.4.2 6.5.2 6.5l1.7-1.6s-.4-6.9 2.4-8.2-.5 6.4-.5 6.4l2-1.6s.5-8 2.9-8.7c2.4-.8-1 7-1 7l1.7-1.4s.9-6.8 3.5-7.6c2.7-.9-1.6 6.2-1.6 6.2l1.7-1.3s1.9-6.8 4.4-7.6c2.4-.7-2.6 6.5-2.6 6.5l1.7-1.2s2.7-6.2 5-6.6c2.1-.4-2.6 5.1-2.6 5.1l2.1-1.2s3.5-6.4 4.8-4.5-5 4.9-5 4.9l-2 1.2s7.5-3.6 8.4-1.8-10.3 3-10.3 3l-1.8 1.2s7.5-2 6.6-.1-8.4 1.5-8.4 1.5l-1.7 1.2s7.5-1.8 6.5 0c-1 1.6-8.3 1.5-8.3 1.5l-1.8 1.5s7.3-2 6.2.3-9.4 2.1-9.4 2.1l-2 2s7.7-2.7 7-.6c-.6 2-9.4 3-9.4 3l-2 2s8.3-2.7 5.8-.2c-2.4 2.6-8.5 3.2-8.5 3.2l-2.3 3s8.2-5 7-2.2-9.2 4.7-9.2 4.7l-1.6 2s7.4-4.3 6.6-2c-.7 2.5-8.6 5-8.6 5l-1.3 1.8s8.7-5.2 8-2.5c-.8 2.6-9.1 4.5-9.1 4.5l-1 1.7s8-4.7 8-2.4c.2 2.2-9.4 4.4-9.4 4.4z"/></g><use xlink:href="#vu-b" width="100%" height="100%" transform="matrix(-1 0 0 1 220 0)"/></g></svg>
+          <div>
+            <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
+            <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
+          </div>
+        </div>
+      </div>
+      <div class="print-title-right">
+        <div class="print-title-date">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="print-title-crs">CRS: EPSG:4326 (WGS 84)</div>
+      </div>
+    </div>
+
+    <div class="print-target-bar">
+      <div class="print-target-code">${targetCode}</div>
+      <div class="print-target-info">
+        <div class="print-target-name">${target.name} — ${provinceName}</div>
+        <div class="print-target-desc">${target.description}</div>
+      </div>
+    </div>
+
+    ${metricsHtml}
+
+    <div class="print-map-area">
+      <div class="print-map-container" id="${mapId}"></div>
+      <div class="print-map-furniture">
+        <div class="print-legend-box">
+          <div class="print-legend-title">Legend</div>
+          ${legendItems}
+          <div class="print-legend-item"><span class="print-legend-swatch print-legend-swatch-province"></span><span>Province Boundary</span></div>
+        </div>
+        <div class="print-north-arrow">
+          <svg width="36" height="48" viewBox="0 0 36 48">
+            <polygon points="18,2 24,22 18,18 12,22" fill="#333" stroke="#333" stroke-width="0.5"/>
+            <polygon points="18,2 12,22 18,18 24,22" fill="#fff" stroke="#333" stroke-width="0.5" opacity="0.4"/>
+            <text x="18" y="38" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">N</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="print-bottom-section">
+      <div class="print-data-sources">
+        <div class="print-section-title">Data Sources</div>
+        ${sourcesList ? `<div>${sourcesList}</div>` : '<div style="color:#999;font-size:11px">No data layers for this province</div>'}
+      </div>
+    </div>
+
+    <div class="print-footer">
+      <div class="print-footer-left">
+        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+      </div>
+      <div class="print-footer-right">
+        Printed: ${new Date().toLocaleString('en-GB')} &bull; Map Projection: WGS 84 &bull; Areas dissolved (UNEP-WCMC)
+      </div>
+    </div>
+  `;
+
+  container.appendChild(page);
+
+  // Initialize Leaflet map filtered to this province
+  requestAnimationFrame(() => {
+    setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinceName), 100);
+  });
+}
+
+/**
  * Initializes a Leaflet map inside the print page for a specific target.
  * Renders dissolved (unioned) boundaries per category for clean cartographic output.
  */
-function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) {
+function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, provinceFilter) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
@@ -337,13 +513,18 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
   L.control.scale({ imperial: false, position: 'bottomleft', maxWidth: 150 }).addTo(printMap);
 
   // Province boundaries
+  let provinceBoundsLayer = null;
   if (provincesGeojson) {
-    L.geoJSON(provincesGeojson, {
-      style: {
-        color: '#777',
-        weight: 1.2,
-        fillOpacity: 0.02,
-        dashArray: '4 4'
+    const provLayer = L.geoJSON(provincesGeojson, {
+      style: (feature) => {
+        const name = feature.properties.name || feature.properties.province || '';
+        const isTarget = provinceFilter && name === provinceFilter;
+        return {
+          color: isTarget ? '#333' : '#777',
+          weight: isTarget ? 2.5 : 1.2,
+          fillOpacity: isTarget ? 0.04 : 0.02,
+          dashArray: isTarget ? null : '4 4'
+        };
       },
       onEachFeature: (feature, layer) => {
         const name = feature.properties.name || feature.properties.province || '';
@@ -353,6 +534,9 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
             direction: 'center',
             className: 'print-province-label'
           });
+        }
+        if (provinceFilter && name === provinceFilter) {
+          provinceBoundsLayer = layer;
         }
       }
     }).addTo(printMap);
@@ -366,7 +550,10 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
   for (const layerData of layers) {
     const meta = layerData.metadata;
     const cat = meta?.category || 'OTHER';
-    const features = layerData.geojson?.features || [];
+    const features = (layerData.geojson?.features || []).filter(f => {
+      if (provinceFilter && f.properties.province !== provinceFilter) return false;
+      return true;
+    });
     const isRef = meta?.isReference === true;
     const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
 
@@ -432,7 +619,10 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
     const meta = layerData.metadata;
     if (meta?.isReference) continue;
     const catConfig = CATEGORIES[meta?.category] || CATEGORIES.OTHER;
-    const features = layerData.geojson?.features || [];
+    const features = (layerData.geojson?.features || []).filter(f => {
+      if (provinceFilter && f.properties.province !== provinceFilter) return false;
+      return true;
+    });
     const points = features.filter(f =>
       f.geometry?.type === 'Point' || f.geometry?.type === 'MultiPoint'
     );
@@ -455,8 +645,13 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
 
   featureGroup.addTo(printMap);
 
-  // Fit map to data bounds
-  if (featureGroup.getLayers().length > 0) {
+  // Fit map bounds: zoom to province boundary if filtering by province, else fit data
+  if (provinceFilter && provinceBoundsLayer) {
+    const provBounds = provinceBoundsLayer.getBounds();
+    if (provBounds.isValid()) {
+      printMap.fitBounds(provBounds, { padding: [30, 30], maxZoom: 12 });
+    }
+  } else if (featureGroup.getLayers().length > 0) {
     const bounds = featureGroup.getBounds();
     if (bounds.isValid()) {
       printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
