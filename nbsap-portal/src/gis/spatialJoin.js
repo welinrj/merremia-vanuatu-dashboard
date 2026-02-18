@@ -53,7 +53,8 @@ function getEffectiveCentroid(feature) {
 
 /**
  * Assigns province names to features by spatial join with province polygons.
- * Only modifies features where province is empty/missing.
+ * Always assigns from the official province boundaries to ensure consistent
+ * naming, even if the uploaded data already has a province field.
  *
  * @param {object} featureCollection - FeatureCollection to process
  * @param {object} provincesGeoJSON - Provinces boundary FeatureCollection
@@ -64,9 +65,6 @@ export function assignProvinces(featureCollection, provincesGeoJSON) {
   const provinces = provincesGeoJSON.features || [];
 
   const features = featureCollection.features.map(feature => {
-    // Skip if province already assigned
-    if (feature.properties.province) return feature;
-
     const centroid = getEffectiveCentroid(feature);
     if (!centroid) return feature;
 
