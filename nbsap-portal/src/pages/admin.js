@@ -11,6 +11,12 @@ import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
 
+/** Safe accessor for Vite's BASE_URL */
+function getBaseUrl() {
+  try { return (import.meta.env && import.meta.env.BASE_URL) || './'; }
+  catch { return './'; }
+}
+
 /**
  * Initializes the Admin page.
  */
@@ -33,15 +39,13 @@ export function renderAdminPage() {
 }
 
 function renderLoginForm(page) {
+  const base = getBaseUrl();
   page.innerHTML = `
     <div class="admin-layout">
       <div class="login-container">
         <div class="login-card">
           <div class="login-card-header">
-            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px">
-              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
-              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
-            </svg>
+            <img src="${base}vanuatu-coat-of-arms.svg" alt="Republic of Vanuatu Coat of Arms" style="width:90px;height:auto;margin-bottom:12px">
             <h3>Admin Login</h3>
             <p>Enter your passphrase to access management features</p>
           </div>

@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 250" width="200" height="250">
+  <!-- Boar's Tusk (outer curved shape) -->
+  <path d="M100 10 C40 10, 15 70, 15 130 C15 175, 40 210, 100 210 C160 210, 185 175, 185 130 C185 70, 160 10, 100 10 Z"
+        fill="none" stroke="#C8A951" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- Mountain (green) -->
+  <polygon points="100,55 55,145 145,145" fill="#006B3F"/>
+  <polygon points="100,55 80,100 120,100" fill="#008B4F" opacity="0.6"/>
+
+  <!-- Crossed Namele Fronds -->
+  <g transform="translate(100,125)" stroke="#006B3F" stroke-width="2.5" fill="none" stroke-linecap="round">
+    <!-- Left frond stem -->
+    <line x1="0" y1="-40" x2="-25" y2="30"/>
+    <!-- Left frond leaves -->
+    <line x1="-5" y1="-30" x2="-20" y2="-35"/>
+    <line x1="-8" y1="-20" x2="-25" y2="-22"/>
+    <line x1="-12" y1="-10" x2="-28" y2="-8"/>
+    <line x1="-15" y1="0" x2="-30" y2="5"/>
+    <line x1="-18" y1="10" x2="-32" y2="15"/>
+    <line x1="-21" y1="20" x2="-34" y2="25"/>
+    <!-- Right frond stem -->
+    <line x1="0" y1="-40" x2="25" y2="30"/>
+    <!-- Right frond leaves -->
+    <line x1="5" y1="-30" x2="20" y2="-35"/>
+    <line x1="8" y1="-20" x2="25" y2="-22"/>
+    <line x1="12" y1="-10" x2="28" y2="-8"/>
+    <line x1="15" y1="0" x2="30" y2="5"/>
+    <line x1="18" y1="10" x2="32" y2="15"/>
+    <line x1="21" y1="20" x2="34" y2="25"/>
+  </g>
+
+  <!-- Warrior silhouette -->
+  <g transform="translate(100,105)" fill="#1a1a1a">
+    <!-- Head -->
+    <circle cx="0" cy="-30" r="7"/>
+    <!-- Body -->
+    <rect x="-4" y="-23" width="8" height="22" rx="2"/>
+    <!-- Left leg -->
+    <rect x="-7" y="-2" width="5" height="18" rx="1" transform="rotate(-5, -4, -2)"/>
+    <!-- Right leg -->
+    <rect x="2" y="-2" width="5" height="18" rx="1" transform="rotate(5, 4, -2)"/>
+    <!-- Left arm -->
+    <rect x="-12" y="-22" width="4" height="14" rx="1" transform="rotate(15, -10, -22)"/>
+    <!-- Right arm holding spear -->
+    <rect x="8" y="-22" width="4" height="14" rx="1" transform="rotate(-20, 10, -22)"/>
+    <!-- Spear -->
+    <line x1="14" y1="-45" x2="14" y2="12" stroke="#1a1a1a" stroke-width="1.5"/>
+    <polygon points="14,-48 11,-42 17,-42" fill="#1a1a1a"/>
+  </g>
+
+  <!-- Motto scroll -->
+  <g transform="translate(100,225)">
+    <path d="M-70,0 C-60,-8 -30,-8 0,-5 C30,-8 60,-8 70,0 C60,8 30,8 0,5 C-30,8 -60,8 -70,0 Z"
+          fill="#C8A951" stroke="#8B7332" stroke-width="0.5"/>
+    <text x="0" y="3" text-anchor="middle" font-family="serif" font-size="7" font-weight="bold" fill="#1a1a1a" letter-spacing="0.5">
+      LONG GOD YUMI STANAP
+    </text>
+  </g>
+</svg>
