@@ -152,9 +152,18 @@ function renderTarget1KPIs(container, layers, filters) {
 
 function renderTarget3KPIs(container, layers, filters) {
   const m = compute30x30Metrics(layers, filters);
+  const baselines = ENV.nationalBaselines;
 
   const tPctClamped = Math.min(m.terrestrial_pct, 100);
   const mPctClamped = Math.min(m.marine_pct, 100);
+
+  // 30% target amounts in hectares
+  const tTarget30Ha = baselines.terrestrial_ha * 0.3;
+  const mTarget30Ha = baselines.marine_ha * 0.3;
+
+  // Progress toward 30% target (e.g. 5% of 30% = 16.7% of target achieved)
+  const tProgressPct = m.terrestrial_pct > 0 ? (m.terrestrial_pct / 30 * 100) : 0;
+  const mProgressPct = m.marine_pct > 0 ? (m.marine_pct / 30 * 100) : 0;
 
   // Show gross vs net indicator only when they differ
   const tHasOverlap = m.gross_terrestrial_ha > 0 && Math.abs(m.gross_terrestrial_ha - m.terrestrial_ha) > 1;
@@ -173,32 +182,45 @@ function renderTarget3KPIs(container, layers, filters) {
         <div class="kpi-sublabel">Net coverage (dissolved)${mHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.gross_marine_ha)} ha</span>` : ''}</div>
       </div>
 
+      <div class="kpi-card">
+        <div class="kpi-value" style="color:#065f46">${m.terrestrial_pct.toFixed(2)}%</div>
+        <div class="kpi-label">% of Total Land</div>
+        <div class="kpi-sublabel">${formatNumber(m.terrestrial_ha)} of ${formatNumber(baselines.terrestrial_ha)} ha<br>
+          30% target = ${formatNumber(tTarget30Ha)} ha</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value marine">${m.marine_pct.toFixed(2)}%</div>
+        <div class="kpi-label">% of Total Sea</div>
+        <div class="kpi-sublabel">${formatNumber(m.marine_ha)} of ${formatNumber(baselines.marine_ha)} ha<br>
+          30% target = ${formatNumber(mTarget30Ha)} ha</div>
+      </div>
+
       <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Terrestrial: ${m.terrestrial_pct.toFixed(2)}% of 30% target</div>
+        <div class="kpi-label" style="margin-bottom:6px">Terrestrial: ${m.terrestrial_pct.toFixed(2)}% of 30% target (${tProgressPct.toFixed(1)}% achieved)</div>
         <div class="progress-bar-container">
           <div class="progress-bar-fill terrestrial"
-               style="width: ${(tPctClamped / 30 * 100).toFixed(1)}%">
+               style="width: ${Math.min(tProgressPct, 100).toFixed(1)}%">
             ${m.terrestrial_pct >= 1 ? m.terrestrial_pct.toFixed(1) + '%' : ''}
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
           ${m.terrestrial_remaining_pct > 0
-            ? `${m.terrestrial_remaining_pct.toFixed(2)}% remaining to reach 30%`
+            ? `${m.terrestrial_remaining_pct.toFixed(2)}% remaining (${formatNumber(tTarget30Ha - m.terrestrial_ha)} ha needed)`
             : 'Target reached!'}
         </div>
       </div>
 
       <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Marine: ${m.marine_pct.toFixed(2)}% of 30% target</div>
+        <div class="kpi-label" style="margin-bottom:6px">Marine: ${m.marine_pct.toFixed(2)}% of 30% target (${mProgressPct.toFixed(1)}% achieved)</div>
         <div class="progress-bar-container">
           <div class="progress-bar-fill marine"
-               style="width: ${(mPctClamped / 30 * 100).toFixed(1)}%">
+               style="width: ${Math.min(mProgressPct, 100).toFixed(1)}%">
             ${m.marine_pct >= 1 ? m.marine_pct.toFixed(1) + '%' : ''}
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
           ${m.marine_remaining_pct > 0
-            ? `${m.marine_remaining_pct.toFixed(2)}% remaining to reach 30%`
+            ? `${m.marine_remaining_pct.toFixed(2)}% remaining (${formatNumber(mTarget30Ha - m.marine_ha)} ha needed)`
             : 'Target reached!'}
         </div>
       </div>
@@ -216,7 +238,8 @@ function renderTarget3KPIs(container, layers, filters) {
     </div>
     ${(() => { const rc = countReferenceLayers(layers, 'T3'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
     <div class="kpi-methodology-note">
-      Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.
+      Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.<br>
+      National baselines: ${formatNumber(baselines.terrestrial_ha)} ha terrestrial, ${formatNumber(baselines.marine_ha)} ha marine.
     </div>
   `;
 }
