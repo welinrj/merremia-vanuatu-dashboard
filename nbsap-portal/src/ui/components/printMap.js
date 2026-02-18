@@ -242,7 +242,27 @@ function renderTargetPage(container, targetCode, target) {
     <div class="print-title-block">
       <div class="print-title-left">
         <div class="print-title-brand">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#006B3F" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <svg width="42" height="28" viewBox="0 0 600 400" xmlns="http://www.w3.org/2000/svg" style="border:0.5px solid #ccc;border-radius:2px;flex-shrink:0">
+            <!-- Red top half -->
+            <rect width="600" height="200" fill="#CE1126"/>
+            <!-- Green bottom half -->
+            <rect y="200" width="600" height="200" fill="#009543"/>
+            <!-- Black Y-shape with yellow border -->
+            <polygon points="0,0 230,200 0,400" fill="#000"/>
+            <polygon points="230,200 600,0 600,40 260,200 600,360 600,400" fill="#000"/>
+            <!-- Yellow Y-border lines -->
+            <polygon points="0,0 240,200 0,400 0,370 210,200 0,30" fill="#000"/>
+            <line x1="0" y1="15" x2="225" y2="200" stroke="#FDCE12" stroke-width="18"/>
+            <line x1="0" y1="385" x2="225" y2="200" stroke="#FDCE12" stroke-width="18"/>
+            <line x1="235" y1="200" x2="600" y2="15" stroke="#FDCE12" stroke-width="18"/>
+            <line x1="235" y1="200" x2="600" y2="385" stroke="#FDCE12" stroke-width="18"/>
+            <!-- Boar tusk emblem (simplified) -->
+            <circle cx="95" cy="200" r="38" fill="none" stroke="#FDCE12" stroke-width="8"/>
+            <circle cx="95" cy="200" r="24" fill="none" stroke="#FDCE12" stroke-width="5"/>
+            <!-- Namele leaves (crossed) -->
+            <line x1="75" y1="180" x2="115" y2="220" stroke="#FDCE12" stroke-width="4"/>
+            <line x1="115" y1="180" x2="75" y2="220" stroke="#FDCE12" stroke-width="4"/>
+          </svg>
           <div>
             <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
             <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
