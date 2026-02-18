@@ -96,6 +96,9 @@ export function updateMapLayers() {
   // Collect features per category for dissolution
   const categoryPolygons = {};
   const categoryPointFeatures = [];
+  // Reference layers rendered separately with distinct styling
+  const refPolygonLayers = [];
+  const refPointLayers = [];
 
   // Pass 1: Collect and classify features
   for (const layerData of layers) {
@@ -114,16 +117,26 @@ export function updateMapLayers() {
     const cat = meta.category || 'OTHER';
     const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
     const features = filterFeatures(layerData.geojson?.features || [], filters);
+    const isRef = meta.isReference === true;
 
     if (features.length === 0) continue;
 
     for (const f of features) {
       const geomType = f.geometry?.type;
-      if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-        if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
-        categoryPolygons[cat].push(f);
-      } else if (geomType === 'Point' || geomType === 'MultiPoint') {
-        categoryPointFeatures.push({ feature: f, meta, catConfig });
+      if (isRef) {
+        // Reference layers collected separately
+        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+          refPolygonLayers.push({ feature: f, meta, catConfig });
+        } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+          refPointLayers.push({ feature: f, meta, catConfig });
+        }
+      } else {
+        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+          if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
+          categoryPolygons[cat].push(f);
+        } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+          categoryPointFeatures.push({ feature: f, meta, catConfig });
+        }
       }
     }
   }
@@ -150,6 +163,7 @@ export function updateMapLayers() {
   // Pass 3: Render individual polygon features as thin outlines (for popups)
   for (const layerData of layers) {
     const meta = layerData.metadata;
+    if (meta.isReference) continue; // Reference layers handled in Pass 5
 
     if (filters.targets.length > 0) {
       if (!meta.targets.some(t => filters.targets.includes(t))) continue;
@@ -200,6 +214,43 @@ export function updateMapLayers() {
     overlayGroup.addLayer(pointLayer);
   }
 
+  // Pass 5: Render reference polygon layers (dashed outline, hatched appearance)
+  for (const { feature, meta, catConfig } of refPolygonLayers) {
+    const refLayer = L.geoJSON(feature, {
+      style: () => ({
+        color: catConfig.color,
+        weight: 2,
+        fillOpacity: 0.08,
+        fillColor: catConfig.color,
+        dashArray: '8 4'
+      }),
+      onEachFeature: (f, layer) => {
+        buildPopup(f, layer, meta, true);
+      }
+    });
+    overlayGroup.addLayer(refLayer);
+  }
+
+  // Pass 6: Render reference point features
+  for (const { feature, meta, catConfig } of refPointLayers) {
+    const pointLayer = L.geoJSON(feature, {
+      pointToLayer: (f, latlng) => {
+        return L.circleMarker(latlng, {
+          radius: 5,
+          fillColor: catConfig.color,
+          color: catConfig.color,
+          weight: 1.5,
+          fillOpacity: 0.3,
+          dashArray: '3 3'
+        });
+      },
+      onEachFeature: (f, layer) => {
+        buildPopup(f, layer, meta, true);
+      }
+    });
+    overlayGroup.addLayer(pointLayer);
+  }
+
   // Fit bounds to visible features
   if (overlayGroup.getLayers().length > 0) {
     const bounds = overlayGroup.getBounds();
@@ -212,11 +263,12 @@ export function updateMapLayers() {
 /**
  * Builds a popup for a feature.
  */
-function buildPopup(feature, layer, meta) {
+function buildPopup(feature, layer, meta, isReference = false) {
   const p = feature.properties;
+  const refBadge = isReference ? '<span style="display:inline-block;background:#f0ad4e;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:6px">REF</span>' : '';
   const popup = `
     <div style="min-width:200px">
-      <strong>${p.name || 'Unnamed'}</strong><br>
+      <strong>${p.name || 'Unnamed'}</strong>${refBadge}<br>
       <small>${meta.category} | ${p.realm || ''} | ${p.province || 'No province'}</small>
       <hr style="margin:6px 0;border:none;border-top:1px solid #eee">
       <table style="font-size:12px;width:100%">

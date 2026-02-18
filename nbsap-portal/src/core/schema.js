@@ -52,6 +52,7 @@ export function createLayerMetadata(opts = {}) {
     targets: opts.targets || [],
     realm: opts.realm || 'terrestrial',
     countsToward30x30: opts.countsToward30x30 || false,
+    isReference: opts.isReference || false,
     uploadTimestamp: opts.uploadTimestamp || new Date().toISOString(),
     uploadedBy: opts.uploadedBy || 'admin',
     detectedCRS: opts.detectedCRS || 'EPSG:4326',

@@ -95,6 +95,7 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     targets: uploadOpts.targets,
     realm: uploadOpts.realm,
     countsToward30x30: uploadOpts.countsToward30x30,
+    isReference: uploadOpts.isReference,
     detectedCRS,
     uploadedBy: uploadOpts.uploadedBy || 'admin'
   });

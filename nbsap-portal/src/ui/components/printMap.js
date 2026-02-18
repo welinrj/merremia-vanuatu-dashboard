@@ -160,10 +160,12 @@ function renderTargetPage(container, targetCode, target) {
     usedCategories.add(el.category);
   }
 
-  // Count features and area (use dissolved net area from metrics)
+  // Count features and area (use dissolved net area from metrics), excluding reference layers
   let totalFeatures = 0;
   for (const l of layers) {
-    totalFeatures += l.geojson?.features?.length || 0;
+    if (!l.metadata?.isReference) {
+      totalFeatures += l.geojson?.features?.length || 0;
+    }
   }
   const totalAreaHa = (targetCode === 'T3')
     ? (metrics.terrestrial_ha + metrics.marine_ha)
@@ -356,18 +358,23 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
     }).addTo(printMap);
   }
 
-  // Collect features per category for dissolution
+  // Collect features per category for dissolution (excluding reference layers)
   const categoryPolygons = {};
+  const refFeatures = [];
   const featureGroup = L.featureGroup();
 
   for (const layerData of layers) {
     const meta = layerData.metadata;
     const cat = meta?.category || 'OTHER';
     const features = layerData.geojson?.features || [];
+    const isRef = meta?.isReference === true;
+    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
 
     for (const f of features) {
       const geomType = f.geometry?.type;
-      if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+      if (isRef) {
+        refFeatures.push({ feature: f, catConfig });
+      } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
         if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
         categoryPolygons[cat].push(f);
       }
@@ -392,9 +399,38 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson) 
     }
   }
 
-  // Also render point features (non-polygon) normally
+  // Render reference layers with distinct dashed styling
+  for (const { feature, catConfig } of refFeatures) {
+    const geomType = feature.geometry?.type;
+    if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+      const geoLayer = L.geoJSON(feature, {
+        style: () => ({
+          color: catConfig.color,
+          weight: 1.5,
+          fillOpacity: 0.06,
+          fillColor: catConfig.color,
+          dashArray: '6 4'
+        })
+      });
+      featureGroup.addLayer(geoLayer);
+    } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+      const geoLayer = L.geoJSON(feature, {
+        pointToLayer: (f, latlng) => L.circleMarker(latlng, {
+          radius: 4,
+          fillColor: catConfig.color,
+          color: catConfig.color,
+          weight: 1,
+          fillOpacity: 0.25
+        })
+      });
+      featureGroup.addLayer(geoLayer);
+    }
+  }
+
+  // Also render non-reference point features normally
   for (const layerData of layers) {
     const meta = layerData.metadata;
+    if (meta?.isReference) continue;
     const catConfig = CATEGORIES[meta?.category] || CATEGORIES.OTHER;
     const features = layerData.geojson?.features || [];
     const points = features.filter(f =>

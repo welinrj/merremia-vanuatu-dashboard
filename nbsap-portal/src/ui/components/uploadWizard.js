@@ -497,6 +497,15 @@ function renderStep2(body) {
       <div class="form-hint">Only meaningful if Target 3 is selected</div>
     </div>
 
+    <div class="form-group">
+      <label class="toggle-switch">
+        <input type="checkbox" id="wizard-reference">
+        <span class="toggle-track"></span>
+        Reference layer (visual only)
+      </label>
+      <div class="form-hint">Reference layers are displayed on the map but excluded from area calculations and KPI metrics</div>
+    </div>
+
     <div style="margin-top:16px;display:flex;justify-content:space-between">
       <button class="btn btn-outline" id="wizard-back-2">Back</button>
       <button class="btn btn-primary" id="wizard-next-2">Process</button>
@@ -539,6 +548,7 @@ function renderStep2(body) {
     wizardState.opts.targets = selectedTargets;
     wizardState.opts.realm = realmSelect.value;
     wizardState.opts.countsToward30x30 = body.querySelector('#wizard-30x30').checked;
+    wizardState.opts.isReference = body.querySelector('#wizard-reference').checked;
     wizardState.opts.prjText = wizardState.prjText;
 
     wizardState.step = 3;
@@ -651,6 +661,7 @@ function renderStep4(body) {
       <tr><td><b>CRS</b></td><td>${meta.detectedCRS}</td></tr>
       <tr><td><b>Status</b></td><td><span class="badge badge-${meta.status.toLowerCase()}">${meta.status}</span></td></tr>
       <tr><td><b>30x30</b></td><td>${meta.countsToward30x30 ? 'Yes' : 'No'}</td></tr>
+      <tr><td><b>Reference</b></td><td>${meta.isReference ? 'Yes (visual only)' : 'No'}</td></tr>
     </table>
 
     <div class="card" style="margin-bottom:12px">

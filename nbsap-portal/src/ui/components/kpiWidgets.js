@@ -10,6 +10,7 @@
 import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { CATEGORIES } from '../../config/categories.js';
+import ENV from '../../config/env.js';
 
 /** Target display metadata */
 const TARGET_META = {
@@ -37,7 +38,9 @@ export function renderKPIWidgets(container) {
   // Single target selected — show target-specific dashboard
   if (activeTargets.length === 1) {
     const target = activeTargets[0];
-    if (target === 'T3') {
+    if (target === 'T1') {
+      renderTarget1KPIs(container, layers, filters);
+    } else if (target === 'T3') {
       renderTarget3KPIs(container, layers, filters);
     } else if (target === 'T4') {
       renderSpeciesKPIs(container, layers, filters);
@@ -56,6 +59,93 @@ export function renderKPIWidgets(container) {
   } else {
     renderGeneralKPIs(container, layers, filters);
   }
+}
+
+/**
+ * Renders Target 1 (Biodiversity Spatial Planning) KPIs
+ * with percentage of national land and sea area covered.
+ */
+function renderTarget1KPIs(container, layers, filters) {
+  const m = computeTargetMetrics(layers, 'T1', filters);
+  const baselines = ENV.nationalBaselines;
+
+  const tNet = m.realmTotals.terrestrial_ha;
+  const mNet = m.realmTotals.marine_ha;
+  const tPct = baselines.terrestrial_ha > 0 ? (tNet / baselines.terrestrial_ha) * 100 : 0;
+  const mPct = baselines.marine_ha > 0 ? (mNet / baselines.marine_ha) * 100 : 0;
+  const tPctClamped = Math.min(tPct, 100);
+  const mPctClamped = Math.min(mPct, 100);
+
+  const tHasOverlap = m.realmTotals.gross_terrestrial_ha > 0 && Math.abs(m.realmTotals.gross_terrestrial_ha - tNet) > 1;
+  const mHasOverlap = m.realmTotals.gross_marine_ha > 0 && Math.abs(m.realmTotals.gross_marine_ha - mNet) > 1;
+
+  // Count reference layers
+  const refCount = countReferenceLayers(layers, 'T1');
+
+  // Category badges
+  const catBadges = m.categoryBreakdown.map(c => {
+    const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
+    return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
+      ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
+    </span>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value">${formatNumber(tNet)}</div>
+        <div class="kpi-label">Terrestrial (ha)</div>
+        <div class="kpi-sublabel">Net coverage (dissolved)${tHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.realmTotals.gross_terrestrial_ha)} ha</span>` : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value marine">${formatNumber(mNet)}</div>
+        <div class="kpi-label">Marine (ha)</div>
+        <div class="kpi-sublabel">Net coverage (dissolved)${mHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.realmTotals.gross_marine_ha)} ha</span>` : ''}</div>
+      </div>
+
+      <div class="kpi-card wide">
+        <div class="kpi-label" style="margin-bottom:6px">Land covered by spatial plans: ${tPct.toFixed(2)}%</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill terrestrial"
+               style="width: ${Math.min(tPctClamped, 100).toFixed(1)}%">
+            ${tPct >= 1 ? tPct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div class="kpi-sublabel" style="margin-top:4px">
+          ${formatNumber(tNet)} ha of ${formatNumber(baselines.terrestrial_ha)} ha national terrestrial area
+        </div>
+      </div>
+
+      <div class="kpi-card wide">
+        <div class="kpi-label" style="margin-bottom:6px">Sea covered by spatial plans: ${mPct.toFixed(2)}%</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill marine"
+               style="width: ${Math.min(mPctClamped, 100).toFixed(1)}%">
+            ${mPct >= 1 ? mPct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div class="kpi-sublabel" style="margin-top:4px">
+          ${formatNumber(mNet)} ha of ${formatNumber(baselines.marine_ha)} ha national marine area
+        </div>
+      </div>
+
+      <div class="kpi-card">
+        <div class="kpi-value">${m.totalFeatures}</div>
+        <div class="kpi-label">Features</div>
+        <div class="kpi-sublabel">${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''} uploaded</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.provinceBreakdown.length}</div>
+        <div class="kpi-label">Provinces</div>
+        <div class="kpi-sublabel">With spatial plans</div>
+      </div>
+    </div>
+    ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
+    ${refCount > 0 ? `<div class="kpi-methodology-note">${refCount} reference layer${refCount !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''}
+    <div class="kpi-methodology-note">
+      Areas dissolved (UNEP-WCMC method) to remove overlaps. Percentages based on national baselines.
+    </div>
+  `;
 }
 
 function renderTarget3KPIs(container, layers, filters) {
@@ -122,6 +212,7 @@ function renderTarget3KPIs(container, layers, filters) {
         <div class="kpi-sublabel">With conservation areas</div>
       </div>
     </div>
+    ${(() => { const rc = countReferenceLayers(layers, 'T3'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
     <div class="kpi-methodology-note">
       Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.
     </div>
@@ -207,6 +298,7 @@ function renderSpeciesKPIs(container, layers, filters) {
         </span>
       </div>
     ` : ''}
+    ${(() => { const rc = countReferenceLayers(layers, 'T4'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
   `;
 }
 
@@ -342,6 +434,17 @@ function renderTypeBreakdownTable(typeBreakdown, title) {
       </table>
     </div>
   `;
+}
+
+/**
+ * Counts reference layers for a given target.
+ */
+function countReferenceLayers(layers, targetCode) {
+  return layers.filter(l =>
+    l.metadata.isReference &&
+    l.metadata.targets &&
+    l.metadata.targets.includes(targetCode)
+  ).length;
 }
 
 function formatNumber(n) {
