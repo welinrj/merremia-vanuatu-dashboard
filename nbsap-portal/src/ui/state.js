@@ -266,8 +266,12 @@ function isDemoLayer(layer) {
   return (m.name || '').toLowerCase().startsWith('demo ');
 }
 
+/** Official Vanuatu provinces — only these appear in filters and breakdowns */
+const VALID_PROVINCES = new Set(['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa', 'Tafea']);
+
 /**
  * Extracts unique province names from all loaded layers.
+ * Filters to only official Vanuatu provinces.
  * Caches result — only recomputes when _provincesDirty flag is set.
  */
 let _provincesDirty = true;
@@ -280,11 +284,17 @@ function extractProvinces() {
 function _recomputeProvinces() {
   if (!_provincesDirty) return;
   _provincesDirty = false;
-  const provinces = new Set(appState.provinces);
+  const provinces = new Set();
+  // Start with provinces from boundary GeoJSON
+  for (const p of (appState.provinces || [])) {
+    if (VALID_PROVINCES.has(p)) provinces.add(p);
+  }
+  // Add provinces found in layer features
   for (const layer of appState.layers) {
-    if (!layer.geojson) continue; // skip unloaded layers
+    if (!layer.geojson) continue;
     for (const f of (layer.geojson.features || [])) {
-      if (f.properties?.province) provinces.add(f.properties.province);
+      const prov = f.properties?.province;
+      if (prov && VALID_PROVINCES.has(prov)) provinces.add(prov);
     }
   }
   appState.provinces = [...provinces].sort();
