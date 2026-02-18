@@ -58,6 +58,8 @@ const COL_AUDIT = 'nbsap_audit';
 const COL_SETTINGS = 'nbsap_settings';
 const CHUNKS_SUB = 'chunks';
 const CHUNK_SIZE = 800_000; // 800 KB per chunk
+const MAX_BATCH_BYTES = 9_000_000; // Keep batches under Firestore's ~10 MB request limit
+const MAX_CHUNKS_PER_BATCH = Math.floor(MAX_BATCH_BYTES / CHUNK_SIZE);
 
 // ─── Chunk helpers ──────────────────────────────────────────
 
@@ -68,9 +70,11 @@ async function writeChunkedGeoJSON(layerId, geojsonObj) {
   const json = JSON.stringify(geojsonObj);
   const numChunks = Math.ceil(json.length / CHUNK_SIZE);
 
-  for (let batchStart = 0; batchStart < numChunks; batchStart += 499) {
+  // Write in batches limited by both count (499 Firestore limit) and payload size
+  const batchLimit = Math.min(499, MAX_CHUNKS_PER_BATCH);
+  for (let batchStart = 0; batchStart < numChunks; batchStart += batchLimit) {
     const batch = writeBatch(db);
-    const batchEnd = Math.min(batchStart + 499, numChunks);
+    const batchEnd = Math.min(batchStart + batchLimit, numChunks);
     for (let i = batchStart; i < batchEnd; i++) {
       const chunkRef = doc(db, COL_LAYERS, layerId, CHUNKS_SUB, String(i));
       batch.set(chunkRef, { d: json.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE) });
