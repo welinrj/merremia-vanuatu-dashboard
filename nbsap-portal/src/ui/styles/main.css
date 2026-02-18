@@ -117,10 +117,10 @@ html, body {
 }
 
 .brand-icon {
-  width: 36px;
+  width: 48px;
   height: 36px;
-  min-width: 36px;
-  max-width: 36px;
+  min-width: 48px;
+  max-width: 48px;
   max-height: 36px;
   overflow: hidden;
   color: rgba(255,255,255,0.9);
@@ -128,7 +128,7 @@ html, body {
 }
 
 .brand-icon svg {
-  width: 36px;
+  width: 48px;
   height: 36px;
   display: block;
 }
