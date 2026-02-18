@@ -117,6 +117,7 @@ export function compute30x30Metrics(layers, filters = {}) {
 
   for (const layer of layers) {
     const meta = layer.metadata;
+    if (meta.isReference) continue;
     if (!meta.countsToward30x30) continue;
     if (!meta.targets || !meta.targets.includes('T3')) continue;
 
@@ -215,6 +216,7 @@ export function computeGeneralMetrics(layers, filters = {}) {
 
   for (const layer of layers) {
     const meta = layer.metadata;
+    if (meta.isReference) continue;
 
     if (filters.targets && filters.targets.length > 0) {
       if (!meta.targets.some(t => filters.targets.includes(t))) continue;
@@ -283,6 +285,7 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
 
   for (const layer of layers) {
     const meta = layer.metadata;
+    if (meta.isReference) continue;
     if (!meta.targets || !meta.targets.includes(targetCode)) continue;
 
     if (filters.category && filters.category !== 'All') {
