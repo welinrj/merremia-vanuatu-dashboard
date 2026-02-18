@@ -142,21 +142,38 @@ export function updateMapLayers() {
   }
 
   // Pass 2: Render dissolved category boundaries (fill + outline)
+  // For large categories (>200 features), skip dissolution and render
+  // individual filled polygons directly to avoid blocking the main thread.
+  const MAP_DISSOLVE_LIMIT = 200;
   for (const [cat, features] of Object.entries(categoryPolygons)) {
     const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
-    const dissolved = dissolveFeatures(features);
 
-    if (dissolved) {
-      const dissolvedLayer = L.geoJSON(dissolved, {
+    if (features.length > MAP_DISSOLVE_LIMIT) {
+      // Large dataset: render individual filled polygons (no dissolution)
+      const fillLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
         style: () => ({
           color: catConfig.color,
-          weight: 2.5,
+          weight: 1.5,
           fillOpacity: 0.25,
           fillColor: catConfig.color
         }),
         interactive: false
       });
-      overlayGroup.addLayer(dissolvedLayer);
+      overlayGroup.addLayer(fillLayer);
+    } else {
+      const dissolved = dissolveFeatures(features);
+      if (dissolved) {
+        const dissolvedLayer = L.geoJSON(dissolved, {
+          style: () => ({
+            color: catConfig.color,
+            weight: 2.5,
+            fillOpacity: 0.25,
+            fillColor: catConfig.color
+          }),
+          interactive: false
+        });
+        overlayGroup.addLayer(dissolvedLayer);
+      }
     }
   }
 

@@ -197,19 +197,16 @@ export function refreshDashboard() {
     // Single target selected — show that target's province breakdown
     const targetCode = activeTargets[0];
 
-    if (targetCode === 'T3') {
-      const metrics = compute30x30Metrics(dashLayers, filters);
-      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
-      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
-    } else {
-      const metrics = computeTargetMetrics(dashLayers, targetCode, filters);
-      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
-      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
-    }
+    // Compute metrics once and reuse for province table, chart, and category breakdown
+    const metrics = targetCode === 'T3'
+      ? compute30x30Metrics(dashLayers, filters)
+      : computeTargetMetrics(dashLayers, targetCode, filters);
+
+    if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
+    if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
 
     // Render category breakdown for all single-target views
     if (catContainer) {
-      const metrics = computeTargetMetrics(dashLayers, targetCode, filters);
       renderCategoryBreakdown(catContainer, metrics);
     }
   } else {

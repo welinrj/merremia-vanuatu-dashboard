@@ -54,12 +54,17 @@ async function init() {
   // 2. Wire up tab navigation
   setupNavigation();
 
-  // 3. Listen for refresh events (skip admin re-render while upload wizard is open)
+  // 3. Listen for refresh events (debounced to prevent rapid-fire recomputations)
+  let refreshTimer = null;
   window.addEventListener('nbsap:refresh', () => {
-    if (activeTab === 'dashboard') refreshDashboard();
-    if (activeTab === 'portal') refreshPortal();
-    if (activeTab === 'admin' && !isWizardOpen()) renderAdminPage();
-    updateNavAuthBadge();
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      if (activeTab === 'dashboard') refreshDashboard();
+      if (activeTab === 'portal') refreshPortal();
+      if (activeTab === 'admin' && !isWizardOpen()) renderAdminPage();
+      updateNavAuthBadge();
+    }, 150);
   });
 
   // 4. Show dashboard by default
