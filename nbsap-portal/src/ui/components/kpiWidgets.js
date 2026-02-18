@@ -46,6 +46,8 @@ export function renderKPIWidgets(container) {
       renderSpeciesKPIs(container, layers, filters);
     } else if (target === 'T6') {
       renderInvasiveKPIs(container, layers, filters);
+    } else if (target === 'T10') {
+      renderLandCoverKPIs(container, layers, filters);
     } else {
       renderTargetKPIs(container, layers, filters, target);
     }
@@ -337,6 +339,119 @@ function renderInvasiveKPIs(container, layers, filters) {
       </div>
     </div>
     ${m.typeBreakdown.length > 0 ? renderTypeBreakdownTable(m.typeBreakdown, 'Species / Detection Type') : ''}
+  `;
+}
+
+/**
+ * Renders Target 10 (Land Cover Change) KPIs with Land_Use_P breakdown.
+ * Reads the Land_Use_P property directly from features to categorise
+ * agricultural land use data by type.
+ */
+function renderLandCoverKPIs(container, layers, filters) {
+  const m = computeTargetMetrics(layers, 'T10', filters);
+
+  const hasOverlap = m.grossAreaHa > 0 && Math.abs(m.grossAreaHa - m.totalAreaHa) > 1;
+
+  // Aggregate features by Land_Use_P directly from GeoJSON
+  const landUseMap = {};
+  for (const layer of layers) {
+    const meta = layer.metadata;
+    if (meta.isReference) continue;
+    if (!meta.targets || !meta.targets.includes('T10')) continue;
+
+    const features = (layer.geojson?.features || []).filter(f => {
+      if (filters.province && filters.province !== 'All') {
+        if (f.properties.province !== filters.province) return false;
+      }
+      return true;
+    });
+
+    for (const f of features) {
+      const landUse = f.properties.Land_Use_P || f.properties.land_use_p
+        || f.properties.LAND_USE_P || f.properties.type || 'Unclassified';
+      if (!landUseMap[landUse]) {
+        landUseMap[landUse] = { area_ha: 0, features: 0 };
+      }
+      landUseMap[landUse].area_ha += f.properties.area_ha || 0;
+      landUseMap[landUse].features++;
+    }
+  }
+
+  // Sort by area descending
+  const landUseBreakdown = Object.entries(landUseMap)
+    .map(([type, data]) => ({ type, ...data }))
+    .sort((a, b) => b.area_ha - a.area_ha);
+
+  const uniqueTypes = landUseBreakdown.length;
+
+  // Color palette for land use types
+  const LU_COLORS = [
+    '#4CAF50', '#8BC34A', '#CDDC39', '#FF9800', '#795548',
+    '#607D8B', '#9C27B0', '#3F51B5', '#00BCD4', '#F44336',
+    '#E91E63', '#FFC107', '#009688', '#2196F3', '#FF5722'
+  ];
+
+  // Build land use breakdown table rows
+  const luRows = landUseBreakdown.map((lu, i) => {
+    const color = LU_COLORS[i % LU_COLORS.length];
+    const pct = m.grossAreaHa > 0 ? (lu.area_ha / m.grossAreaHa * 100) : 0;
+    return `
+      <tr>
+        <td>
+          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${color};margin-right:6px"></span>
+          ${lu.type}
+        </td>
+        <td style="text-align:right">${formatNumber(lu.area_ha)}</td>
+        <td style="text-align:right">${pct.toFixed(1)}%</td>
+        <td style="text-align:right">${lu.features}</td>
+      </tr>
+    `;
+  }).join('');
+
+  const totalRow = `
+    <tr style="font-weight:600;border-top:2px solid var(--border)">
+      <td>Total</td>
+      <td style="text-align:right">${formatNumber(m.grossAreaHa)}</td>
+      <td style="text-align:right">100%</td>
+      <td style="text-align:right">${m.totalFeatures}</td>
+    </tr>
+  `;
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
+        <div class="kpi-label">Net Area (ha)</div>
+        <div class="kpi-sublabel">Dissolved coverage${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.totalFeatures}</div>
+        <div class="kpi-label">Features</div>
+        <div class="kpi-sublabel">${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''} uploaded</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${uniqueTypes}</div>
+        <div class="kpi-label">Land Use Types</div>
+        <div class="kpi-sublabel">Classified by Land_Use_P</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.provinceBreakdown.length}</div>
+        <div class="kpi-label">Provinces</div>
+        <div class="kpi-sublabel">With land cover data</div>
+      </div>
+    </div>
+    ${landUseBreakdown.length > 0 ? `
+      <div class="kpi-type-breakdown">
+        <div class="breakdown-header" style="font-size:12px;margin:10px 0 6px">
+          Land Use Breakdown
+        </div>
+        <table class="data-table compact">
+          <thead><tr><th>Land Use Type</th><th style="text-align:right">Area (ha)</th><th style="text-align:right">%</th><th style="text-align:right">Count</th></tr></thead>
+          <tbody>${luRows}${totalRow}</tbody>
+        </table>
+      </div>
+    ` : ''}
+    ${(() => { const rc = countReferenceLayers(layers, 'T10'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
   `;
 }
 

@@ -90,8 +90,8 @@ export default {
     "type": ["severity", "SEVERITY", "nutrient_level", "trophic_state"]
   },
   "LAND_COVER": {
-    "name": ["class_name", "CLASS_NAME", "cover_type", "land_use"],
-    "type": ["lc_class", "LC_CLASS", "land_cover", "LAND_COVER", "use_type"]
+    "name": ["class_name", "CLASS_NAME", "cover_type", "land_use", "Land_Use_P", "LAND_USE_P"],
+    "type": ["lc_class", "LC_CLASS", "land_cover", "LAND_COVER", "use_type", "Land_Use_P", "LAND_USE_P", "land_use_p"]
   },
   "GREEN_SPACE": {
     "name": ["park_name", "PARK_NAME", "space_name", "garden_name"],
