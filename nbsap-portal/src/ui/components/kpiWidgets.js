@@ -165,6 +165,10 @@ function renderTarget3KPIs(container, layers, filters) {
   const tProgressPct = m.terrestrial_pct > 0 ? (m.terrestrial_pct / 30 * 100) : 0;
   const mProgressPct = m.marine_pct > 0 ? (m.marine_pct / 30 * 100) : 0;
 
+  // Remaining ha to reach 30%
+  const tGapHa = Math.max(0, tTarget30Ha - m.terrestrial_ha);
+  const mGapHa = Math.max(0, mTarget30Ha - m.marine_ha);
+
   // Show gross vs net indicator only when they differ
   const tHasOverlap = m.gross_terrestrial_ha > 0 && Math.abs(m.gross_terrestrial_ha - m.terrestrial_ha) > 1;
   const mHasOverlap = m.gross_marine_ha > 0 && Math.abs(m.gross_marine_ha - m.marine_ha) > 1;
@@ -185,14 +189,12 @@ function renderTarget3KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value" style="color:#065f46">${m.terrestrial_pct.toFixed(2)}%</div>
         <div class="kpi-label">% of Total Land</div>
-        <div class="kpi-sublabel">${formatNumber(m.terrestrial_ha)} of ${formatNumber(baselines.terrestrial_ha)} ha<br>
-          30% target = ${formatNumber(tTarget30Ha)} ha</div>
+        <div class="kpi-sublabel">${formatNumber(m.terrestrial_ha)} of ${formatNumber(baselines.terrestrial_ha)} ha</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${m.marine_pct.toFixed(2)}%</div>
         <div class="kpi-label">% of Total Sea</div>
-        <div class="kpi-sublabel">${formatNumber(m.marine_ha)} of ${formatNumber(baselines.marine_ha)} ha<br>
-          30% target = ${formatNumber(mTarget30Ha)} ha</div>
+        <div class="kpi-sublabel">${formatNumber(m.marine_ha)} of ${formatNumber(baselines.marine_ha)} ha</div>
       </div>
 
       <div class="kpi-card wide">
@@ -205,7 +207,7 @@ function renderTarget3KPIs(container, layers, filters) {
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
           ${m.terrestrial_remaining_pct > 0
-            ? `${m.terrestrial_remaining_pct.toFixed(2)}% remaining (${formatNumber(tTarget30Ha - m.terrestrial_ha)} ha needed)`
+            ? `${m.terrestrial_remaining_pct.toFixed(2)}% remaining (${formatNumber(tGapHa)} ha needed)`
             : 'Target reached!'}
         </div>
       </div>
@@ -220,7 +222,7 @@ function renderTarget3KPIs(container, layers, filters) {
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
           ${m.marine_remaining_pct > 0
-            ? `${m.marine_remaining_pct.toFixed(2)}% remaining (${formatNumber(mTarget30Ha - m.marine_ha)} ha needed)`
+            ? `${m.marine_remaining_pct.toFixed(2)}% remaining (${formatNumber(mGapHa)} ha needed)`
             : 'Target reached!'}
         </div>
       </div>
@@ -236,6 +238,51 @@ function renderTarget3KPIs(container, layers, filters) {
         <div class="kpi-sublabel">With conservation areas</div>
       </div>
     </div>
+
+    <div style="background:var(--surface-alt, #f0fdf4);border:1px solid #bbf7d0;border-radius:8px;padding:14px 16px;margin-top:12px">
+      <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:10px">
+        30% Target: Conserve 30% of Vanuatu's total spatial zone by 2030
+      </div>
+      <table class="data-table compact" style="font-size:12px">
+        <thead>
+          <tr>
+            <th>Realm</th>
+            <th style="text-align:right">Total Area</th>
+            <th style="text-align:right">30% Target</th>
+            <th style="text-align:right">Current</th>
+            <th style="text-align:right">Gap</th>
+            <th style="text-align:right">% Achieved</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Terrestrial</td>
+            <td style="text-align:right">${formatNumber(baselines.terrestrial_ha)} ha</td>
+            <td style="text-align:right">${formatNumber(tTarget30Ha)} ha</td>
+            <td style="text-align:right">${formatNumber(m.terrestrial_ha)} ha</td>
+            <td style="text-align:right">${tGapHa > 0 ? formatNumber(tGapHa) + ' ha' : 'Reached'}</td>
+            <td style="text-align:right;font-weight:600;color:${tProgressPct >= 100 ? '#065f46' : '#b45309'}">${tProgressPct.toFixed(1)}%</td>
+          </tr>
+          <tr>
+            <td>Marine</td>
+            <td style="text-align:right">${formatNumber(baselines.marine_ha)} ha</td>
+            <td style="text-align:right">${formatNumber(mTarget30Ha)} ha</td>
+            <td style="text-align:right">${formatNumber(m.marine_ha)} ha</td>
+            <td style="text-align:right">${mGapHa > 0 ? formatNumber(mGapHa) + ' ha' : 'Reached'}</td>
+            <td style="text-align:right;font-weight:600;color:${mProgressPct >= 100 ? '#065f46' : '#b45309'}">${mProgressPct.toFixed(1)}%</td>
+          </tr>
+          <tr style="font-weight:600;border-top:2px solid var(--border)">
+            <td>Combined</td>
+            <td style="text-align:right">${formatNumber(baselines.terrestrial_ha + baselines.marine_ha)} ha</td>
+            <td style="text-align:right">${formatNumber(tTarget30Ha + mTarget30Ha)} ha</td>
+            <td style="text-align:right">${formatNumber(m.terrestrial_ha + m.marine_ha)} ha</td>
+            <td style="text-align:right">${(tGapHa + mGapHa) > 0 ? formatNumber(tGapHa + mGapHa) + ' ha' : 'Reached'}</td>
+            <td style="text-align:right;color:${(tProgressPct + mProgressPct) / 2 >= 100 ? '#065f46' : '#b45309'}">${((m.terrestrial_ha + m.marine_ha) / (tTarget30Ha + mTarget30Ha) * 100).toFixed(1)}%</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
     ${(() => { const rc = countReferenceLayers(layers, 'T3'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
     <div class="kpi-methodology-note">
       Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.<br>
