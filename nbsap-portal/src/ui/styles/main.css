@@ -1662,13 +1662,15 @@ body.print-mode {
 /* ── Individual Print Page ─────────────────────────────── */
 .print-page {
   width: 297mm;
-  min-height: 210mm;
+  height: 210mm;
+  max-height: 210mm;
   background: #fff;
   box-shadow: 0 2px 16px rgba(0,0,0,0.12);
-  padding: 14mm 16mm 12mm;
+  padding: 10mm 12mm 8mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   page-break-after: always;
   font-family: 'Inter', sans-serif;
 }
@@ -1679,8 +1681,8 @@ body.print-mode {
   justify-content: space-between;
   align-items: flex-start;
   border-bottom: 2px solid #006B3F;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
+  padding-bottom: 6px;
+  margin-bottom: 5px;
 }
 
 .print-title-left {
@@ -1729,12 +1731,12 @@ body.print-mode {
 .print-target-bar {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #f0f7f3;
   border: 1px solid #c8e6d5;
-  border-radius: 6px;
-  padding: 8px 14px;
-  margin-bottom: 8px;
+  border-radius: 4px;
+  padding: 5px 12px;
+  margin-bottom: 5px;
 }
 
 .print-target-code {
@@ -1768,22 +1770,22 @@ body.print-mode {
 /* ── Metrics Row ───────────────────────────────────────── */
 .print-metrics-row {
   display: flex;
-  gap: 12px;
-  margin-bottom: 8px;
+  gap: 6px;
+  margin-bottom: 5px;
 }
 
 .print-metric {
   flex: 1;
   background: #f8fafb;
   border: 1px solid #e2e8f0;
-  border-radius: 4px;
-  padding: 6px 10px;
+  border-radius: 3px;
+  padding: 4px 6px;
   text-align: center;
 }
 
 .print-metric-value {
   display: block;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 800;
   color: #006B3F;
   line-height: 1.2;
@@ -1791,19 +1793,19 @@ body.print-mode {
 
 .print-metric-label {
   display: block;
-  font-size: 9px;
+  font-size: 8px;
   color: #888;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 /* ── Map Area ──────────────────────────────────────────── */
 .print-map-area {
   flex: 1;
   position: relative;
-  min-height: 100mm;
-  margin-bottom: 8px;
+  min-height: 70mm;
+  margin-bottom: 4px;
   border: 1px solid #ccc;
   border-radius: 4px;
   overflow: hidden;
@@ -1812,7 +1814,7 @@ body.print-mode {
 .print-map-container {
   width: 100%;
   height: 100%;
-  min-height: 100mm;
+  min-height: 70mm;
   background: #f5f5f5;
 }
 
@@ -1893,37 +1895,98 @@ body.print-mode {
   text-shadow: 1px 1px 2px #fff, -1px -1px 2px #fff, 1px -1px 2px #fff, -1px 1px 2px #fff !important;
 }
 
-/* ── Bottom Section (Province Table + Data Sources) ────── */
-.print-bottom-section {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 6px;
+/* ── Summary Line ──────────────────────────────────────── */
+.print-summary-line {
+  font-size: 8px;
+  color: #666;
+  padding: 2px 0;
+  border-top: 0.5px solid #ddd;
+  margin-bottom: 3px;
 }
 
-.print-prov-table {
+/* ── Bottom Section (Province Table + Category + Sources) ── */
+.print-bottom-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 4px;
+  flex-shrink: 0;
+}
+
+.print-bottom-right {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ── Detail Tables (province, category, sources) ───────── */
+.print-detail-table {
   flex: 1;
   min-width: 0;
 }
 
-.print-prov-table table {
+.print-detail-table table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 9px;
+  font-size: 8px;
 }
 
-.print-prov-table th {
+.print-detail-table th {
   font-weight: 700;
   text-align: left;
-  padding: 3px 6px;
+  padding: 2px 4px;
   border-bottom: 1.5px solid #ccc;
   color: #333;
-  font-size: 9px;
+  font-size: 8px;
+  white-space: nowrap;
 }
 
-.print-prov-table td {
-  padding: 2px 6px;
+.print-detail-table td {
+  padding: 1.5px 4px;
   border-bottom: 0.5px solid #eee;
   color: #555;
+  font-size: 8px;
+}
+
+.print-detail-table .r,
+.print-detail-table th.r {
+  text-align: right;
+}
+
+.print-detail-table .total-row td {
+  border-top: 1.5px solid #999;
+  border-bottom: none;
+  padding-top: 2px;
+  color: #222;
+}
+
+.print-detail-table .cat-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+  border: 0.5px solid rgba(0,0,0,0.15);
+}
+
+.print-detail-table .ref-badge {
+  display: inline-block;
+  background: #fef3cd;
+  color: #856404;
+  font-size: 7px;
+  font-weight: 700;
+  padding: 0 3px;
+  border-radius: 2px;
+  margin-left: 3px;
+  vertical-align: middle;
+}
+
+/* Legacy compat */
+.print-prov-table {
+  flex: 1;
+  min-width: 0;
 }
 
 .print-data-sources {
@@ -1932,12 +1995,12 @@ body.print-mode {
 }
 
 .print-section-title {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: #333;
-  margin-bottom: 4px;
+  margin-bottom: 3px;
 }
 
 .print-source-tag {
@@ -1945,10 +2008,10 @@ body.print-mode {
   background: #f0f4f8;
   border: 1px solid #d8e2ec;
   border-radius: 3px;
-  padding: 2px 6px;
-  font-size: 9px;
+  padding: 1px 5px;
+  font-size: 8px;
   color: #555;
-  margin: 0 4px 3px 0;
+  margin: 0 3px 2px 0;
 }
 
 /* ── Footer ────────────────────────────────────────────── */
@@ -1956,17 +2019,18 @@ body.print-mode {
   display: flex;
   justify-content: space-between;
   border-top: 1.5px solid #006B3F;
-  padding-top: 5px;
+  padding-top: 3px;
   margin-top: auto;
+  flex-shrink: 0;
 }
 
 .print-footer-left {
-  font-size: 9px;
+  font-size: 8px;
   color: #555;
 }
 
 .print-footer-right {
-  font-size: 9px;
+  font-size: 8px;
   color: #888;
   text-align: right;
 }
@@ -1999,10 +2063,13 @@ body.print-mode {
     box-shadow: none;
     margin: 0;
     width: 100%;
+    height: 100%;
+    max-height: none;
     min-height: auto;
     page-break-after: always;
     page-break-inside: avoid;
-    padding: 8mm 10mm 6mm;
+    padding: 6mm 8mm 5mm;
+    overflow: visible;
   }
 
   .print-page:last-child {
@@ -2011,11 +2078,11 @@ body.print-mode {
 
   /* Ensure map containers are visible */
   .print-map-container {
-    min-height: 90mm !important;
+    min-height: 70mm !important;
   }
 
   .print-map-area {
-    min-height: 90mm;
+    min-height: 70mm;
   }
 
   /* Leaflet tile images */
