@@ -1,0 +1,305 @@
+/**
+ * Professional GIS symbology for the Vanuatu NBSAP Portal.
+ *
+ * Defines:
+ *   - Category color palettes (fill + stroke)
+ *   - LAND_COVER sub-type colors (CORINE/NLCD conventions)
+ *   - Status-based style modifiers
+ *   - Feature-level style resolver functions for polygons and points
+ *   - Legend helpers
+ */
+
+// ── Category colour palette ──────────────────────────────────────────
+// Stroke colours are a darker shade of the fill for professional contrast.
+export const SYMBOLOGY = {
+  // Conservation — green spectrum
+  CCA:            { fill: '#2ecc71', stroke: '#1a9c4e' },
+  PA:             { fill: '#27ae60', stroke: '#1e8449' },
+  OECM:           { fill: '#8e44ad', stroke: '#6c3483' },
+  KBA:            { fill: '#e67e22', stroke: '#ba6618' },
+  // Marine — blue spectrum
+  MPA:            { fill: '#2980b9', stroke: '#1a5276' },
+  LMMA:           { fill: '#1abc9c', stroke: '#148f77' },
+  // Planning
+  SPATIAL_PLAN:   { fill: '#34495e', stroke: '#1c2833' },
+  // Degradation & restoration
+  DEGRADED:       { fill: '#d35400', stroke: '#a04000' },
+  RESTORATION:    { fill: '#f39c12', stroke: '#d4ac0d' },
+  // Species — distinctive per-taxon colours
+  SPECIES_DIST:   { fill: '#16a085', stroke: '#0e6655' },
+  MEGAPODE:       { fill: '#E65100', stroke: '#BF360C' },
+  STARLING:       { fill: '#5C6BC0', stroke: '#3949AB' },
+  FANTAIL:        { fill: '#FFB300', stroke: '#FF8F00' },
+  KINGFISHER:     { fill: '#00ACC1', stroke: '#00838F' },
+  FLYING_FOX:     { fill: '#6D4C41', stroke: '#4E342E' },
+  PLERANDRA:      { fill: '#43A047', stroke: '#2E7D32' },
+  // Threats — warm/red spectrum
+  INVASIVE:       { fill: '#e74c3c', stroke: '#c0392b' },
+  MERREMIA:       { fill: '#c0392b', stroke: '#922b21' },
+  PESTICIDE:      { fill: '#9C27B0', stroke: '#7B1FA2' },
+  EUTROPHICATION: { fill: '#e91e63', stroke: '#c2185b' },
+  // Land use & green space
+  LAND_COVER:     { fill: '#795548', stroke: '#5D4037' },
+  GREEN_SPACE:    { fill: '#4caf50', stroke: '#388E3C' },
+  // Fallback
+  OTHER:          { fill: '#95a5a6', stroke: '#7f8c8d' }
+};
+
+// ── LAND_COVER sub-type colours (international cartographic standards) ──
+export const LAND_COVER_TYPES = {
+  // Forests
+  'Forest':                { fill: '#1B5E20', stroke: '#0D3311' },
+  'Dense Forest':          { fill: '#1B5E20', stroke: '#0D3311' },
+  'Sparse Forest':         { fill: '#388E3C', stroke: '#2E7D32' },
+  'Medium Forest':         { fill: '#2E7D32', stroke: '#1B5E20' },
+  'Thicket/Dense Shrub':   { fill: '#558B2F', stroke: '#33691E' },
+  'Mangrove':              { fill: '#004D40', stroke: '#00251A' },
+  // Agriculture
+  'Agriculture':           { fill: '#F9A825', stroke: '#F57F17' },
+  'Cropland':              { fill: '#FFD54F', stroke: '#FFC107' },
+  'Plantation':            { fill: '#827717', stroke: '#524A03' },
+  'Coconut':               { fill: '#9E9D24', stroke: '#6D6B1E' },
+  'Coconut Plantation':    { fill: '#9E9D24', stroke: '#6D6B1E' },
+  'Agroforestry':          { fill: '#8D6E63', stroke: '#6D4C41' },
+  // Grassland & shrub
+  'Grassland':             { fill: '#AED581', stroke: '#8BC34A' },
+  'Shrub':                 { fill: '#7CB342', stroke: '#558B2F' },
+  'Savanna':               { fill: '#C0CA33', stroke: '#9E9D24' },
+  // Urban & built
+  'Urban':                 { fill: '#E53935', stroke: '#C62828' },
+  'Built-up':              { fill: '#E53935', stroke: '#C62828' },
+  'Settlement':            { fill: '#EF5350', stroke: '#D32F2F' },
+  // Bare & rock
+  'Bare':                  { fill: '#A1887F', stroke: '#795548' },
+  'Bare Ground':           { fill: '#A1887F', stroke: '#795548' },
+  'Rock':                  { fill: '#8D6E63', stroke: '#5D4037' },
+  'Sand':                  { fill: '#FFE0B2', stroke: '#FFCC80' },
+  // Water & wetland
+  'Water':                 { fill: '#1565C0', stroke: '#0D47A1' },
+  'Inland Water':          { fill: '#1565C0', stroke: '#0D47A1' },
+  'Wetland':               { fill: '#00838F', stroke: '#006064' },
+  'Swamp':                 { fill: '#00695C', stroke: '#004D40' },
+  // Marine/coastal
+  'Coral':                 { fill: '#FF7043', stroke: '#E64A19' },
+  'Reef':                  { fill: '#FF7043', stroke: '#E64A19' },
+  'Lagoon':                { fill: '#4FC3F7', stroke: '#0288D1' },
+  'Seagrass':              { fill: '#26A69A', stroke: '#00897B' },
+  // Other
+  'Cloud':                 { fill: '#ECEFF1', stroke: '#CFD8DC' },
+  'Shadow':                { fill: '#90A4AE', stroke: '#607D8B' },
+  'No Data':               { fill: '#BDBDBD', stroke: '#9E9E9E' }
+};
+
+// ── Status-based style modifiers ─────────────────────────────────────
+const STATUS_STYLES = {
+  'Designated': { fillOpacity: 0.35, dashArray: null,    weight: 2.0 },
+  'Active':     { fillOpacity: 0.35, dashArray: null,    weight: 2.0 },
+  'Proposed':   { fillOpacity: 0.18, dashArray: '6 4',   weight: 1.5 },
+  'Inactive':   { fillOpacity: 0.10, dashArray: '2 4',   weight: 1.0 },
+  'Unknown':    { fillOpacity: 0.28, dashArray: null,    weight: 1.5 }
+};
+
+const DEFAULT_STATUS = STATUS_STYLES['Unknown'];
+
+// Species categories get larger point markers
+const SPECIES_CATS = new Set([
+  'MEGAPODE', 'STARLING', 'FANTAIL', 'KINGFISHER',
+  'FLYING_FOX', 'PLERANDRA', 'SPECIES_DIST'
+]);
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+/**
+ * Returns the symbology entry (fill + stroke) for a category,
+ * with optional LAND_COVER sub-type resolution.
+ */
+export function resolveColors(category, typeValue) {
+  const cat = category || 'OTHER';
+  const sym = SYMBOLOGY[cat] || SYMBOLOGY.OTHER;
+
+  if (cat === 'LAND_COVER' && typeValue) {
+    // Exact match
+    const exact = LAND_COVER_TYPES[typeValue];
+    if (exact) return exact;
+
+    // Case-insensitive partial match
+    const upper = typeValue.toUpperCase();
+    for (const [key, val] of Object.entries(LAND_COVER_TYPES)) {
+      if (upper.includes(key.toUpperCase()) || key.toUpperCase().includes(upper)) {
+        return val;
+      }
+    }
+  }
+
+  return sym;
+}
+
+/**
+ * Computes the sub-type grouping key for a feature.
+ * LAND_COVER features are grouped by their `type` for sub-type dissolution.
+ * All other categories return just the category key.
+ */
+export function featureGroupKey(category, feature) {
+  if (category === 'LAND_COVER') {
+    const type = feature.properties?.type || 'Unknown';
+    return `LAND_COVER::${type}`;
+  }
+  return category;
+}
+
+// ── Style resolvers ──────────────────────────────────────────────────
+
+/**
+ * Returns Leaflet polygon style for a dissolved fill layer.
+ * Used for the cartographic dissolved boundary display.
+ */
+export function dissolvedFillStyle(category, typeValue) {
+  const colors = resolveColors(category, typeValue);
+  return {
+    fillColor: colors.fill,
+    color: colors.stroke,
+    weight: 2,
+    fillOpacity: 0.30,
+    interactive: false
+  };
+}
+
+/**
+ * Returns Leaflet polygon style for individual feature outlines (popup layer).
+ * Applies status-based modifiers for differentiation.
+ */
+export function featureOutlineStyle(feature, category) {
+  const props = feature.properties || {};
+  const colors = resolveColors(category, props.type);
+  const status = STATUS_STYLES[props.status] || DEFAULT_STATUS;
+
+  return {
+    fillColor: colors.fill,
+    color: colors.stroke,
+    weight: status.weight * 0.6,
+    fillOpacity: 0,
+    dashArray: status.dashArray || '4 3'
+  };
+}
+
+/**
+ * Returns Leaflet polygon style for reference layers.
+ */
+export function referencePolygonStyle(category, typeValue) {
+  const colors = resolveColors(category, typeValue);
+  return {
+    fillColor: colors.fill,
+    color: colors.stroke,
+    weight: 1.5,
+    fillOpacity: 0.08,
+    dashArray: '8 4'
+  };
+}
+
+/**
+ * Returns Leaflet circleMarker options for a data point feature.
+ */
+export function pointMarkerStyle(feature, category) {
+  const props = feature.properties || {};
+  const colors = resolveColors(category, props.type);
+  const isSpecies = SPECIES_CATS.has(category);
+
+  return {
+    radius: isSpecies ? 7 : 6,
+    fillColor: colors.fill,
+    color: '#fff',
+    weight: 1.5,
+    fillOpacity: 0.85
+  };
+}
+
+/**
+ * Returns Leaflet circleMarker options for a reference point feature.
+ */
+export function referencePointStyle(category) {
+  const colors = resolveColors(category);
+  const isSpecies = SPECIES_CATS.has(category);
+
+  return {
+    radius: isSpecies ? 6 : 5,
+    fillColor: colors.fill,
+    color: colors.stroke,
+    weight: 1.5,
+    fillOpacity: 0.30,
+    dashArray: '3 3'
+  };
+}
+
+/**
+ * Returns Leaflet polygon style for print-map dissolved fills.
+ * Slightly higher opacity than interactive map for print clarity.
+ */
+export function printDissolvedStyle(category, typeValue) {
+  const colors = resolveColors(category, typeValue);
+  return {
+    fillColor: colors.fill,
+    color: colors.stroke,
+    weight: 2,
+    fillOpacity: 0.35
+  };
+}
+
+/**
+ * Returns Leaflet circleMarker options for print-map points.
+ */
+export function printPointStyle(category) {
+  const colors = resolveColors(category);
+  const isSpecies = SPECIES_CATS.has(category);
+  return {
+    radius: isSpecies ? 6 : 5,
+    fillColor: colors.fill,
+    color: '#fff',
+    weight: 1,
+    fillOpacity: 0.85
+  };
+}
+
+// ── Legend helpers ────────────────────────────────────────────────────
+
+/**
+ * Collects the legend entries for a set of layers.
+ * Returns an array of { key, label, fill, stroke } for building legends.
+ * Expands LAND_COVER into sub-type entries.
+ */
+export function collectLegendEntries(layers) {
+  const seen = new Map(); // key → { label, fill, stroke }
+
+  for (const layerData of layers) {
+    const meta = layerData.metadata;
+    if (!meta) continue;
+    const cat = meta.category || 'OTHER';
+    const catLabel = meta.category
+      ? (SYMBOLOGY[cat] ? undefined : cat) // use CATEGORIES label externally
+      : 'Other';
+
+    if (cat === 'LAND_COVER' && layerData.geojson?.features) {
+      // Expand into sub-types
+      const types = new Set();
+      for (const f of layerData.geojson.features) {
+        types.add(f.properties?.type || 'Unknown');
+      }
+      for (const t of types) {
+        const key = `LAND_COVER::${t}`;
+        if (!seen.has(key)) {
+          const colors = resolveColors('LAND_COVER', t);
+          seen.set(key, { label: t, fill: colors.fill, stroke: colors.stroke });
+        }
+      }
+    } else if (!seen.has(cat)) {
+      const colors = resolveColors(cat);
+      seen.set(cat, { label: catLabel, fill: colors.fill, stroke: colors.stroke });
+    }
+  }
+
+  return [...seen.entries()].map(([key, val]) => ({
+    key,
+    label: val.label,
+    fill: val.fill,
+    stroke: val.stroke
+  }));
+}
