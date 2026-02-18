@@ -28,7 +28,7 @@ export function renderFilterPanel(container) {
           ${targetsConfig.targets.map(t => `
             <label class="target-checkbox ${state.filters.targets.includes(t.code) ? 'selected' : ''}"
                    data-code="${t.code}" title="${t.description}">
-              <input type="checkbox" value="${t.code}"
+              <input type="radio" name="nbsap-target" value="${t.code}"
                      ${state.filters.targets.includes(t.code) ? 'checked' : ''}>
               ${t.code}
             </label>
@@ -74,19 +74,12 @@ export function renderFilterPanel(container) {
     </div>
   `;
 
-  // Bind target checkbox events
+  // Bind target selection events (single target at a time)
   container.querySelectorAll('.target-checkbox').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       const code = el.dataset.code;
-      const current = [...state.filters.targets];
-      const idx = current.indexOf(code);
-      if (idx >= 0) {
-        current.splice(idx, 1);
-      } else {
-        current.push(code);
-      }
-      updateFilters({ targets: current });
+      updateFilters({ targets: [code] });
     });
   });
 
