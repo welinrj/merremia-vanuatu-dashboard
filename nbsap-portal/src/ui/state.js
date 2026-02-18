@@ -4,6 +4,7 @@
  * Components import getAppState() to read and updateFilters() etc. to mutate.
  * Changes dispatch a 'nbsap:refresh' event for reactive updates.
  */
+import { clearMetricsCache } from '../gis/areaCalc.js';
 
 const appState = {
   /** Currently loaded layers: Array<{ id, metadata, geojson }> */
@@ -50,6 +51,7 @@ export function getAppState() {
  */
 export function updateFilters(filterUpdates) {
   Object.assign(appState.filters, filterUpdates);
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -65,6 +67,7 @@ export function addLayer(layerRecord) {
     appState.layers.push(layerRecord);
   }
   extractProvinces();
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -75,6 +78,7 @@ export function addLayer(layerRecord) {
 export function removeLayer(layerId) {
   appState.layers = appState.layers.filter(l => l.id !== layerId);
   extractProvinces();
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -85,6 +89,7 @@ export function removeLayer(layerId) {
 export function setLayers(layers) {
   appState.layers = layers;
   extractProvinces();
+  clearMetricsCache();
 }
 
 /**

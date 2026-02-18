@@ -6,9 +6,33 @@
  * Dissolution follows UNEP-WCMC / GBF methodology: overlapping protected
  * areas are dissolved (unioned) to prevent double-counting, ensuring each
  * point on Earth's surface is counted only once toward coverage targets.
+ *
+ * Performance: metrics are cached and only recomputed when layer data changes.
+ * Dissolution uses chunked tree-merge for large feature sets to avoid
+ * browser crashes on datasets with thousands of polygons.
  */
 import * as turf from '@turf/turf';
 import ENV from '../config/env.js';
+
+// ─── Metrics cache ──────────────────────────────────────────
+// Keyed by (function + targetCode + filters hash). Invalidated when layers change.
+let _cacheGen = 0;
+const _metricsCache = new Map();
+
+/**
+ * Clears the metrics cache. Call when layers are added/removed/modified.
+ */
+export function clearMetricsCache() {
+  _cacheGen++;
+  _metricsCache.clear();
+}
+
+function _cacheKey(prefix, extra, filters) {
+  return `${_cacheGen}:${prefix}:${extra || ''}:${JSON.stringify(filters || {})}`;
+}
+
+// Dissolution chunk size — dissolve N polygons at a time, then merge results
+const DISSOLVE_CHUNK = 100;
 
 /**
  * Computes geodesic area of a GeoJSON feature in hectares.
@@ -49,8 +73,13 @@ export function computeFeatureAreas(geojson) {
  * Dissolves (unions) an array of GeoJSON polygon features into a single geometry.
  * Eliminates overlapping areas so each point on the ground is counted once.
  *
- * Uses batch union with iterative fallback for robustness against
- * invalid/self-intersecting geometries common in field-collected GIS data.
+ * Uses a chunked tree-merge strategy for large datasets:
+ * 1. Split features into chunks of DISSOLVE_CHUNK
+ * 2. Dissolve each chunk
+ * 3. Recursively dissolve the chunk results
+ *
+ * This prevents browser crashes on datasets with thousands of polygons
+ * while maintaining correct dissolved areas.
  *
  * @param {Array} features - Array of GeoJSON Feature objects
  * @returns {Feature|null} Dissolved polygon feature, or null if no valid polygons
@@ -64,6 +93,18 @@ export function dissolveFeatures(features) {
   if (polygons.length === 0) return null;
   if (polygons.length === 1) return polygons[0];
 
+  // For large sets, use chunked tree-merge to avoid crashes
+  if (polygons.length > DISSOLVE_CHUNK) {
+    return dissolveChunked(polygons);
+  }
+
+  return dissolveDirect(polygons);
+}
+
+/**
+ * Dissolves a small set of polygons directly.
+ */
+function dissolveDirect(polygons) {
   // Try batch union first (faster for turf v7)
   try {
     const fc = turf.featureCollection(polygons);
@@ -91,6 +132,28 @@ export function dissolveFeatures(features) {
   return result;
 }
 
+/**
+ * Chunked tree-merge dissolution for large feature sets.
+ * Splits into chunks, dissolves each, then recursively merges results.
+ */
+function dissolveChunked(polygons) {
+  const chunks = [];
+  for (let i = 0; i < polygons.length; i += DISSOLVE_CHUNK) {
+    chunks.push(polygons.slice(i, i + DISSOLVE_CHUNK));
+  }
+
+  const dissolved = chunks.map(chunk => dissolveDirect(chunk)).filter(Boolean);
+
+  if (dissolved.length === 0) return null;
+  if (dissolved.length === 1) return dissolved[0];
+
+  // Recursively dissolve the merged chunks
+  if (dissolved.length > DISSOLVE_CHUNK) {
+    return dissolveChunked(dissolved);
+  }
+  return dissolveDirect(dissolved);
+}
+
 // ─── 30x30 METRICS (Target 3) ───────────────────────────────────────────────
 
 /**
@@ -107,6 +170,10 @@ export function dissolveFeatures(features) {
  * @returns {object} Metrics with net/gross breakdown
  */
 export function compute30x30Metrics(layers, filters = {}) {
+  const key = _cacheKey('30x30', null, filters);
+  const cached = _metricsCache.get(key);
+  if (cached) return cached;
+
   const baselines = ENV.nationalBaselines;
   const terrestrialFeatures = [];
   const marineFeatures = [];
@@ -179,7 +246,7 @@ export function compute30x30Metrics(layers, filters = {}) {
     };
   }).sort((a, b) => b.total_ha - a.total_ha);
 
-  return {
+  const result = {
     // Net (dissolved) — official coverage figures
     terrestrial_ha: round2(netTerrestrial),
     marine_ha: round2(netMarine),
@@ -197,6 +264,8 @@ export function compute30x30Metrics(layers, filters = {}) {
     dissolvedTerrestrial,
     dissolvedMarine
   };
+  _metricsCache.set(key, result);
+  return result;
 }
 
 // ─── GENERAL METRICS ─────────────────────────────────────────────────────────
@@ -208,6 +277,10 @@ export function compute30x30Metrics(layers, filters = {}) {
  * @returns {object}
  */
 export function computeGeneralMetrics(layers, filters = {}) {
+  const key = _cacheKey('general', null, filters);
+  const cached = _metricsCache.get(key);
+  if (cached) return cached;
+
   let totalFeatures = 0;
   let grossAreaHa = 0;
   const allFeatures = [];
@@ -245,13 +318,15 @@ export function computeGeneralMetrics(layers, filters = {}) {
   const dissolved = dissolveFeatures(allFeatures);
   const netAreaHa = dissolved ? computeAreaHa(dissolved) : 0;
 
-  return {
+  const result = {
     totalFeatures,
     totalAreaHa: round2(netAreaHa),
     grossAreaHa: round2(grossAreaHa),
     categoryCounts,
     realmCounts
   };
+  _metricsCache.set(key, result);
+  return result;
 }
 
 // ─── TARGET-SPECIFIC METRICS ─────────────────────────────────────────────────
@@ -272,6 +347,10 @@ export function computeGeneralMetrics(layers, filters = {}) {
  * @returns {object} Detailed target metrics
  */
 export function computeTargetMetrics(layers, targetCode, filters = {}) {
+  const key = _cacheKey('target', targetCode, filters);
+  const cached = _metricsCache.get(key);
+  if (cached) return cached;
+
   let totalFeatures = 0;
   let grossAreaHa = 0;
   let layerCount = 0;
@@ -400,7 +479,7 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     .map(([name, data]) => ({ type: name, ...data }))
     .sort((a, b) => b.area_ha - a.area_ha);
 
-  return {
+  const result = {
     targetCode,
     totalFeatures,
     totalAreaHa: round2(netAreaHa),
@@ -417,6 +496,8 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     typeBreakdown,
     dissolvedByCategory
   };
+  _metricsCache.set(key, result);
+  return result;
 }
 
 // ─── Utility ─────────────────────────────────────────────────────────────────
