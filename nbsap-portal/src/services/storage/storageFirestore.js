@@ -150,6 +150,29 @@ export async function listLayers() {
 }
 
 /**
+ * Returns all layers with metadata ONLY (no GeoJSON chunks loaded).
+ * Much faster than listLayers() for initial load — GeoJSON is loaded
+ * on-demand per target filter via getLayer().
+ */
+export async function listLayersMeta() {
+  const snap = await getDocs(collection(db, COL_LAYERS));
+  if (snap.empty) return [];
+
+  const layers = snap.docs.map(d => {
+    const data = d.data();
+    return { id: d.id, metadata: data.metadata, geojson: null };
+  });
+
+  layers.sort((a, b) => {
+    const ta = a.metadata?.uploadTimestamp || '';
+    const tb = b.metadata?.uploadTimestamp || '';
+    return tb.localeCompare(ta);
+  });
+
+  return layers;
+}
+
+/**
  * Returns the count of layer documents in Firestore (metadata only, no chunks).
  * Fast check to determine if any data exists before falling back to demo data.
  */

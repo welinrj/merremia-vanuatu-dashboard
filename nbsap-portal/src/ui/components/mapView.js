@@ -93,16 +93,17 @@ export function updateMapLayers() {
     }).addTo(map);
   }
 
-  // Collect features per category for dissolution
-  const categoryPolygons = {};
-  const categoryPointFeatures = [];
-  // Reference layers rendered separately with distinct styling
-  const refPolygonLayers = [];
-  const refPointLayers = [];
+  // Collect features per category for dissolution + popup rendering
+  // Single pass collects all features, avoiding duplicate filterFeatures calls.
+  const categoryPolygons = {};          // cat → Feature[]
+  const categoryPolygonMetas = {};      // cat → { features: Feature[], meta }[] for popups
+  const categoryPointFeatures = {};     // cat → { features: Feature[], meta, catConfig }
+  const refPolygonFeatures = [];        // { feature, meta, catConfig }[]  (small count, OK individually)
+  const refPointFeatures = [];
 
-  // Pass 1: Collect and classify features
   for (const layerData of layers) {
     const meta = layerData.metadata;
+    if (!layerData.geojson) continue; // skip unloaded layers
 
     // Apply target filter
     if (filters.targets.length > 0) {
@@ -116,40 +117,54 @@ export function updateMapLayers() {
 
     const cat = meta.category || 'OTHER';
     const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
-    const features = filterFeatures(layerData.geojson?.features || [], filters);
+    const features = filterFeatures(layerData.geojson.features || [], filters);
     const isRef = meta.isReference === true;
 
     if (features.length === 0) continue;
 
+    const polyFeatures = [];
+    const pointFeats = [];
+
     for (const f of features) {
       const geomType = f.geometry?.type;
-      if (isRef) {
-        // Reference layers collected separately
-        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-          refPolygonLayers.push({ feature: f, meta, catConfig });
-        } else if (geomType === 'Point' || geomType === 'MultiPoint') {
-          refPointLayers.push({ feature: f, meta, catConfig });
-        }
-      } else {
-        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+      if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+        if (isRef) {
+          refPolygonFeatures.push({ feature: f, meta, catConfig });
+        } else {
+          polyFeatures.push(f);
           if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
           categoryPolygons[cat].push(f);
-        } else if (geomType === 'Point' || geomType === 'MultiPoint') {
-          categoryPointFeatures.push({ feature: f, meta, catConfig });
+        }
+      } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+        if (isRef) {
+          refPointFeatures.push({ feature: f, meta, catConfig });
+        } else {
+          pointFeats.push(f);
         }
       }
+    }
+
+    // Collect polygon features per layer for popup rendering (used in Pass 3)
+    if (polyFeatures.length > 0 && !isRef) {
+      if (!categoryPolygonMetas[cat]) categoryPolygonMetas[cat] = [];
+      categoryPolygonMetas[cat].push({ features: polyFeatures, meta, catConfig });
+    }
+
+    // Collect point features per category for batched rendering
+    if (pointFeats.length > 0 && !isRef) {
+      if (!categoryPointFeatures[cat]) {
+        categoryPointFeatures[cat] = { features: [], meta, catConfig };
+      }
+      categoryPointFeatures[cat].features.push(...pointFeats);
     }
   }
 
   // Pass 2: Render dissolved category boundaries (fill + outline)
-  // For large categories (>200 features), skip dissolution and render
-  // individual filled polygons directly to avoid blocking the main thread.
   const MAP_DISSOLVE_LIMIT = 200;
   for (const [cat, features] of Object.entries(categoryPolygons)) {
     const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
 
     if (features.length > MAP_DISSOLVE_LIMIT) {
-      // Large dataset: render individual filled polygons (no dissolution)
       const fillLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
         style: () => ({
           color: catConfig.color,
@@ -177,95 +192,96 @@ export function updateMapLayers() {
     }
   }
 
-  // Pass 3: Render individual polygon features as thin outlines (for popups)
-  for (const layerData of layers) {
-    const meta = layerData.metadata;
-    if (meta.isReference) continue; // Reference layers handled in Pass 5
-
-    if (filters.targets.length > 0) {
-      if (!meta.targets.some(t => filters.targets.includes(t))) continue;
+  // Pass 3: Render polygon outlines for popup interactivity (reuses Pass 1 data)
+  for (const [cat, layerGroups] of Object.entries(categoryPolygonMetas)) {
+    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
+    for (const group of layerGroups) {
+      const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+        style: () => ({
+          color: catConfig.color,
+          weight: 1,
+          fillOpacity: 0,
+          dashArray: '4 3'
+        }),
+        onEachFeature: (feature, layer) => {
+          buildPopup(feature, layer, group.meta);
+        }
+      });
+      overlayGroup.addLayer(geojsonLayer);
     }
-    if (filters.category && filters.category !== 'All') {
-      if (meta.category !== filters.category) continue;
-    }
-
-    const catConfig = CATEGORIES[meta.category] || CATEGORIES.OTHER;
-    const features = filterFeatures(layerData.geojson?.features || [], filters);
-    const polygonFeatures = features.filter(f =>
-      f.geometry?.type === 'Polygon' || f.geometry?.type === 'MultiPolygon'
-    );
-
-    if (polygonFeatures.length === 0) continue;
-
-    const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: polygonFeatures }, {
-      style: () => ({
-        color: catConfig.color,
-        weight: 1,
-        fillOpacity: 0,
-        dashArray: '4 3'
-      }),
-      onEachFeature: (feature, layer) => {
-        buildPopup(feature, layer, meta);
-      }
-    });
-
-    overlayGroup.addLayer(geojsonLayer);
   }
 
-  // Pass 4: Render point features
-  for (const { feature, meta, catConfig } of categoryPointFeatures) {
-    const pointLayer = L.geoJSON(feature, {
+  // Pass 4: Render point features — batched per category (single L.geoJSON per cat)
+  for (const [cat, group] of Object.entries(categoryPointFeatures)) {
+    const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
       pointToLayer: (f, latlng) => {
         return L.circleMarker(latlng, {
           radius: 6,
-          fillColor: catConfig.color,
+          fillColor: group.catConfig.color,
           color: '#fff',
           weight: 1,
           fillOpacity: 0.8
         });
       },
       onEachFeature: (f, layer) => {
-        buildPopup(f, layer, meta);
+        buildPopup(f, layer, group.meta);
       }
     });
     overlayGroup.addLayer(pointLayer);
   }
 
-  // Pass 5: Render reference polygon layers (dashed outline, hatched appearance)
-  for (const { feature, meta, catConfig } of refPolygonLayers) {
-    const refLayer = L.geoJSON(feature, {
-      style: () => ({
-        color: catConfig.color,
-        weight: 2,
-        fillOpacity: 0.08,
-        fillColor: catConfig.color,
-        dashArray: '8 4'
-      }),
-      onEachFeature: (f, layer) => {
-        buildPopup(f, layer, meta, true);
-      }
-    });
-    overlayGroup.addLayer(refLayer);
+  // Pass 5: Render reference polygon layers (batched into single L.geoJSON)
+  if (refPolygonFeatures.length > 0) {
+    // Group by category for consistent styling
+    const refByCat = {};
+    for (const { feature, meta, catConfig } of refPolygonFeatures) {
+      const cat = meta.category || 'OTHER';
+      if (!refByCat[cat]) refByCat[cat] = { features: [], meta, catConfig };
+      refByCat[cat].features.push(feature);
+    }
+    for (const group of Object.values(refByCat)) {
+      const refLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+        style: () => ({
+          color: group.catConfig.color,
+          weight: 2,
+          fillOpacity: 0.08,
+          fillColor: group.catConfig.color,
+          dashArray: '8 4'
+        }),
+        onEachFeature: (f, layer) => {
+          buildPopup(f, layer, group.meta, true);
+        }
+      });
+      overlayGroup.addLayer(refLayer);
+    }
   }
 
-  // Pass 6: Render reference point features
-  for (const { feature, meta, catConfig } of refPointLayers) {
-    const pointLayer = L.geoJSON(feature, {
-      pointToLayer: (f, latlng) => {
-        return L.circleMarker(latlng, {
-          radius: 5,
-          fillColor: catConfig.color,
-          color: catConfig.color,
-          weight: 1.5,
-          fillOpacity: 0.3,
-          dashArray: '3 3'
-        });
-      },
-      onEachFeature: (f, layer) => {
-        buildPopup(f, layer, meta, true);
-      }
-    });
-    overlayGroup.addLayer(pointLayer);
+  // Pass 6: Render reference point features (batched)
+  if (refPointFeatures.length > 0) {
+    const refPtByCat = {};
+    for (const { feature, meta, catConfig } of refPointFeatures) {
+      const cat = meta.category || 'OTHER';
+      if (!refPtByCat[cat]) refPtByCat[cat] = { features: [], meta, catConfig };
+      refPtByCat[cat].features.push(feature);
+    }
+    for (const group of Object.values(refPtByCat)) {
+      const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+        pointToLayer: (f, latlng) => {
+          return L.circleMarker(latlng, {
+            radius: 5,
+            fillColor: group.catConfig.color,
+            color: group.catConfig.color,
+            weight: 1.5,
+            fillOpacity: 0.3,
+            dashArray: '3 3'
+          });
+        },
+        onEachFeature: (f, layer) => {
+          buildPopup(f, layer, group.meta, true);
+        }
+      });
+      overlayGroup.addLayer(pointLayer);
+    }
   }
 
   // Fit bounds to visible features

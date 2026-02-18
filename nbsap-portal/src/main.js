@@ -3,10 +3,10 @@
  * Initializes the app shell, loads data from Firestore, wires up tab navigation,
  * and subscribes to real-time updates for cross-device sync.
  */
-import { listLayers, countLayers, saveLayer, deleteLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
-import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker } from './ui/state.js';
+import { listLayers, listLayersMeta, countLayers, saveLayer, deleteLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
+import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker, ensureGeoJSONForTargets, hasUnloadedTargets } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
-import { initDashboard, refreshDashboard, onDashboardShow } from './pages/dashboard.js';
+import { initDashboard, refreshDashboard, onDashboardShow, markDashboardDirty } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
 import { initAdmin, renderAdminPage } from './pages/admin.js';
 import { isWizardOpen } from './ui/components/uploadWizard.js';
@@ -55,12 +55,29 @@ async function init() {
   setupNavigation();
 
   // 3. Listen for refresh events (debounced to prevent rapid-fire recomputations)
+  //    Includes lazy GeoJSON loading when the target filter changes.
   let refreshTimer = null;
   window.addEventListener('nbsap:refresh', () => {
     if (refreshTimer) clearTimeout(refreshTimer);
-    refreshTimer = setTimeout(() => {
+    refreshTimer = setTimeout(async () => {
       refreshTimer = null;
-      if (activeTab === 'dashboard') refreshDashboard();
+
+      // Lazy-load GeoJSON for any newly-selected targets before rendering
+      if (initialLoadComplete) {
+        const state = getAppState();
+        const targets = state.filters.targets;
+        if (targets.length > 0 && hasUnloadedTargets(targets)) {
+          showLoadingStatus(`Loading data for ${targets.join(', ')}...`);
+          await ensureGeoJSONForTargets(targets);
+          hideLoadingStatus();
+        }
+      }
+
+      if (activeTab === 'dashboard') {
+        refreshDashboard();
+      } else {
+        markDashboardDirty();
+      }
       if (activeTab === 'portal') refreshPortal();
       if (activeTab === 'admin' && !isWizardOpen()) renderAdminPage();
       updateNavAuthBadge();
@@ -135,32 +152,34 @@ async function loadAppData() {
     console.warn('Failed to load layer tracker:', err);
   }
 
-  // Load layers from Firestore (generous 60s timeout for large datasets over slow networks)
+  // Load layer METADATA first (fast — no GeoJSON chunks), then lazy-load GeoJSON
+  // for the active target only. This prevents large datasets from blocking startup.
   try {
-    const stored = await withTimeout(listLayers(), 60000);
+    const stored = await withTimeout(listLayersMeta(), 15000);
 
     // Separate demo layers from real user-uploaded layers
     const realLayers = stored.filter(l => !isDemoLayer(l));
     const demoLayers = stored.filter(l => isDemoLayer(l));
 
     if (realLayers.length > 0) {
-      // User has real data — use only real layers, clean up any demo data from Firestore
+      // User has real data — use only real layers (metadata only at this point)
       setLayers(realLayers);
-      console.log(`Loaded ${realLayers.length} layers from Firestore (excluded ${demoLayers.length} demo layers)`);
+      console.log(`Loaded metadata for ${realLayers.length} layers from Firestore (excluded ${demoLayers.length} demo layers)`);
 
       // Remove demo layers from Firestore in background so they don't persist
       if (demoLayers.length > 0) {
         cleanupDemoLayers(demoLayers);
       }
     } else if (stored.length > 0) {
-      // Only demo data exists — show it for now
-      setLayers(stored);
+      // Only demo data exists — load full GeoJSON for demo layers
+      const demoFull = await withTimeout(listLayers(), 60000);
+      setLayers(demoFull.filter(l => isDemoLayer(l)));
     } else {
       // No data at all — check for failed chunk loads, then fall back to demo
       try {
         const docCount = await withTimeout(countLayers(), 10000);
         if (docCount > 0) {
-          console.warn(`Firestore has ${docCount} layer docs but GeoJSON failed to load. Real-time listener will retry.`);
+          console.warn(`Firestore has ${docCount} layer docs but metadata failed to load. Real-time listener will retry.`);
         } else {
           await loadDemoData(base);
         }
@@ -179,6 +198,15 @@ async function loadAppData() {
 
   hideLoadingStatus();
   initialLoadComplete = true;
+
+  // Lazy-load GeoJSON for the default active target (T3), then refresh
+  const state = getAppState();
+  const activeTargets = state.filters.targets;
+  if (activeTargets.length > 0 && hasUnloadedTargets(activeTargets)) {
+    showLoadingStatus(`Loading GeoJSON for ${activeTargets.join(', ')}...`);
+    await ensureGeoJSONForTargets(activeTargets);
+    hideLoadingStatus();
+  }
 
   // Refresh all visible components with loaded data
   refreshDashboard();
