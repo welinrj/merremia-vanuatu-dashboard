@@ -3,8 +3,12 @@
  * Central store for layers, filters, and UI state.
  * Components import getAppState() to read and updateFilters() etc. to mutate.
  * Changes dispatch a 'nbsap:refresh' event for reactive updates.
+ *
+ * Supports lazy GeoJSON loading: layers can be added with geojson: null
+ * and loaded on-demand via ensureGeoJSONForTargets().
  */
 import { clearMetricsCache } from '../gis/areaCalc.js';
+import { getLayer } from '../services/storage/index.js';
 
 const appState = {
   /** Currently loaded layers: Array<{ id, metadata, geojson }> */
@@ -51,6 +55,7 @@ export function getAppState() {
  */
 export function updateFilters(filterUpdates) {
   Object.assign(appState.filters, filterUpdates);
+  _dashboardLayersCache = null;
   clearMetricsCache();
   dispatchRefresh();
 }
@@ -66,6 +71,7 @@ export function addLayer(layerRecord) {
   } else {
     appState.layers.push(layerRecord);
   }
+  _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
   dispatchRefresh();
@@ -77,6 +83,7 @@ export function addLayer(layerRecord) {
  */
 export function removeLayer(layerId) {
   appState.layers = appState.layers.filter(l => l.id !== layerId);
+  _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
   dispatchRefresh();
@@ -88,6 +95,7 @@ export function removeLayer(layerId) {
  */
 export function setLayers(layers) {
   appState.layers = layers;
+  _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
 }
@@ -123,6 +131,7 @@ export function setAdminState(isAdmin) {
 export function setLayerTracker(tracker) {
   if (!tracker) {
     appState.layerTracker = {};
+    _invalidateTrackerCache();
     return;
   }
 
@@ -136,6 +145,7 @@ export function setLayerTracker(tracker) {
     }
   }
   appState.layerTracker = migrated;
+  _invalidateTrackerCache();
 }
 
 /**
@@ -157,6 +167,7 @@ export function trackLayer(expectedLayerId, layerId) {
       uploadedAt: new Date().toISOString()
     });
   }
+  _invalidateTrackerCache();
   dispatchRefresh();
 }
 
@@ -178,20 +189,31 @@ export function untrackLayer(expectedLayerId, layerId = null) {
       delete appState.layerTracker[expectedLayerId];
     }
   }
+  _invalidateTrackerCache();
   dispatchRefresh();
 }
 
 /**
  * Returns all tracked layer IDs from the tracker (all expected layers).
+ * Cached — invalidated when layerTracker changes.
  */
+let _trackedIdsCache = null;
+
 function getTrackedLayerIds() {
+  if (_trackedIdsCache) return _trackedIdsCache;
   const ids = new Set();
   for (const entries of Object.values(appState.layerTracker)) {
     for (const entry of entries) {
       ids.add(entry.layerId);
     }
   }
+  _trackedIdsCache = ids;
   return ids;
+}
+
+function _invalidateTrackerCache() {
+  _trackedIdsCache = null;
+  _dashboardLayersCache = null;
 }
 
 /**
@@ -214,19 +236,23 @@ export function hasUserLayers() {
  * When any tracked layers exist, returns only those (user-uploaded data).
  * Otherwise, if any non-demo layers exist, returns only non-demo layers.
  * Falls back to all layers (including demo) only when no real data exists.
+ *
+ * Cached per render cycle — invalidated on layer/tracker mutations.
  */
+let _dashboardLayersCache = null;
+
 export function getDashboardLayers() {
-  // If the user has explicitly tracked layers, show only those
+  if (_dashboardLayersCache) return _dashboardLayersCache;
+
+  let result;
   if (hasUserLayers()) {
-    return getUserLayers();
+    result = getUserLayers();
+  } else {
+    const realLayers = appState.layers.filter(l => !isDemoLayer(l));
+    result = realLayers.length > 0 ? realLayers : appState.layers;
   }
-
-  // Otherwise, exclude demo/system layers if any real layers exist
-  const realLayers = appState.layers.filter(l => !isDemoLayer(l));
-  if (realLayers.length > 0) return realLayers;
-
-  // No real data at all — show demo data
-  return appState.layers;
+  _dashboardLayersCache = result;
+  return result;
 }
 
 /**
@@ -242,15 +268,96 @@ function isDemoLayer(layer) {
 
 /**
  * Extracts unique province names from all loaded layers.
+ * Caches result — only recomputes when _provincesDirty flag is set.
  */
+let _provincesDirty = true;
+
 function extractProvinces() {
+  _provincesDirty = true;
+  _recomputeProvinces();
+}
+
+function _recomputeProvinces() {
+  if (!_provincesDirty) return;
+  _provincesDirty = false;
   const provinces = new Set(appState.provinces);
   for (const layer of appState.layers) {
-    for (const f of (layer.geojson?.features || [])) {
+    if (!layer.geojson) continue; // skip unloaded layers
+    for (const f of (layer.geojson.features || [])) {
       if (f.properties?.province) provinces.add(f.properties.province);
     }
   }
   appState.provinces = [...provinces].sort();
+}
+
+// ─── Lazy GeoJSON loading ────────────────────────────────────
+
+/** Set of layer IDs currently being loaded */
+const _loadingIds = new Set();
+
+/**
+ * Ensures GeoJSON is loaded for all layers matching the given targets.
+ * Loads from Firestore on demand for layers that have geojson: null.
+ * Returns true if any new data was loaded (caller should refresh).
+ *
+ * @param {string[]} targets - Target codes to load data for (e.g. ['T3'])
+ * @returns {Promise<boolean>} Whether any new GeoJSON was loaded
+ */
+export async function ensureGeoJSONForTargets(targets) {
+  if (!targets || targets.length === 0) return false;
+
+  const needsLoad = appState.layers.filter(l => {
+    if (l.geojson !== null) return false; // already loaded
+    if (_loadingIds.has(l.id)) return false; // already in progress
+    const meta = l.metadata;
+    if (!meta || !meta.targets) return false;
+    return meta.targets.some(t => targets.includes(t));
+  });
+
+  if (needsLoad.length === 0) return false;
+
+  // Mark as loading to prevent duplicate requests
+  for (const l of needsLoad) _loadingIds.add(l.id);
+
+  const results = await Promise.allSettled(
+    needsLoad.map(async (layer) => {
+      try {
+        const full = await getLayer(layer.id);
+        if (full && full.geojson) {
+          // Update in-place to avoid triggering full state reset
+          const idx = appState.layers.findIndex(l => l.id === layer.id);
+          if (idx >= 0) {
+            appState.layers[idx] = { ...appState.layers[idx], geojson: full.geojson };
+          }
+          return true;
+        }
+        return false;
+      } finally {
+        _loadingIds.delete(layer.id);
+      }
+    })
+  );
+
+  const loaded = results.some(r => r.status === 'fulfilled' && r.value === true);
+  if (loaded) {
+    _provincesDirty = true;
+    _recomputeProvinces();
+    clearMetricsCache();
+  }
+  return loaded;
+}
+
+/**
+ * Returns true if any layers matching the given targets still need GeoJSON loaded.
+ */
+export function hasUnloadedTargets(targets) {
+  if (!targets || targets.length === 0) return false;
+  return appState.layers.some(l => {
+    if (l.geojson !== null) return false;
+    const meta = l.metadata;
+    if (!meta || !meta.targets) return false;
+    return meta.targets.some(t => targets.includes(t));
+  });
 }
 
 /**

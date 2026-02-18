@@ -126,6 +126,7 @@ export function initDashboard() {
  * Refreshes all dashboard components with current state.
  */
 export function refreshDashboard() {
+  _dashboardDirty = false;
   const state = getAppState();
 
   // Re-render filter panel
@@ -272,8 +273,18 @@ function formatHa(val) {
 
 /**
  * Called when dashboard tab becomes active.
+ * Resizes the map (needed after tab switch) but only refreshes data
+ * if state has changed since the last render (via dirty flag).
  */
+let _dashboardDirty = true;
+
+export function markDashboardDirty() {
+  _dashboardDirty = true;
+}
+
 export function onDashboardShow() {
   resizeMap();
-  refreshDashboard();
+  if (_dashboardDirty) {
+    refreshDashboard();
+  }
 }
