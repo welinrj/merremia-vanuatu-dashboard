@@ -4,7 +4,7 @@
  * Creates a full-screen print overlay with a professional map layout:
  *   - Title block (target name, description, NBSAP branding)
  *   - Leaflet map showing dissolved (union) boundaries per category
- *   - Legend (category colours used by the target)
+ *   - Legend (category colours used by the target, with LAND_COVER sub-types)
  *   - North arrow
  *   - Scale bar (Leaflet built-in)
  *   - Metadata footer (date, layers, features, area, CRS)
@@ -14,12 +14,24 @@
  *
  * Polygon dissolution follows UNEP-WCMC methodology: overlapping features
  * are unioned per category for clean cartographic boundaries.
+ *
+ * Professional symbology is driven by config/symbology.js for consistent
+ * colouring across interactive and print maps.
  */
 import L from 'leaflet';
 import ENV from '../../config/env.js';
 import { CATEGORIES } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import EXPECTED_LAYERS from '../../config/expectedLayers.js';
+import {
+  resolveColors,
+  featureGroupKey,
+  printDissolvedStyle,
+  printPointStyle,
+  referencePolygonStyle,
+  referencePointStyle,
+  collectLegendEntries
+} from '../../config/symbology.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
 
@@ -62,6 +74,24 @@ function fmtHaFull(val) {
 function fmtPct(val) {
   if (!val && val !== 0) return '0.0%';
   return val.toFixed(1) + '%';
+}
+
+/**
+ * Builds professional legend HTML from layers, expanding LAND_COVER sub-types.
+ */
+function buildLegendHtml(layers, showProvince) {
+  const entries = collectLegendEntries(layers);
+  let html = entries.map(e => {
+    const label = e.label || CATEGORIES[e.key]?.label || e.key;
+    return `<div class="print-legend-item">
+      <span class="print-legend-swatch" style="background:${e.fill};border-color:${e.stroke}"></span>
+      <span>${label}</span>
+    </div>`;
+  }).join('');
+  if (showProvince) {
+    html += '<div class="print-legend-item"><span class="print-legend-swatch print-legend-swatch-province"></span><span>Province Boundary</span></div>';
+  }
+  return html;
 }
 
 /**
@@ -195,15 +225,6 @@ function renderTargetPage(container, targetCode, target) {
     metrics = computeTargetMetrics(layers, targetCode, { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' });
   }
 
-  // Determine categories used by this target's layers
-  const usedCategories = new Set();
-  for (const l of layers) {
-    if (l.metadata?.category) usedCategories.add(l.metadata.category);
-  }
-  for (const el of expected) {
-    usedCategories.add(el.category);
-  }
-
   // Count features (excluding reference layers)
   let totalFeatures = 0;
   let refLayerCount = 0;
@@ -228,14 +249,8 @@ function renderTargetPage(container, targetCode, target) {
   page.className = 'print-page';
   const mapId = `print-map-${targetCode}`;
 
-  // Build legend HTML
-  const legendItems = [...usedCategories].map(cat => {
-    const c = CATEGORIES[cat] || { label: cat, color: '#95a5a6' };
-    return `<div class="print-legend-item">
-      <span class="print-legend-swatch" style="background:${c.color}"></span>
-      <span>${c.label}</span>
-    </div>`;
-  }).join('');
+  // Build legend HTML using symbology-aware helper
+  const legendItems = buildLegendHtml(layers, !!state.provincesGeojson);
 
   // ── Metrics row: 6 boxes with key technical figures ──
   const metricsHtml = `
@@ -283,8 +298,9 @@ function renderTargetPage(container, targetCode, target) {
   let catTableHtml = '';
   if (catBreakdown.length > 0) {
     const catRows = catBreakdown.map(c => {
-      const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
-      return `<tr><td><span class="cat-dot" style="background:${catDef.color}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${fmtHaFull(c.gross_area_ha)}</td><td class="r">${c.features}</td></tr>`;
+      const colors = resolveColors(c.category);
+      const catDef = CATEGORIES[c.category] || { label: c.category };
+      return `<tr><td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${fmtHaFull(c.gross_area_ha)}</td><td class="r">${c.features}</td></tr>`;
     }).join('');
     catTableHtml = `
       <div class="print-detail-table">
@@ -356,7 +372,6 @@ function renderTargetPage(container, targetCode, target) {
         <div class="print-legend-box">
           <div class="print-legend-title">Legend</div>
           ${legendItems}
-          ${state.provincesGeojson ? '<div class="print-legend-item"><span class="print-legend-swatch print-legend-swatch-province"></span><span>Province Boundary</span></div>' : ''}
         </div>
         <div class="print-north-arrow">
           <svg width="36" height="48" viewBox="0 0 36 48">
@@ -414,12 +429,6 @@ function renderProvincePage(container, targetCode, target, provinceName) {
     metrics = computeTargetMetrics(layers, targetCode, provinceFilter);
   }
 
-  // Categories used
-  const usedCategories = new Set();
-  for (const l of layers) {
-    if (l.metadata?.category) usedCategories.add(l.metadata.category);
-  }
-
   // Count features in this province (excluding reference layers)
   let totalFeatures = 0;
   let refLayerCount = 0;
@@ -440,14 +449,8 @@ function renderProvincePage(container, targetCode, target, provinceName) {
   page.className = 'print-page';
   const mapId = `print-map-${targetCode}-${provinceName.replace(/\s+/g, '-')}`;
 
-  // Legend
-  const legendItems = [...usedCategories].map(cat => {
-    const c = CATEGORIES[cat] || { label: cat, color: '#95a5a6' };
-    return `<div class="print-legend-item">
-      <span class="print-legend-swatch" style="background:${c.color}"></span>
-      <span>${c.label}</span>
-    </div>`;
-  }).join('');
+  // Legend — symbology-aware
+  const legendItems = buildLegendHtml(layers, true);
 
   // Metrics row — detailed
   const metricsHtml = `
@@ -466,8 +469,9 @@ function renderProvincePage(container, targetCode, target, provinceName) {
   let catTableHtml = '';
   if (catBreakdown.length > 0) {
     const catRows = catBreakdown.map(c => {
-      const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
-      return `<tr><td><span class="cat-dot" style="background:${catDef.color}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${c.features}</td></tr>`;
+      const colors = resolveColors(c.category);
+      const catDef = CATEGORIES[c.category] || { label: c.category };
+      return `<tr><td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${c.features}</td></tr>`;
     }).join('');
     catTableHtml = `
       <div class="print-detail-table">
@@ -537,7 +541,6 @@ function renderProvincePage(container, targetCode, target, provinceName) {
         <div class="print-legend-box">
           <div class="print-legend-title">Legend</div>
           ${legendItems}
-          <div class="print-legend-item"><span class="print-legend-swatch print-legend-swatch-province"></span><span>Province Boundary</span></div>
         </div>
         <div class="print-north-arrow">
           <svg width="36" height="48" viewBox="0 0 36 48">
@@ -575,7 +578,8 @@ function renderProvincePage(container, targetCode, target, provinceName) {
 
 /**
  * Initializes a Leaflet map inside the print page for a specific target.
- * Renders dissolved (unioned) boundaries per category for clean cartographic output.
+ * Renders dissolved (unioned) boundaries per symbology group (category, or
+ * sub-type for LAND_COVER) for clean cartographic output.
  */
 function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, provinceFilter) {
   const el = document.getElementById(containerId);
@@ -630,8 +634,9 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }).addTo(printMap);
   }
 
-  // Collect features per category for dissolution (excluding reference layers)
-  const categoryPolygons = {};
+  // Collect features per symbology group for dissolution
+  const groupPolygons = {};   // groupKey → Feature[]
+  const groupMeta = {};       // groupKey → { cat, typeValue }
   const refFeatures = [];
   const featureGroup = L.featureGroup();
 
@@ -643,70 +648,67 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
       return true;
     });
     const isRef = meta?.isReference === true;
-    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
 
     for (const f of features) {
       const geomType = f.geometry?.type;
       if (isRef) {
-        refFeatures.push({ feature: f, catConfig });
+        refFeatures.push({ feature: f, cat });
       } else if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-        if (!categoryPolygons[cat]) categoryPolygons[cat] = [];
-        categoryPolygons[cat].push(f);
+        const gk = featureGroupKey(cat, f);
+        if (!groupPolygons[gk]) groupPolygons[gk] = [];
+        groupPolygons[gk].push(f);
+        if (!groupMeta[gk]) {
+          groupMeta[gk] = { cat, typeValue: cat === 'LAND_COVER' ? (f.properties?.type || null) : null };
+        }
       }
     }
   }
 
-  // Render dissolved boundaries per category
-  for (const [cat, features] of Object.entries(categoryPolygons)) {
-    const catConfig = CATEGORIES[cat] || CATEGORIES.OTHER;
+  // Render dissolved boundaries per symbology group
+  for (const [gk, features] of Object.entries(groupPolygons)) {
+    const { cat, typeValue } = groupMeta[gk];
+    const style = printDissolvedStyle(cat, typeValue);
     const dissolved = dissolveFeatures(features);
 
     if (dissolved) {
       const geoLayer = L.geoJSON(dissolved, {
-        style: () => ({
-          color: catConfig.color,
-          weight: 2,
-          fillOpacity: 0.3,
-          fillColor: catConfig.color
-        })
+        style: () => style
       });
       featureGroup.addLayer(geoLayer);
     }
   }
 
   // Render reference layers with distinct dashed styling
-  for (const { feature, catConfig } of refFeatures) {
-    const geomType = feature.geometry?.type;
-    if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
-      const geoLayer = L.geoJSON(feature, {
-        style: () => ({
-          color: catConfig.color,
-          weight: 1.5,
-          fillOpacity: 0.06,
-          fillColor: catConfig.color,
-          dashArray: '6 4'
-        })
-      });
-      featureGroup.addLayer(geoLayer);
-    } else if (geomType === 'Point' || geomType === 'MultiPoint') {
-      const geoLayer = L.geoJSON(feature, {
-        pointToLayer: (f, latlng) => L.circleMarker(latlng, {
-          radius: 4,
-          fillColor: catConfig.color,
-          color: catConfig.color,
-          weight: 1,
-          fillOpacity: 0.25
-        })
-      });
-      featureGroup.addLayer(geoLayer);
+  if (refFeatures.length > 0) {
+    const refByCat = {};
+    for (const { feature, cat } of refFeatures) {
+      if (!refByCat[cat]) refByCat[cat] = [];
+      refByCat[cat].push(feature);
+    }
+    for (const [cat, features] of Object.entries(refByCat)) {
+      for (const feature of features) {
+        const geomType = feature.geometry?.type;
+        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+          const geoLayer = L.geoJSON(feature, {
+            style: () => referencePolygonStyle(cat)
+          });
+          featureGroup.addLayer(geoLayer);
+        } else if (geomType === 'Point' || geomType === 'MultiPoint') {
+          const style = referencePointStyle(cat);
+          const geoLayer = L.geoJSON(feature, {
+            pointToLayer: (f, latlng) => L.circleMarker(latlng, style)
+          });
+          featureGroup.addLayer(geoLayer);
+        }
+      }
     }
   }
 
-  // Also render non-reference point features normally
+  // Render non-reference point features
   for (const layerData of layers) {
     const meta = layerData.metadata;
     if (meta?.isReference) continue;
-    const catConfig = CATEGORIES[meta?.category] || CATEGORIES.OTHER;
+    const cat = meta?.category || 'OTHER';
     const features = (layerData.geojson?.features || []).filter(f => {
       if (provinceFilter && f.properties.province !== provinceFilter) return false;
       return true;
@@ -716,15 +718,10 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     );
 
     if (points.length > 0) {
+      const style = printPointStyle(cat);
       const geoLayer = L.geoJSON({ type: 'FeatureCollection', features: points }, {
         pointToLayer: (feature, latlng) => {
-          return L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: catConfig.color,
-            color: '#fff',
-            weight: 1,
-            fillOpacity: 0.8
-          });
+          return L.circleMarker(latlng, style);
         }
       });
       featureGroup.addLayer(geoLayer);
