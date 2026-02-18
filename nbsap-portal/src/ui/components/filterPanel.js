@@ -112,7 +112,7 @@ export function renderFilterPanel(container) {
 
   // Clear button
   container.querySelector('#btn-clear-filters').addEventListener('click', () => {
-    updateFilters({ targets: [], province: 'All', category: 'All', realm: 'All', year: 'All' });
+    updateFilters({ targets: ['T3'], province: 'All', category: 'All', realm: 'All', year: 'All' });
   });
 
   // Populate year dropdown from loaded layers
