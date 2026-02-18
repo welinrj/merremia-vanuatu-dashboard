@@ -14,6 +14,9 @@
 import * as turf from '@turf/turf';
 import ENV from '../config/env.js';
 
+/** Official Vanuatu provinces — exclude "Unassigned" and foreign names from breakdowns */
+const VALID_PROVINCES = new Set(['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa', 'Tafea']);
+
 // ─── Metrics cache ──────────────────────────────────────────
 // Keyed by (function + targetCode + filters hash). Invalidated when layers change.
 let _cacheGen = 0;
@@ -231,20 +234,22 @@ export function compute30x30Metrics(layers, filters = {}) {
   const marinePct = baselines.marine_ha > 0
     ? (netMarine / baselines.marine_ha) * 100 : 0;
 
-  // Province breakdown with per-province dissolution
-  const provinceBreakdown = Object.entries(provinceFeatures).map(([name, data]) => {
-    const tDissolved = dissolveFeatures(data.terrestrial);
-    const mDissolved = dissolveFeatures(data.marine);
-    const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
-    const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
-    return {
-      province: name,
-      terrestrial_ha: round2(tNet),
-      marine_ha: round2(mNet),
-      total_ha: round2(tNet + mNet),
-      features: data.terrestrial.length + data.marine.length
-    };
-  }).sort((a, b) => b.total_ha - a.total_ha);
+  // Province breakdown with per-province dissolution (official provinces only)
+  const provinceBreakdown = Object.entries(provinceFeatures)
+    .filter(([name]) => VALID_PROVINCES.has(name))
+    .map(([name, data]) => {
+      const tDissolved = dissolveFeatures(data.terrestrial);
+      const mDissolved = dissolveFeatures(data.marine);
+      const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
+      const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
+      return {
+        province: name,
+        terrestrial_ha: round2(tNet),
+        marine_ha: round2(mNet),
+        total_ha: round2(tNet + mNet),
+        features: data.terrestrial.length + data.marine.length
+      };
+    }).sort((a, b) => b.total_ha - a.total_ha);
 
   const result = {
     // Net (dissolved) — official coverage figures
@@ -442,20 +447,22 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
   const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : 0;
   const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : 0;
 
-  // Province breakdown with per-province dissolution
-  const provinceBreakdown = Object.entries(provinceFeatures).map(([name, data]) => {
-    const tDissolved = dissolveFeatures(data.terrestrial);
-    const mDissolved = dissolveFeatures(data.marine);
-    const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
-    const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
-    return {
-      province: name,
-      terrestrial_ha: round2(tNet),
-      marine_ha: round2(mNet),
-      total_ha: round2(tNet + mNet),
-      features: data.terrestrial.length + data.marine.length
-    };
-  }).sort((a, b) => b.total_ha - a.total_ha);
+  // Province breakdown with per-province dissolution (official provinces only)
+  const provinceBreakdown = Object.entries(provinceFeatures)
+    .filter(([name]) => VALID_PROVINCES.has(name))
+    .map(([name, data]) => {
+      const tDissolved = dissolveFeatures(data.terrestrial);
+      const mDissolved = dissolveFeatures(data.marine);
+      const tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
+      const mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
+      return {
+        province: name,
+        terrestrial_ha: round2(tNet),
+        marine_ha: round2(mNet),
+        total_ha: round2(tNet + mNet),
+        features: data.terrestrial.length + data.marine.length
+      };
+    }).sort((a, b) => b.total_ha - a.total_ha);
 
   // Category breakdown with per-category dissolution + map geometries
   const dissolvedByCategory = {};
