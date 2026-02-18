@@ -16,9 +16,9 @@ const appState = {
   /** List of province names (for filter dropdown) */
   provinces: [],
 
-  /** Active filters */
+  /** Active filters — default to T3 (30x30) so not all datasets are processed on load */
   filters: {
-    targets: [],
+    targets: ['T3'],
     province: 'All',
     category: 'All',
     realm: 'All',
