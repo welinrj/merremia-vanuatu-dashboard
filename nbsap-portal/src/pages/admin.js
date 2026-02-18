@@ -58,9 +58,6 @@ function renderLoginForm(page) {
             <button class="btn btn-primary" id="btn-admin-login" style="width:100%;justify-content:center;padding:10px">Login</button>
           </div>
         </div>
-        <p style="font-size:11px;color:var(--text-tertiary);margin-top:16px;text-align:center">
-          Default passphrase for demo: <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:11px">vanuatu2024</code>
-        </p>
       </div>
     </div>
   `;
