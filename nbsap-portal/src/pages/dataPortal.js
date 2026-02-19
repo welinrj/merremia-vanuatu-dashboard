@@ -3,6 +3,7 @@
  * Lists all layers, supports search/filter, upload, and layer management.
  */
 import { CATEGORIES } from '../config/categories.js';
+import ENV from '../config/env.js';
 import { getAppState, removeLayer } from '../ui/state.js';
 import { deleteLayer, addAuditEntry } from '../services/storage/index.js';
 import { isAdmin } from '../services/auth/index.js';
@@ -138,7 +139,7 @@ function renderPortalTable() {
           <th>Category</th>
           <th>Targets</th>
           <th>Realm</th>
-          <th>Features</th>
+          <th>Coverage</th>
           <th>Status</th>
           <th>Last Updated</th>
           <th>Actions</th>
@@ -148,24 +149,45 @@ function renderPortalTable() {
         ${layers.map(l => {
           const m = l.metadata;
           const catConfig = CATEGORIES[m.category] || {};
+          const isRef = m.isReference === true;
+          const admin = isAdmin();
+
+          // For reference layers show coverage %; for regular layers show feature count
+          let coverageCell;
+          if (isRef) {
+            const baselines = ENV.nationalBaselines;
+            const baseline = m.realm === 'marine' ? baselines.marine_ha : baselines.terrestrial_ha;
+            const pct = baseline > 0 ? ((m.totalAreaHa || 0) / baseline * 100) : 0;
+            coverageCell = `<span style="font-weight:600">${pct.toFixed(1)}%</span>`;
+          } else {
+            coverageCell = `${m.featureCount}`;
+          }
+
+          // Reference layers: only admin can download/remove
+          const showDownload = !isRef || admin;
+          const showRemove = admin && (!isRef || admin);
+
           return `
             <tr data-layer-id="${l.id}" class="${selectedLayerId === l.id ? 'selected' : ''}" style="cursor:pointer">
               <td>
                 <div style="display:flex;align-items:center;gap:8px">
                   <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
-                  <strong>${m.name}</strong>
+                  <div>
+                    <strong>${m.name}</strong>
+                    ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
+                  </div>
                 </div>
               </td>
               <td><span style="font-size:12px;color:var(--text-secondary)">${CATEGORIES[m.category]?.label || m.category}</span></td>
               <td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td>
               <td style="text-transform:capitalize">${m.realm}</td>
-              <td>${m.featureCount}</td>
+              <td>${coverageCell}</td>
               <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
               <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
               <td class="actions">
                 <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
-                <button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>
-                ${isAdmin() ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
+                ${showDownload ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
+                ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
               </td>
             </tr>
           `;
@@ -239,11 +261,20 @@ function renderLayerDetails(layerId) {
           <tr><td>Targets</td><td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td></tr>
           <tr><td>Realm</td><td style="text-transform:capitalize">${m.realm}</td></tr>
           <tr><td>CRS</td><td><code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:12px">${m.detectedCRS}</code></td></tr>
-          <tr><td>Features</td><td>${m.featureCount}</td></tr>
+          ${m.isReference
+            ? (() => {
+                const bl = ENV.nationalBaselines;
+                const base = m.realm === 'marine' ? bl.marine_ha : bl.terrestrial_ha;
+                const pct = base > 0 ? ((m.totalAreaHa || 0) / base * 100) : 0;
+                return `<tr><td>Coverage</td><td><strong>${pct.toFixed(1)}%</strong> of national ${m.realm === 'marine' ? 'marine' : 'terrestrial'} area</td></tr>
+          <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`;
+              })()
+            : `<tr><td>Features</td><td>${m.featureCount}</td></tr>
           <tr><td>Valid geometries</td><td>${m.validGeometryCount}</td></tr>
           <tr><td>Fixed</td><td>${m.fixedCount}</td></tr>
           <tr><td>Dropped</td><td>${m.droppedCount}</td></tr>
-          <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>
+          <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`
+          }
           <tr><td>30x30</td><td>${m.countsToward30x30 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--text-secondary)">No</span>'}</td></tr>
         </table>
       </div>
