@@ -33,9 +33,12 @@ export const SYMBOLOGY = {
   KINGFISHER:     { fill: '#00ACC1', stroke: '#00838F' },
   FLYING_FOX:     { fill: '#6D4C41', stroke: '#4E342E' },
   PLERANDRA:      { fill: '#43A047', stroke: '#2E7D32' },
-  // Threats — warm/red spectrum
+  // Threats — warm/red spectrum (IAS per species)
   INVASIVE:       { fill: '#e74c3c', stroke: '#c0392b' },
   MERREMIA:       { fill: '#c0392b', stroke: '#922b21' },
+  CROWN_OF_THORNS:{ fill: '#FF6F00', stroke: '#E65100' },
+  MILE_A_MINUTE:  { fill: '#AD1457', stroke: '#880E4F' },
+  SOLANUM_TORVUM: { fill: '#6A1B9A', stroke: '#4A148C' },
   PESTICIDE:      { fill: '#9C27B0', stroke: '#7B1FA2' },
   EUTROPHICATION: { fill: '#e91e63', stroke: '#c2185b' },
   // Land use & green space

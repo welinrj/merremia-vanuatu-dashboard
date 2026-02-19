@@ -31,9 +31,9 @@ export default {
     {
       "code": "T6",
       "name": "Target 6: Invasive Alien Species",
-      "description": "Spatial analysis to identify total coverage (ha) and distribution of key Invasive Alien Species (IAS) — Merremia (Big Leaf), Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle.",
+      "description": "Spatial analysis to identify total coverage (ha) and distribution of key Invasive Alien Species (IAS) — Merremia peltata (Big Leaf), Crown of Thorns Starfish, Mile a Minute Vine, Solanum torvum (Devil Fig), Fire Ants, African Snail, Sako, Coconut Beetle.",
       "isMetricTarget": true,
-      "recommendedCategories": ["INVASIVE", "MERREMIA"]
+      "recommendedCategories": ["MERREMIA", "CROWN_OF_THORNS", "MILE_A_MINUTE", "SOLANUM_TORVUM", "INVASIVE"]
     },
     {
       "code": "T7",

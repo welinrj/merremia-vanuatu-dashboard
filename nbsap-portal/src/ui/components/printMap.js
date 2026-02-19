@@ -864,16 +864,36 @@ function generateTargetInsights(targetCode, data) {
       }
       break;
 
-    case 'T6':
-      if (data.catBreakdown.some(c => c.category === 'MERREMIA')) {
-        const merremia = data.catBreakdown.find(c => c.category === 'MERREMIA');
-        insights.push(`Merremia peltata (Big Leaf) detection covers <strong>${fmtHaFull(merremia.area_ha)} ha</strong>. This invasive vine is one of the most significant threats to Vanuatu's native forest ecosystems.`);
+    case 'T6': {
+      // Per-species analysis
+      const iasSpecies = [
+        { cat: 'MERREMIA', name: 'Merremia peltata (Big Leaf)', desc: 'This invasive vine is one of the most significant threats to Vanuatu\'s native forest ecosystems, smothering canopy trees and preventing regeneration.' },
+        { cat: 'CROWN_OF_THORNS', name: 'Crown of Thorns Starfish (Acanthaster planci)', desc: 'Outbreaks cause devastating coral mortality across reef systems, threatening marine biodiversity and coastal livelihoods.' },
+        { cat: 'MILE_A_MINUTE', name: 'Mile a Minute Vine (Mikania micrantha)', desc: 'A fast-growing tropical vine that forms dense mats over native vegetation, blocking sunlight and causing dieback of native species.' },
+        { cat: 'SOLANUM_TORVUM', name: 'Solanum torvum (Devil Fig)', desc: 'A woody invasive shrub that colonises disturbed land, pastures and forest margins, displacing native undergrowth and reducing agricultural productivity.' }
+      ];
+      const speciesReported = [];
+      for (const sp of iasSpecies) {
+        const entry = data.catBreakdown.find(c => c.category === sp.cat);
+        if (entry) {
+          speciesReported.push(sp.name);
+          insights.push(`<strong>${sp.name}</strong> covers <strong>${fmtHaFull(entry.area_ha)} ha</strong> across ${entry.features} feature(s). ${sp.desc}`);
+        }
+      }
+      // Generic INVASIVE category
+      const genericIAS = data.catBreakdown.find(c => c.category === 'INVASIVE');
+      if (genericIAS) {
+        insights.push(`Other invasive alien species collectively cover <strong>${fmtHaFull(genericIAS.area_ha)} ha</strong> (${genericIAS.features} features), including Fire Ants, African Snail, Sako, and Coconut Beetle.`);
       }
       if (data.totalNetArea > 0) {
-        const invasivePct = data.tPct;
-        insights.push(`Total invasive species coverage represents <strong>${fmtPct(invasivePct)}</strong> of national terrestrial area. Spatial analysis of IAS distribution is critical for prioritising management interventions.`);
+        insights.push(`Total IAS-affected area: <strong>${fmtHaFull(data.totalNetArea)} ha</strong> (${fmtPct(data.tPct)} of national terrestrial area). ${speciesReported.length} of 4 priority species mapped. Spatial analysis of IAS distribution is critical for prioritising eradication and management interventions.`);
+      }
+      if (data.missingLayers.length > 0) {
+        const missing = data.missingLayers.map(l => l.name).join(', ');
+        insights.push(`Data gaps remain for: ${missing}. Complete coverage mapping for all priority IAS is needed for national management planning.`);
       }
       break;
+    }
 
     case 'T7':
       if (data.totalNetArea > 0) {
