@@ -81,6 +81,11 @@ function renderTarget1KPIs(container, layers, filters) {
   const tHasOverlap = m.realmTotals.gross_terrestrial_ha > 0 && Math.abs(m.realmTotals.gross_terrestrial_ha - tNet) > 1;
   const mHasOverlap = m.realmTotals.gross_marine_ha > 0 && Math.abs(m.realmTotals.gross_marine_ha - mNet) > 1;
 
+  // Combined totals
+  const combinedTotalHa = baselines.terrestrial_ha + baselines.marine_ha;
+  const combinedCurrentHa = tNet + mNet;
+  const combinedPct = combinedTotalHa > 0 ? (combinedCurrentHa / combinedTotalHa) * 100 : 0;
+
   // Count reference layers
   const refCount = countReferenceLayers(layers, 'T1');
 
@@ -128,6 +133,22 @@ function renderTarget1KPIs(container, layers, filters) {
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
           ${formatNumber(mNet)} ha of ${formatNumber(baselines.marine_ha)} ha national marine area
+        </div>
+      </div>
+
+      <div class="kpi-card wide" style="background:var(--surface-alt, #f0fdf4);border:1px solid #bbf7d0">
+        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:8px">
+          Total Coverage: ${combinedPct.toFixed(2)}% of Vanuatu's land and sea area
+        </div>
+        <div class="progress-bar-container" style="height:20px">
+          <div class="progress-bar-fill terrestrial"
+               style="width: ${Math.min(combinedPct, 100).toFixed(1)}%;background:linear-gradient(90deg, #065f46, #0ea5e9)">
+            ${combinedPct >= 0.5 ? combinedPct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-secondary)">
+          <span>${formatNumber(combinedCurrentHa)} ha covered of ${formatNumber(combinedTotalHa)} ha total</span>
+          <span>Land: ${tPct.toFixed(1)}% | Sea: ${mPct.toFixed(1)}%</span>
         </div>
       </div>
 
