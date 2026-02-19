@@ -577,6 +577,11 @@ function renderProvincePage(container, targetCode, target, provinceName) {
 
   container.appendChild(page);
 
+  // ── Render province-specific analysis page ──
+  const expected = getExpectedForTarget(targetCode);
+  const provAnalysis = generateProvinceAnalysis(targetCode, layers, metrics, expected, baselines, provinceName);
+  renderProvinceAnalysisPage(container, targetCode, target, provinceName, provAnalysis);
+
   requestAnimationFrame(() => {
     setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinceName), 100);
   });
@@ -940,6 +945,420 @@ function generateTargetInsights(targetCode, data) {
   }
 
   return insights;
+}
+
+/**
+ * Generates province-scoped quantitative and qualitative analysis.
+ * Filters all metrics and features to a single province for focused reporting.
+ */
+function generateProvinceAnalysis(targetCode, layers, metrics, expected, baselines, provinceName) {
+  const isT3 = targetCode === 'T3';
+
+  // Province-filtered feature counts
+  const dataLayers = layers.filter(l => !l.metadata?.isReference);
+  const refLayers = layers.filter(l => l.metadata?.isReference);
+  let totalFeatures = 0, totalPolygons = 0, totalPoints = 0;
+  const categoriesPresent = new Set();
+  const typeMap = {};
+
+  for (const l of dataLayers) {
+    const cat = l.metadata?.category || 'OTHER';
+    const provFeats = (l.geojson?.features || []).filter(f => f.properties?.province === provinceName);
+    if (provFeats.length > 0) categoriesPresent.add(cat);
+    for (const f of provFeats) {
+      totalFeatures++;
+      const gt = f.geometry?.type;
+      if (gt === 'Polygon' || gt === 'MultiPolygon') totalPolygons++;
+      else if (gt === 'Point' || gt === 'MultiPoint') totalPoints++;
+      const typeName = f.properties?.type || f.properties?.species_name || f.properties?.name || l.metadata?.name || 'Unknown';
+      if (!typeMap[typeName]) typeMap[typeName] = { area_ha: 0, features: 0 };
+      typeMap[typeName].area_ha += f.properties?.area_ha || 0;
+      typeMap[typeName].features++;
+    }
+  }
+
+  // Area metrics from pre-computed province-filtered metrics
+  const netTerrestrial = isT3 ? (metrics.terrestrial_ha || 0) : (metrics.realmTotals?.terrestrial_ha || 0);
+  const netMarine = isT3 ? (metrics.marine_ha || 0) : (metrics.realmTotals?.marine_ha || 0);
+  const grossTerrestrial = isT3 ? (metrics.gross_terrestrial_ha || 0) : (metrics.realmTotals?.gross_terrestrial_ha || 0);
+  const grossMarine = isT3 ? (metrics.gross_marine_ha || 0) : (metrics.realmTotals?.gross_marine_ha || 0);
+  const totalNetArea = isT3 ? (netTerrestrial + netMarine) : (metrics.totalAreaHa || 0);
+  const totalGrossArea = isT3 ? (grossTerrestrial + grossMarine) : (metrics.grossAreaHa || 0);
+  const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  const mPct = baselines.marine_ha > 0 ? (netMarine / baselines.marine_ha) * 100 : 0;
+  const overlapPct = totalGrossArea > 0 ? (1 - totalNetArea / totalGrossArea) * 100 : 0;
+
+  // Category breakdown
+  const catBreakdown = metrics?.categoryBreakdown || [];
+
+  // Type breakdown
+  const typeBreakdown = Object.entries(typeMap)
+    .map(([name, data]) => ({ type: name, ...data }))
+    .sort((a, b) => b.area_ha - a.area_ha);
+
+  // Data completeness within province
+  const missingLayers = expected.filter(e => !categoriesPresent.has(e.category));
+  const dataCompleteness = expected.length > 0
+    ? Math.round((1 - missingLayers.length / expected.length) * 100)
+    : (totalFeatures > 0 ? 100 : 0);
+
+  // National-level metrics for comparison (compute unfiltered)
+  let nationalMetrics;
+  const allFilter = { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' };
+  if (isT3) {
+    nationalMetrics = compute30x30Metrics(layers, allFilter);
+  } else {
+    nationalMetrics = computeTargetMetrics(layers, targetCode, allFilter);
+  }
+  const nationalNetArea = isT3
+    ? ((nationalMetrics.terrestrial_ha || 0) + (nationalMetrics.marine_ha || 0))
+    : (nationalMetrics.totalAreaHa || 0);
+  const provinceSharePct = nationalNetArea > 0 ? (totalNetArea / nationalNetArea * 100) : 0;
+
+  // Status
+  let status, statusColor;
+  if (totalFeatures === 0) {
+    status = 'No Data'; statusColor = '#D32F2F';
+  } else if (dataCompleteness >= 80) {
+    status = 'Comprehensive'; statusColor = '#2E7D32';
+  } else if (dataCompleteness >= 40 || categoriesPresent.size >= 2) {
+    status = 'Moderate'; statusColor = '#ED6C02';
+  } else {
+    status = 'Minimal'; statusColor = '#D32F2F';
+  }
+
+  // Key findings — province specific
+  const findings = [];
+  if (totalNetArea > 0) {
+    findings.push(`${provinceName} province contributes <strong>${fmtHaFull(totalNetArea)} ha</strong> (net dissolved) to ${targetCode}, representing <strong>${provinceSharePct.toFixed(1)}%</strong> of the national total for this target.`);
+  }
+  if (netTerrestrial > 0) {
+    findings.push(`Terrestrial coverage: <strong>${fmtHaFull(netTerrestrial)} ha</strong> (${fmtPct(tPct)} of national terrestrial baseline).`);
+  }
+  if (netMarine > 0) {
+    findings.push(`Marine coverage: <strong>${fmtHaFull(netMarine)} ha</strong> (${fmtPct(mPct)} of national marine baseline).`);
+  }
+  if (overlapPct > 5) {
+    findings.push(`Spatial overlap of <strong>${overlapPct.toFixed(1)}%</strong> detected between overlapping designations within ${provinceName}.`);
+  }
+  if (catBreakdown.length > 1) {
+    const top = catBreakdown[0];
+    const topLabel = CATEGORIES[top.category]?.label || top.category;
+    findings.push(`Dominant designation type: <strong>${topLabel}</strong> (${fmtHaFull(top.area_ha)} ha, ${totalNetArea > 0 ? (top.area_ha / totalNetArea * 100).toFixed(0) : 0}% of province total).`);
+  }
+  if (totalFeatures === 0) {
+    findings.push(`No geospatial data has been uploaded for ${provinceName} province under ${targetCode}. This represents a significant data gap.`);
+  }
+
+  // Province-specific qualitative insights
+  const insights = [];
+  if (isT3) {
+    if (totalNetArea > 0) {
+      insights.push(`Conservation areas in ${provinceName} include ${catBreakdown.map(c => CATEGORIES[c.category]?.label || c.category).join(', ')}. ${provinceName}'s contribution to the 30x30 target should be assessed in the context of its total land and sea area.`);
+    }
+    insights.push(`Community-based conservation (CCAs, LMMAs) is the primary conservation mechanism in Vanuatu. Engaging local communities in ${provinceName} is essential for expanding and maintaining conservation areas.`);
+  } else if (targetCode === 'T6') {
+    if (totalFeatures > 0) {
+      insights.push(`Invasive species data in ${provinceName} covers ${totalFeatures} features across ${categoriesPresent.size} IAS category(s). Prioritise management interventions in areas adjacent to native forest and reef ecosystems.`);
+    } else {
+      insights.push(`No invasive species data available for ${provinceName}. Field surveys should be prioritised to assess IAS presence and distribution in this province.`);
+    }
+  } else if (targetCode === 'T4') {
+    if (totalFeatures > 0) {
+      insights.push(`Species distribution records in ${provinceName}: ${totalFeatures} observations across ${typeBreakdown.length} taxa. Island-specific surveys are important for capturing Vanuatu's high endemism.`);
+    }
+  } else if (targetCode === 'T10') {
+    if (typeBreakdown.length > 0) {
+      const topTypes = typeBreakdown.slice(0, 3).map(t => `${t.type} (${fmtHaFull(t.area_ha)} ha)`).join(', ');
+      insights.push(`Land cover in ${provinceName} is dominated by: ${topTypes}. Change detection analysis should focus on forest-to-agriculture conversion and urban expansion.`);
+    }
+  } else if (totalNetArea > 0) {
+    insights.push(`${provinceName} has active data submissions for ${targetCode}. Continued monitoring and data updates will strengthen provincial-level tracking for this NBSAP target.`);
+  }
+
+  // Recommendations
+  const recommendations = [];
+  if (missingLayers.length > 0 && totalFeatures > 0) {
+    recommendations.push(`Upload missing data for ${provinceName}: ${missingLayers.map(l => '<strong>' + l.name + '</strong>').join(', ')}.`);
+  }
+  if (totalFeatures === 0) {
+    recommendations.push(`Prioritise data collection for ${provinceName} to enable provincial-level assessment and reporting for ${targetCode}.`);
+  }
+  if (provinceSharePct > 0 && provinceSharePct < 5 && nationalNetArea > 0) {
+    recommendations.push(`${provinceName} currently contributes only ${provinceSharePct.toFixed(1)}% of the national total. Investigate whether this reflects actual low coverage or a data gap.`);
+  }
+
+  return {
+    provinceName, totalFeatures, totalPolygons, totalPoints,
+    netTerrestrial, netMarine, totalNetArea, totalGrossArea,
+    tPct, mPct, overlapPct,
+    catBreakdown, typeBreakdown,
+    dataCompleteness, missingLayers, categoriesPresent: categoriesPresent.size,
+    nationalNetArea, provinceSharePct,
+    status, statusColor,
+    findings, insights, recommendations,
+    dataLayers: dataLayers.length, refLayers: refLayers.length
+  };
+}
+
+/**
+ * Renders a province-specific analysis page with quantitative and qualitative
+ * information for decision makers, aligned with ToR requirements.
+ */
+function renderProvinceAnalysisPage(container, targetCode, target, provinceName, analysis) {
+  const page = document.createElement('div');
+  page.className = 'print-page print-analysis-page';
+  const baselines = ENV.nationalBaselines;
+  const tor = getTargetToRContent(targetCode);
+
+  const statusIcons = {
+    Comprehensive: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    Moderate: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    Minimal: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    'No Data': '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+
+  // Coverage assessment table
+  const coverageRows = [
+    { label: 'Terrestrial (net)', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
+    { label: 'Marine (net)', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
+    { label: 'Total net (dissolved)', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
+    { label: 'Total gross (sum)', value: fmtHaFull(analysis.totalGrossArea) + ' ha', pct: '' },
+    { label: 'Share of national total', value: analysis.provinceSharePct.toFixed(1) + '%', pct: '' },
+    { label: 'Overlap removed', value: analysis.overlapPct.toFixed(1) + '%', pct: '' }
+  ];
+
+  // Category composition
+  const catCompRows = analysis.catBreakdown.map(c => {
+    const colors = resolveColors(c.category);
+    const catLabel = CATEGORIES[c.category]?.label || c.category;
+    const pctOfTotal = analysis.totalNetArea > 0 ? (c.area_ha / analysis.totalNetArea * 100).toFixed(1) : '0.0';
+    return `<tr><td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catLabel}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${pctOfTotal}%</td><td class="r">${c.features}</td></tr>`;
+  }).join('');
+
+  // Type breakdown
+  let typeTableHtml = '';
+  if (analysis.typeBreakdown.length > 1) {
+    const typeRows = analysis.typeBreakdown.slice(0, 8).map(t => {
+      const pctOfTotal = analysis.totalGrossArea > 0 ? (t.area_ha / analysis.totalGrossArea * 100).toFixed(1) : '0.0';
+      return `<tr><td>${t.type}</td><td class="r">${fmtHaFull(t.area_ha)}</td><td class="r">${pctOfTotal}%</td><td class="r">${t.features}</td></tr>`;
+    }).join('');
+    const typeLabel = targetCode === 'T10' ? 'Land Cover Types' : targetCode === 'T4' ? 'Species Observed' : targetCode === 'T6' ? 'IAS Species' : 'Type Breakdown';
+    typeTableHtml = `
+      <div class="analysis-card">
+        <div class="analysis-card-title">${typeLabel} &mdash; ${provinceName}</div>
+        <table class="analysis-table">
+          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">%</th><th class="r">Features</th></tr></thead>
+          <tbody>${typeRows}</tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // 30x30 progress for T3
+  let progressHtml = '';
+  if (targetCode === 'T3') {
+    const tBarW = Math.min(100, (analysis.tPct / 30) * 100);
+    const mBarW = Math.min(100, (analysis.mPct / 30) * 100);
+    const tGap = Math.max(0, 30 - analysis.tPct);
+    const mGap = Math.max(0, 30 - analysis.mPct);
+    progressHtml = `
+      <div class="analysis-card">
+        <div class="analysis-card-title">30x30 Contribution &mdash; ${provinceName}</div>
+        <div class="analysis-progress-group">
+          <div class="analysis-progress-label">Terrestrial: <strong>${fmtPct(analysis.tPct)}</strong> of national baseline</div>
+          <div class="analysis-progress-track">
+            <div class="analysis-progress-fill" style="width:${tBarW}%;background:${analysis.tPct >= 30 ? '#2E7D32' : '#006B3F'}"></div>
+            <div class="analysis-progress-marker" style="left:100%"></div>
+          </div>
+          <div class="analysis-progress-detail">${analysis.tPct >= 30 ? 'Provincial contribution exceeds 30% threshold' : `National gap: ${fmtHaFull(tGap * baselines.terrestrial_ha / 100)} ha still needed`}</div>
+        </div>
+        <div class="analysis-progress-group">
+          <div class="analysis-progress-label">Marine: <strong>${fmtPct(analysis.mPct)}</strong> of national baseline</div>
+          <div class="analysis-progress-track">
+            <div class="analysis-progress-fill" style="width:${mBarW}%;background:${analysis.mPct >= 30 ? '#2E7D32' : '#0072BC'}"></div>
+            <div class="analysis-progress-marker" style="left:100%"></div>
+          </div>
+          <div class="analysis-progress-detail">${analysis.mPct >= 30 ? 'Provincial contribution exceeds 30% threshold' : `National gap: ${fmtHaFull(mGap * baselines.marine_ha / 100)} ha still needed`}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // Missing layers
+  const missingHtml = analysis.missingLayers.length > 0
+    ? analysis.missingLayers.map(l =>
+        `<div class="analysis-gap-item"><span class="analysis-gap-dot"></span>${l.name}</div>`
+      ).join('')
+    : '<div style="color:#2E7D32;font-size:8px">All expected data layers have data in this province</div>';
+
+  // Completeness colour
+  const compColor = analysis.dataCompleteness >= 80 ? '#2E7D32'
+    : analysis.dataCompleteness >= 50 ? '#ED6C02' : '#D32F2F';
+
+  // Province-specific actions from ToR
+  const provActionsHtml = tor.proposedActions.slice(0, 4).map((a, i) =>
+    `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#006B3F"><strong>${i + 1}.</strong></span><span>${a}</span></div>`
+  ).join('');
+
+  page.innerHTML = `
+    <div class="print-title-block">
+      <div class="print-title-left">
+        <div class="print-title-brand">
+          ${FLAG_SVG}
+          <div>
+            <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
+            <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
+          </div>
+        </div>
+      </div>
+      <div class="print-title-right">
+        <div class="print-title-date">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="print-title-crs">Provincial Analysis Report</div>
+      </div>
+    </div>
+
+    <div class="print-target-bar">
+      <div class="print-target-code">${targetCode}</div>
+      <div class="print-target-info">
+        <div class="print-target-name">${target.name} &mdash; ${provinceName} Province Analysis</div>
+        <div class="print-target-desc">${target.description}</div>
+      </div>
+      <div class="analysis-status-badge" style="background:${analysis.statusColor}">
+        ${statusIcons[analysis.status] || ''} ${analysis.status}
+      </div>
+    </div>
+
+    <div class="analysis-layout">
+      <div class="analysis-col-left">
+        <div class="analysis-card analysis-card-highlight">
+          <div class="analysis-card-title">Coverage Assessment &mdash; ${provinceName} (UNEP-WCMC Dissolved)</div>
+          <table class="analysis-table">
+            <thead><tr><th>Metric</th><th class="r">Value</th><th class="r">% National</th></tr></thead>
+            <tbody>
+              ${coverageRows.map(r => `<tr><td>${r.label}</td><td class="r">${r.value}</td><td class="r">${r.pct}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        ${progressHtml}
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Category Composition &mdash; ${provinceName}</div>
+          ${analysis.catBreakdown.length > 0 ? `
+            <table class="analysis-table">
+              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+              <tbody>${catCompRows}</tbody>
+            </table>
+          ` : '<div style="color:#999;font-size:8px">No category data for this province</div>'}
+        </div>
+
+        ${typeTableHtml}
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Feasibility &amp; Data Requirements (ToR Section I)</div>
+          <div class="tor-review-grid">
+            <div class="tor-review-item">
+              <div class="tor-review-label">Target Feasibility</div>
+              <div class="tor-review-text">${tor.feasibility}</div>
+            </div>
+            <div class="tor-review-item">
+              <div class="tor-review-label">Data Requirements</div>
+              <div class="tor-review-text">${tor.dataRequirements.slice(0, 3).join('; ')}.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="analysis-col-right">
+        <div class="analysis-card analysis-card-highlight">
+          <div class="analysis-card-title">Provincial Assessment</div>
+          <div class="analysis-assessment">
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Status</span>
+              <span class="analysis-assess-value" style="color:${analysis.statusColor};font-weight:700">${analysis.status}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Data Completeness</span>
+              <div style="display:flex;align-items:center;gap:6px;flex:1">
+                <div class="analysis-comp-track"><div class="analysis-comp-fill" style="width:${analysis.dataCompleteness}%;background:${compColor}"></div></div>
+                <span class="analysis-assess-value" style="color:${compColor}">${analysis.dataCompleteness}%</span>
+              </div>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Features</span>
+              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Categories</span>
+              <span class="analysis-assess-value">${analysis.categoriesPresent} types present</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">National Share</span>
+              <span class="analysis-assess-value">${analysis.provinceSharePct.toFixed(1)}% of target total</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Key Findings</div>
+          <div class="analysis-findings">
+            ${analysis.findings.length > 0
+              ? analysis.findings.map(f => `<div class="analysis-finding-item"><span class="analysis-bullet">&#9654;</span><span>${f}</span></div>`).join('')
+              : '<div style="color:#999;font-size:8px">No data available for analysis</div>'
+            }
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Provincial Insights</div>
+          <div class="analysis-findings">
+            ${analysis.insights.length > 0
+              ? analysis.insights.map(f => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#006B3F">&#9679;</span><span>${f}</span></div>`).join('')
+              : '<div style="color:#999;font-size:8px">Upload data to generate provincial insights</div>'
+            }
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Data Gaps &mdash; ${provinceName}</div>
+          ${missingHtml}
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Recommendations</div>
+          <div class="analysis-findings">
+            ${analysis.recommendations.length > 0
+              ? analysis.recommendations.map(r => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#ED6C02">&#9670;</span><span>${r}</span></div>`).join('')
+              : '<div style="color:#2E7D32;font-size:8px">Provincial data is comprehensive — continue routine monitoring</div>'
+            }
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Proposed Actions (ToR Section III)</div>
+          <div class="analysis-findings">${provActionsHtml}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analysis-methodology">
+      <strong>Methodology:</strong> Area calculations use geodesic measurements (turf.js/WGS84). Overlapping features dissolved per UNEP-WCMC methodology.
+      National baselines: Terrestrial ${fmtHaFull(baselines.terrestrial_ha)} ha; Marine ${fmtHaFull(baselines.marine_ha)} ha.
+      Province share = province net area / national target net area.
+    </div>
+
+    <div class="print-footer">
+      <div class="print-footer-left">
+        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+      </div>
+      <div class="print-footer-right">
+        Generated: ${new Date().toLocaleString('en-GB')} &bull; Provincial Analysis &bull; ${provinceName}
+      </div>
+    </div>
+  `;
+
+  container.appendChild(page);
 }
 
 /**
