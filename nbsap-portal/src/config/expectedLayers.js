@@ -164,12 +164,39 @@ const EXPECTED_LAYERS = [
   // Target 6: Invasive Alien Species
   {
     id: 'merremia-detection',
-    name: 'Merremia peltata (Big Leaf) Detection',
+    name: 'Merremia peltata (Big Leaf)',
     category: 'MERREMIA',
     target: 'T6',
     realm: 'terrestrial',
     countsToward30x30: false,
     description: 'Remote sensing and field survey detections of Merremia peltata invasive vine coverage'
+  },
+  {
+    id: 'crown-of-thorns',
+    name: 'Crown of Thorns Starfish',
+    category: 'CROWN_OF_THORNS',
+    target: 'T6',
+    realm: 'marine',
+    countsToward30x30: false,
+    description: 'Acanthaster planci (Crown-of-Thorns starfish) outbreak locations and affected reef areas'
+  },
+  {
+    id: 'mile-a-minute',
+    name: 'Mile a Minute Vine',
+    category: 'MILE_A_MINUTE',
+    target: 'T6',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Mikania micrantha (Mile a Minute) invasive vine distribution and coverage areas'
+  },
+  {
+    id: 'solanum-torvum',
+    name: 'Solanum torvum (Devil Fig)',
+    category: 'SOLANUM_TORVUM',
+    target: 'T6',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    description: 'Solanum torvum (Devil Fig / Prickly Nightshade) distribution and infestation areas'
   },
   {
     id: 'invasive-species',
@@ -178,7 +205,7 @@ const EXPECTED_LAYERS = [
     target: 'T6',
     realm: 'terrestrial',
     countsToward30x30: false,
-    description: 'Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle and other IAS'
+    description: 'Fire Ants, African Snail, Sako, Coconut Beetle and other IAS'
   },
   // Target 7: Pesticide & Herbicide
   {
