@@ -8,6 +8,7 @@
  *   - North arrow
  *   - Scale bar (Leaflet built-in)
  *   - Metadata footer (date, layers, features, area, CRS)
+ *   - Comprehensive Analysis Page with quantitative and qualitative results
  *
  * Uses @media print CSS to hide everything except the print overlay,
  * so the user can call window.print() or Ctrl+P for a clean output.
@@ -405,6 +406,10 @@ function renderTargetPage(container, targetCode, target) {
 
   container.appendChild(page);
 
+  // ── Render comprehensive analysis page ──
+  const analysis = generateTargetAnalysis(targetCode, layers, metrics, expected, baselines);
+  renderAnalysisPage(container, targetCode, target, analysis);
+
   requestAnimationFrame(() => {
     setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson), 100);
   });
@@ -575,6 +580,617 @@ function renderProvincePage(container, targetCode, target, provinceName) {
     setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinceName), 100);
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+//  COMPREHENSIVE ANALYSIS ENGINE
+// ═══════════════════════════════════════════════════════════════════════
+
+/** GBF target thresholds — target-specific goals where applicable */
+const TARGET_THRESHOLDS = {
+  T3: { terrestrial: 30, marine: 30, label: '30% by 2030 (GBF Target 3)' },
+  T1: { terrestrial: 100, marine: 100, label: '100% spatial plan coverage' },
+  T2: { terrestrial: null, marine: null, label: 'Map all degraded areas' }
+};
+
+/** Valid provinces for distribution analysis */
+const ANALYSIS_PROVINCES = ['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa', 'Tafea'];
+
+/**
+ * Generates comprehensive quantitative and qualitative analysis for a target.
+ *
+ * @param {string} targetCode
+ * @param {Array} layers - target layers
+ * @param {object} metrics - pre-computed metrics from areaCalc
+ * @param {Array} expected - expected layers from config
+ * @param {object} baselines - national baseline areas
+ * @returns {object} Complete analysis results
+ */
+function generateTargetAnalysis(targetCode, layers, metrics, expected, baselines) {
+  const isT3 = targetCode === 'T3';
+
+  // ── Data inventory ──
+  const dataLayers = layers.filter(l => !l.metadata?.isReference);
+  const refLayers = layers.filter(l => l.metadata?.isReference);
+  const uploadedCategories = new Set(dataLayers.map(l => l.metadata?.category));
+  const expectedCategories = new Set(expected.map(e => e.category));
+  const missingLayers = expected.filter(e => {
+    return !dataLayers.some(l => l.metadata?.category === e.category);
+  });
+  const dataCompleteness = expected.length > 0
+    ? Math.round((1 - missingLayers.length / expected.length) * 100)
+    : (dataLayers.length > 0 ? 100 : 0);
+
+  // ── Feature statistics ──
+  let totalFeatures = 0;
+  let totalPolygons = 0;
+  let totalPoints = 0;
+  let validGeoms = 0;
+  let fixedGeoms = 0;
+  let droppedGeoms = 0;
+  for (const l of dataLayers) {
+    const m = l.metadata || {};
+    totalFeatures += l.geojson?.features?.length || 0;
+    validGeoms += m.validGeometryCount || 0;
+    fixedGeoms += m.fixedCount || 0;
+    droppedGeoms += m.droppedCount || 0;
+    for (const f of (l.geojson?.features || [])) {
+      const gt = f.geometry?.type;
+      if (gt === 'Polygon' || gt === 'MultiPolygon') totalPolygons++;
+      else if (gt === 'Point' || gt === 'MultiPoint') totalPoints++;
+    }
+  }
+  const geomQuality = totalFeatures > 0
+    ? Math.round(((totalFeatures - droppedGeoms) / totalFeatures) * 100)
+    : 100;
+
+  // ── Area metrics ──
+  const netTerrestrial = isT3 ? (metrics.terrestrial_ha || 0) : (metrics.realmTotals?.terrestrial_ha || 0);
+  const netMarine = isT3 ? (metrics.marine_ha || 0) : (metrics.realmTotals?.marine_ha || 0);
+  const grossTerrestrial = isT3 ? (metrics.gross_terrestrial_ha || 0) : (metrics.realmTotals?.gross_terrestrial_ha || 0);
+  const grossMarine = isT3 ? (metrics.gross_marine_ha || 0) : (metrics.realmTotals?.gross_marine_ha || 0);
+  const totalNetArea = isT3 ? (netTerrestrial + netMarine) : (metrics.totalAreaHa || 0);
+  const totalGrossArea = isT3 ? (grossTerrestrial + grossMarine) : (metrics.grossAreaHa || 0);
+  const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  const mPct = baselines.marine_ha > 0 ? (netMarine / baselines.marine_ha) * 100 : 0;
+  const overlapPct = totalGrossArea > 0 ? (1 - totalNetArea / totalGrossArea) * 100 : 0;
+  const dissolutionFactor = totalGrossArea > 0 ? totalNetArea / totalGrossArea : 1;
+
+  // ── Province analysis ──
+  const provBreakdown = metrics?.provinceBreakdown || [];
+  const provincesWithData = provBreakdown.filter(p => p.total_ha > 0);
+  const provincesWithoutData = ANALYSIS_PROVINCES.filter(
+    prov => !provBreakdown.some(p => p.province === prov && p.total_ha > 0)
+  );
+  const maxProvince = provBreakdown.length > 0
+    ? provBreakdown.reduce((max, p) => p.total_ha > max.total_ha ? p : max, provBreakdown[0])
+    : null;
+  const minProvince = provincesWithData.length > 0
+    ? provincesWithData.reduce((min, p) => p.total_ha < min.total_ha ? p : min, provincesWithData[0])
+    : null;
+
+  // ── Category analysis ──
+  const catBreakdown = metrics?.categoryBreakdown || [];
+  const dominantCategory = catBreakdown.length > 0 ? catBreakdown[0] : null;
+  const catConcentration = (catBreakdown.length > 0 && totalNetArea > 0)
+    ? (catBreakdown[0].area_ha / totalNetArea * 100)
+    : 0;
+
+  // ── Type/species breakdown (for T4, T6, T10) ──
+  const typeBreakdown = metrics?.typeBreakdown || [];
+
+  // ── Thresholds & progress ──
+  const threshold = TARGET_THRESHOLDS[targetCode];
+  let progressAssessment = null;
+  if (threshold) {
+    const tGap = threshold.terrestrial !== null ? Math.max(0, threshold.terrestrial - tPct) : null;
+    const mGap = threshold.marine !== null ? Math.max(0, threshold.marine - mPct) : null;
+    progressAssessment = { threshold, tGap, mGap };
+  }
+
+  // ── Overall status ──
+  let status, statusColor, statusIcon;
+  if (dataLayers.length === 0) {
+    status = 'No Data';
+    statusColor = '#D32F2F';
+    statusIcon = 'cross';
+  } else if (dataCompleteness >= 80 && geomQuality >= 90) {
+    status = 'Comprehensive';
+    statusColor = '#2E7D32';
+    statusIcon = 'check';
+  } else if (dataCompleteness >= 50 || dataLayers.length >= 2) {
+    status = 'Moderate';
+    statusColor = '#ED6C02';
+    statusIcon = 'partial';
+  } else {
+    status = 'Minimal';
+    statusColor = '#D32F2F';
+    statusIcon = 'warning';
+  }
+
+  // ── Key findings (auto-generated) ──
+  const findings = [];
+  if (totalNetArea > 0) {
+    findings.push(`Total dissolved (net) coverage is <strong>${fmtHaFull(totalNetArea)} ha</strong>, representing <strong>${fmtPct(tPct)}</strong> of national terrestrial area and <strong>${fmtPct(mPct)}</strong> of marine area.`);
+  }
+  if (overlapPct > 5) {
+    findings.push(`Significant spatial overlap detected: <strong>${overlapPct.toFixed(1)}%</strong> of gross area removed during dissolution, indicating overlapping ${CATEGORIES[catBreakdown[0]?.category]?.label || 'conservation'} designations.`);
+  } else if (overlapPct > 0 && totalGrossArea > 0) {
+    findings.push(`Minimal spatial overlap (<strong>${overlapPct.toFixed(1)}%</strong>) between layers — most designations occupy distinct areas.`);
+  }
+  if (maxProvince && provincesWithData.length > 1) {
+    const maxPct = totalNetArea > 0 ? (maxProvince.total_ha / totalNetArea * 100).toFixed(0) : 0;
+    findings.push(`<strong>${maxProvince.province}</strong> province has the highest coverage (<strong>${fmtHaFull(maxProvince.total_ha)} ha</strong>, ${maxPct}% of target total).`);
+  }
+  if (provincesWithoutData.length > 0 && dataLayers.length > 0) {
+    findings.push(`<strong>${provincesWithoutData.length}</strong> province(s) have no reported data: ${provincesWithoutData.join(', ')}.`);
+  }
+  if (isT3 && progressAssessment) {
+    if (tPct >= 30) {
+      findings.push(`Terrestrial 30% target <strong>achieved</strong> at ${fmtPct(tPct)} coverage.`);
+    } else {
+      findings.push(`Terrestrial coverage gap: <strong>${fmtPct(progressAssessment.tGap)}</strong> remaining to reach 30% target (need additional <strong>${fmtHaFull(progressAssessment.tGap * baselines.terrestrial_ha / 100)} ha</strong>).`);
+    }
+    if (mPct >= 30) {
+      findings.push(`Marine 30% target <strong>achieved</strong> at ${fmtPct(mPct)} coverage.`);
+    } else {
+      findings.push(`Marine coverage gap: <strong>${fmtPct(progressAssessment.mGap)}</strong> remaining to reach 30% target (need additional <strong>${fmtHaFull(progressAssessment.mGap * baselines.marine_ha / 100)} ha</strong>).`);
+    }
+  }
+  if (dominantCategory && catBreakdown.length > 1 && catConcentration > 60) {
+    findings.push(`Coverage is concentrated in <strong>${CATEGORIES[dominantCategory.category]?.label || dominantCategory.category}</strong> (${catConcentration.toFixed(0)}% of total), suggesting limited diversity of designation types.`);
+  }
+  if (refLayers.length > 0) {
+    findings.push(`${refLayers.length} reference layer(s) displayed for context but excluded from area calculations.`);
+  }
+  if (totalPoints > 0 && totalPolygons > 0) {
+    findings.push(`Dataset contains both polygon (<strong>${totalPolygons}</strong>) and point (<strong>${totalPoints}</strong>) features. Only polygon features contribute to area calculations.`);
+  } else if (totalPoints > 0 && totalPolygons === 0) {
+    findings.push(`Dataset contains only point features (<strong>${totalPoints}</strong>). Area calculations are not applicable for point data.`);
+  }
+
+  // ── Target-specific qualitative insights ──
+  const insights = generateTargetInsights(targetCode, {
+    tPct, mPct, totalNetArea, totalFeatures, dataLayers, catBreakdown, typeBreakdown,
+    provincesWithData, provincesWithoutData, missingLayers, overlapPct
+  });
+
+  // ── Recommendations ──
+  const recommendations = [];
+  if (missingLayers.length > 0) {
+    recommendations.push(`Upload missing data layers: ${missingLayers.map(l => '<strong>' + l.name + '</strong>').join(', ')}.`);
+  }
+  if (provincesWithoutData.length > 0 && dataLayers.length > 0) {
+    recommendations.push(`Collect and upload spatial data for underrepresented provinces: ${provincesWithoutData.join(', ')}.`);
+  }
+  if (geomQuality < 95 && droppedGeoms > 0) {
+    recommendations.push(`${droppedGeoms} feature(s) had invalid geometries and were dropped. Review source data quality for affected layers.`);
+  }
+  if (fixedGeoms > 0) {
+    recommendations.push(`${fixedGeoms} geometry(s) were automatically repaired. Verify spatial accuracy of corrected features.`);
+  }
+  if (overlapPct > 20) {
+    recommendations.push(`High overlap (${overlapPct.toFixed(0)}%) suggests potential boundary duplication. Review layer boundaries for redundant designations.`);
+  }
+  if (totalPoints > 0 && totalPolygons === 0) {
+    recommendations.push(`Convert point observations to polygon coverage areas where feasible to enable area-based reporting.`);
+  }
+  if (dataLayers.length === 0) {
+    recommendations.push(`No data layers have been uploaded for this target. Upload spatial datasets to enable quantitative analysis.`);
+  }
+
+  return {
+    // Quantitative
+    dataLayers: dataLayers.length,
+    refLayers: refLayers.length,
+    totalFeatures, totalPolygons, totalPoints,
+    validGeoms, fixedGeoms, droppedGeoms, geomQuality,
+    netTerrestrial, netMarine, grossTerrestrial, grossMarine,
+    totalNetArea, totalGrossArea,
+    tPct, mPct, overlapPct, dissolutionFactor,
+    dataCompleteness,
+    missingLayers,
+    provBreakdown, provincesWithData, provincesWithoutData,
+    maxProvince, minProvince,
+    catBreakdown, dominantCategory, catConcentration,
+    typeBreakdown,
+    progressAssessment,
+    // Qualitative
+    status, statusColor, statusIcon,
+    findings, insights, recommendations
+  };
+}
+
+/**
+ * Generates target-specific qualitative insights based on the target type.
+ */
+function generateTargetInsights(targetCode, data) {
+  const insights = [];
+
+  switch (targetCode) {
+    case 'T1':
+      if (data.totalNetArea > 0) {
+        insights.push(`Spatial planning coverage extends to ${fmtPct(data.tPct)} of national land area. Comprehensive spatial plans are essential for effective biodiversity mainstreaming across all development sectors.`);
+      }
+      if (data.catBreakdown.some(c => c.category === 'KBA')) {
+        insights.push(`Key Biodiversity Areas (KBAs) have been mapped, providing critical context for biodiversity-inclusive spatial planning as required under GBF Target 1.`);
+      }
+      break;
+
+    case 'T2':
+      if (data.catBreakdown.some(c => c.category === 'DEGRADED')) {
+        const degraded = data.catBreakdown.find(c => c.category === 'DEGRADED');
+        insights.push(`Degraded area mapping covers <strong>${fmtHaFull(degraded.area_ha)} ha</strong>. This baseline is critical for tracking restoration progress under Vanuatu's NBSAP commitments.`);
+      }
+      if (data.catBreakdown.some(c => c.category === 'RESTORATION')) {
+        const restored = data.catBreakdown.find(c => c.category === 'RESTORATION');
+        insights.push(`Active restoration sites total <strong>${fmtHaFull(restored.area_ha)} ha</strong>, contributing to the 30% ecosystem restoration goal.`);
+      }
+      if (!data.catBreakdown.some(c => c.category === 'DEGRADED')) {
+        insights.push(`No degraded area mapping data available. Baseline degradation mapping is a prerequisite for planning effective restoration activities.`);
+      }
+      break;
+
+    case 'T3': {
+      const tGap = Math.max(0, 30 - data.tPct);
+      const mGap = Math.max(0, 30 - data.mPct);
+      if (data.tPct >= 30 && data.mPct >= 30) {
+        insights.push(`Vanuatu has achieved the GBF 30x30 target for both terrestrial and marine realms. This analysis uses dissolved area calculations per UNEP-WCMC methodology to prevent double-counting of overlapping designations.`);
+      } else {
+        const gaps = [];
+        if (tGap > 0) gaps.push(`terrestrial (${fmtPct(tGap)} remaining)`);
+        if (mGap > 0) gaps.push(`marine (${fmtPct(mGap)} remaining)`);
+        insights.push(`Progress toward the 30x30 target shows gaps in ${gaps.join(' and ')}. Expansion of Community Conserved Areas (CCAs) and Locally Managed Marine Areas (LMMAs) represents the most culturally appropriate pathway for Vanuatu.`);
+      }
+      const ccaData = data.catBreakdown.find(c => c.category === 'CCA');
+      const lmmaData = data.catBreakdown.find(c => c.category === 'LMMA');
+      if (ccaData || lmmaData) {
+        const parts = [];
+        if (ccaData) parts.push(`CCAs: ${fmtHaFull(ccaData.area_ha)} ha`);
+        if (lmmaData) parts.push(`LMMAs: ${fmtHaFull(lmmaData.area_ha)} ha`);
+        insights.push(`Community-based conservation is the primary mechanism: ${parts.join('; ')}. These customary management areas reflect Vanuatu's unique governance structure.`);
+      }
+      break;
+    }
+
+    case 'T4':
+      if (data.typeBreakdown.length > 0) {
+        insights.push(`Species distribution data covers <strong>${data.typeBreakdown.length}</strong> distinct species/taxa across <strong>${data.totalFeatures}</strong> observation records.`);
+        const speciesList = data.typeBreakdown.slice(0, 4).map(t => t.type).join(', ');
+        insights.push(`Mapped species include: ${speciesList}${data.typeBreakdown.length > 4 ? `, and ${data.typeBreakdown.length - 4} more` : ''}.`);
+      }
+      if (data.missingLayers.length > 0) {
+        const missingSpecies = data.missingLayers.map(l => l.name).join(', ');
+        insights.push(`Distribution data is still needed for: ${missingSpecies}. Complete species mapping is essential for effective conservation planning.`);
+      }
+      break;
+
+    case 'T6':
+      if (data.catBreakdown.some(c => c.category === 'MERREMIA')) {
+        const merremia = data.catBreakdown.find(c => c.category === 'MERREMIA');
+        insights.push(`Merremia peltata (Big Leaf) detection covers <strong>${fmtHaFull(merremia.area_ha)} ha</strong>. This invasive vine is one of the most significant threats to Vanuatu's native forest ecosystems.`);
+      }
+      if (data.totalNetArea > 0) {
+        const invasivePct = data.tPct;
+        insights.push(`Total invasive species coverage represents <strong>${fmtPct(invasivePct)}</strong> of national terrestrial area. Spatial analysis of IAS distribution is critical for prioritising management interventions.`);
+      }
+      break;
+
+    case 'T7':
+      if (data.totalNetArea > 0) {
+        insights.push(`Pesticide and herbicide use areas cover <strong>${fmtHaFull(data.totalNetArea)} ha</strong>. This mapping supports biodiversity risk assessment for agricultural chemical impacts on adjacent ecosystems.`);
+      } else {
+        insights.push(`No pesticide/herbicide mapping data available. Systematic mapping of chemical use areas is needed to assess biodiversity impacts from agricultural practices.`);
+      }
+      break;
+
+    case 'T8':
+      if (data.totalNetArea > 0) {
+        insights.push(`Coastal eutrophication zones cover <strong>${fmtHaFull(data.totalNetArea)} ha</strong> of marine area. Nutrient pollution monitoring is critical for coral reef health and marine biodiversity in Vanuatu.`);
+      } else {
+        insights.push(`No coastal eutrophication data available. Establishing water quality monitoring stations at key coastal sites would enable systematic tracking of nutrient impacts.`);
+      }
+      break;
+
+    case 'T10':
+      if (data.typeBreakdown.length > 0) {
+        insights.push(`Land cover classification includes <strong>${data.typeBreakdown.length}</strong> distinct land use types.`);
+        const topTypes = data.typeBreakdown.slice(0, 3)
+          .map(t => `${t.type} (${fmtHaFull(t.area_ha)} ha)`).join(', ');
+        insights.push(`Dominant land cover types: ${topTypes}.`);
+      }
+      if (data.provincesWithData.length > 0 && data.provincesWithData.length < 6) {
+        insights.push(`Land cover data is available for ${data.provincesWithData.length} of 6 provinces. Complete national coverage is needed for comprehensive agricultural and land use change analysis.`);
+      }
+      break;
+
+    case 'T12':
+      if (data.totalNetArea > 0) {
+        insights.push(`Blue and green space mapping covers <strong>${fmtHaFull(data.totalNetArea)} ha</strong>. These spaces are vital for urban biodiversity, community wellbeing, and climate resilience.`);
+      }
+      if (data.provincesWithData.length > 0) {
+        insights.push(`Green space data available for ${data.provincesWithData.map(p => p.province).join(', ')}. Expansion of urban green infrastructure should be prioritised in all provincial capitals.`);
+      }
+      break;
+
+    default:
+      if (data.totalNetArea > 0) {
+        insights.push(`Total coverage for this target is <strong>${fmtHaFull(data.totalNetArea)} ha</strong> across ${data.dataLayers.length} data layer(s).`);
+      }
+  }
+
+  return insights;
+}
+
+/**
+ * Renders a comprehensive analysis page for a target.
+ * This page follows the map page and contains detailed quantitative
+ * and qualitative results.
+ */
+function renderAnalysisPage(container, targetCode, target, analysis) {
+  const page = document.createElement('div');
+  page.className = 'print-page print-analysis-page';
+
+  const baselines = ENV.nationalBaselines;
+
+  // ── Status badge SVG icons ──
+  const statusIcons = {
+    check: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+    partial: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>',
+    warning: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+    cross: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>'
+  };
+
+  // ── Province bar chart ──
+  const maxProvArea = analysis.provBreakdown.length > 0
+    ? Math.max(...analysis.provBreakdown.map(p => p.total_ha))
+    : 1;
+  const provBarsHtml = analysis.provBreakdown.length > 0
+    ? analysis.provBreakdown.map(p => {
+        const barW = maxProvArea > 0 ? Math.max(2, (p.total_ha / maxProvArea) * 100) : 0;
+        return `<div class="analysis-prov-row">
+          <span class="analysis-prov-name">${p.province}</span>
+          <div class="analysis-prov-bar-bg">
+            <div class="analysis-prov-bar" style="width:${barW}%"></div>
+          </div>
+          <span class="analysis-prov-val">${fmtHa(p.total_ha)} ha</span>
+        </div>`;
+      }).join('')
+    : '<div style="color:#999;font-size:8px;padding:4px 0">No provincial data available</div>';
+
+  // ── Data completeness bar ──
+  const compColor = analysis.dataCompleteness >= 80 ? '#2E7D32'
+    : analysis.dataCompleteness >= 50 ? '#ED6C02' : '#D32F2F';
+
+  // ── Coverage assessment table ──
+  const coverageRows = [
+    { label: 'Terrestrial (net)', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
+    { label: 'Marine (net)', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
+    { label: 'Total (net dissolved)', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
+    { label: 'Total (gross sum)', value: fmtHaFull(analysis.totalGrossArea) + ' ha', pct: '' },
+    { label: 'Overlap removed', value: fmtHaFull(analysis.totalGrossArea - analysis.totalNetArea) + ' ha', pct: analysis.overlapPct.toFixed(1) + '%' }
+  ];
+
+  // ── Category composition table ──
+  const catCompRows = analysis.catBreakdown.map(c => {
+    const colors = resolveColors(c.category);
+    const catLabel = CATEGORIES[c.category]?.label || c.category;
+    const pctOfTotal = analysis.totalNetArea > 0 ? (c.area_ha / analysis.totalNetArea * 100).toFixed(1) : '0.0';
+    return `<tr>
+      <td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catLabel}</td>
+      <td class="r">${fmtHaFull(c.area_ha)}</td>
+      <td class="r">${pctOfTotal}%</td>
+      <td class="r">${c.features}</td>
+    </tr>`;
+  }).join('');
+
+  // ── Missing layers list ──
+  const missingHtml = analysis.missingLayers.length > 0
+    ? analysis.missingLayers.map(l =>
+        `<div class="analysis-gap-item"><span class="analysis-gap-dot"></span>${l.name} <span style="color:#999">(${CATEGORIES[l.category]?.label || l.category})</span></div>`
+      ).join('')
+    : '<div style="color:#2E7D32;font-size:8px">All expected data layers have been uploaded</div>';
+
+  // ── 30x30 progress bars (for T3) ──
+  let progressHtml = '';
+  if (analysis.progressAssessment && targetCode === 'T3') {
+    const { tGap, mGap } = analysis.progressAssessment;
+    const tBarW = Math.min(100, analysis.tPct / 30 * 100);
+    const mBarW = Math.min(100, analysis.mPct / 30 * 100);
+    progressHtml = `
+      <div class="analysis-card">
+        <div class="analysis-card-title">30x30 Target Progress</div>
+        <div class="analysis-progress-group">
+          <div class="analysis-progress-label">Terrestrial: <strong>${fmtPct(analysis.tPct)}</strong> of 30% target</div>
+          <div class="analysis-progress-track">
+            <div class="analysis-progress-fill" style="width:${tBarW}%;background:${analysis.tPct >= 30 ? '#2E7D32' : '#006B3F'}"></div>
+            <div class="analysis-progress-marker" style="left:100%"></div>
+          </div>
+          <div class="analysis-progress-detail">${analysis.tPct >= 30 ? 'Target achieved' : `Gap: ${fmtHaFull(tGap * baselines.terrestrial_ha / 100)} ha needed`}</div>
+        </div>
+        <div class="analysis-progress-group">
+          <div class="analysis-progress-label">Marine: <strong>${fmtPct(analysis.mPct)}</strong> of 30% target</div>
+          <div class="analysis-progress-track">
+            <div class="analysis-progress-fill" style="width:${mBarW}%;background:${analysis.mPct >= 30 ? '#2E7D32' : '#0072BC'}"></div>
+            <div class="analysis-progress-marker" style="left:100%"></div>
+          </div>
+          <div class="analysis-progress-detail">${analysis.mPct >= 30 ? 'Target achieved' : `Gap: ${fmtHaFull(mGap * baselines.marine_ha / 100)} ha needed`}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ── Type/species breakdown (for targets with diverse types) ──
+  let typeTableHtml = '';
+  if (analysis.typeBreakdown.length > 1) {
+    const typeRows = analysis.typeBreakdown.slice(0, 10).map(t => {
+      const pctOfTotal = analysis.totalGrossArea > 0 ? (t.area_ha / analysis.totalGrossArea * 100).toFixed(1) : '0.0';
+      return `<tr><td>${t.type}</td><td class="r">${fmtHaFull(t.area_ha)}</td><td class="r">${pctOfTotal}%</td><td class="r">${t.features}</td></tr>`;
+    }).join('');
+    typeTableHtml = `
+      <div class="analysis-card">
+        <div class="analysis-card-title">${targetCode === 'T10' ? 'Land Cover Types' : targetCode === 'T4' ? 'Species Distribution' : 'Type Breakdown'}</div>
+        <table class="analysis-table">
+          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+          <tbody>${typeRows}</tbody>
+        </table>
+        ${analysis.typeBreakdown.length > 10 ? `<div style="font-size:7px;color:#999;margin-top:2px">Showing top 10 of ${analysis.typeBreakdown.length} types</div>` : ''}
+      </div>
+    `;
+  }
+
+  page.innerHTML = `
+    <div class="print-title-block">
+      <div class="print-title-left">
+        <div class="print-title-brand">
+          ${FLAG_SVG}
+          <div>
+            <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
+            <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
+          </div>
+        </div>
+      </div>
+      <div class="print-title-right">
+        <div class="print-title-date">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="print-title-crs">Comprehensive Analysis Report</div>
+      </div>
+    </div>
+
+    <div class="print-target-bar">
+      <div class="print-target-code">${targetCode}</div>
+      <div class="print-target-info">
+        <div class="print-target-name">${target.name} &mdash; Analysis Results</div>
+        <div class="print-target-desc">${target.description}</div>
+      </div>
+      <div class="analysis-status-badge" style="background:${analysis.statusColor}">
+        ${statusIcons[analysis.statusIcon] || ''} ${analysis.status}
+      </div>
+    </div>
+
+    <div class="analysis-layout">
+      <div class="analysis-col-left">
+        <div class="analysis-card">
+          <div class="analysis-card-title">Coverage Assessment (UNEP-WCMC Dissolved)</div>
+          <table class="analysis-table">
+            <thead><tr><th>Metric</th><th class="r">Area</th><th class="r">% National</th></tr></thead>
+            <tbody>
+              ${coverageRows.map(r => `<tr><td>${r.label}</td><td class="r">${r.value}</td><td class="r">${r.pct}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+
+        ${progressHtml}
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Provincial Distribution</div>
+          <div class="analysis-prov-chart">
+            ${provBarsHtml}
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Category Composition</div>
+          ${analysis.catBreakdown.length > 0 ? `
+            <table class="analysis-table">
+              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+              <tbody>${catCompRows}</tbody>
+            </table>
+          ` : '<div style="color:#999;font-size:8px">No category data available</div>'}
+        </div>
+
+        ${typeTableHtml}
+      </div>
+
+      <div class="analysis-col-right">
+        <div class="analysis-card analysis-card-highlight">
+          <div class="analysis-card-title">Overall Assessment</div>
+          <div class="analysis-assessment">
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Status</span>
+              <span class="analysis-assess-value" style="color:${analysis.statusColor};font-weight:700">${analysis.status}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Data Completeness</span>
+              <div style="display:flex;align-items:center;gap:6px;flex:1">
+                <div class="analysis-comp-track"><div class="analysis-comp-fill" style="width:${analysis.dataCompleteness}%;background:${compColor}"></div></div>
+                <span class="analysis-assess-value" style="color:${compColor}">${analysis.dataCompleteness}%</span>
+              </div>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Geometry Quality</span>
+              <span class="analysis-assess-value">${analysis.geomQuality}%</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Data Layers</span>
+              <span class="analysis-assess-value">${analysis.dataLayers}${analysis.refLayers > 0 ? ` + ${analysis.refLayers} ref` : ''}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Features</span>
+              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Dissolution Factor</span>
+              <span class="analysis-assess-value">${analysis.dissolutionFactor.toFixed(3)}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Key Findings</div>
+          <div class="analysis-findings">
+            ${analysis.findings.length > 0
+              ? analysis.findings.map(f => `<div class="analysis-finding-item"><span class="analysis-bullet">&#9654;</span><span>${f}</span></div>`).join('')
+              : '<div style="color:#999;font-size:8px">No data available for analysis</div>'
+            }
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Target-Specific Insights</div>
+          <div class="analysis-findings">
+            ${analysis.insights.length > 0
+              ? analysis.insights.map(f => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#006B3F">&#9679;</span><span>${f}</span></div>`).join('')
+              : '<div style="color:#999;font-size:8px">Upload data to generate target-specific insights</div>'
+            }
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Data Gaps</div>
+          ${missingHtml}
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Recommendations</div>
+          <div class="analysis-findings">
+            ${analysis.recommendations.length > 0
+              ? analysis.recommendations.map(r => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#ED6C02">&#9670;</span><span>${r}</span></div>`).join('')
+              : '<div style="color:#2E7D32;font-size:8px">No immediate actions required — data is comprehensive</div>'
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="analysis-methodology">
+      <strong>Methodology:</strong> Area calculations use geodesic measurements (turf.js/WGS84). Overlapping features dissolved per UNEP-WCMC methodology to prevent double-counting.
+      Net area = dissolved coverage; Gross area = sum of individual features. Dissolution factor = net/gross ratio (1.0 = no overlap).
+      National baselines: Terrestrial ${fmtHaFull(baselines.terrestrial_ha)} ha; Marine ${fmtHaFull(baselines.marine_ha)} ha.
+    </div>
+
+    <div class="print-footer">
+      <div class="print-footer-left">
+        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+      </div>
+      <div class="print-footer-right">
+        Generated: ${new Date().toLocaleString('en-GB')} &bull; Analysis Engine v1.0
+      </div>
+    </div>
+  `;
+
+  container.appendChild(page);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 
 /**
  * Initializes a Leaflet map inside the print page for a specific target.
