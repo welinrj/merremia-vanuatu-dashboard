@@ -406,9 +406,10 @@ function renderTargetPage(container, targetCode, target) {
 
   container.appendChild(page);
 
-  // ── Render comprehensive analysis page ──
+  // ── Render comprehensive analysis pages (ToR Sections I, II, III) ──
   const analysis = generateTargetAnalysis(targetCode, layers, metrics, expected, baselines);
   renderAnalysisPage(container, targetCode, target, analysis);
+  renderDataSourcesAndActionsPage(container, targetCode, target, analysis);
 
   requestAnimationFrame(() => {
     setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson), 100);
@@ -1203,6 +1204,518 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
       </div>
       <div class="print-footer-right">
         Generated: ${new Date().toLocaleString('en-GB')} &bull; Analysis Engine v1.0
+      </div>
+    </div>
+  `;
+
+  container.appendChild(page);
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  ToR SECTION: DATA SOURCES, FEASIBILITY & PROPOSED ACTIONS
+//  Per TOR Section I (Review), II (Data Sources), III (Strengthening)
+// ═══════════════════════════════════════════════════════════════════════
+
+/**
+ * Returns ToR-aligned content for each target:
+ * - Section I: Feasibility assessment, data requirements, clarity rating
+ * - Section II: National and global geospatial data sources
+ * - Section III: Proposed new geospatial actions and revisions
+ */
+function getTargetToRContent(targetCode) {
+  const content = {
+    T1: {
+      feasibility: 'High — Provincial and municipal planning boundaries are well-defined. Existing cadastral, environmental impact assessment (EIA), and provincial development plans provide a strong foundation. Integration with CCA boundary zones is operationally feasible.',
+      clarity: 'Clear — Target is well-defined with measurable spatial outputs: percentage of land and sea area under biodiversity-inclusive plans.',
+      dataRequirements: [
+        'Provincial physical/development plans (shapefiles or digitised boundaries)',
+        'Municipal area boundaries and zoning maps',
+        'CCA boundary zone polygons',
+        'Marine spatial planning zones (where available)',
+        'Key Biodiversity Areas (KBA) boundaries for overlay analysis'
+      ],
+      nationalSources: [
+        { name: 'Department of Local Authorities — Provincial Physical Plans', type: 'Polygon', status: 'Available (requires digitisation)', desc: 'Provincial and municipal development plans with land use zones' },
+        { name: 'DEPC — Environmental Impact Assessment database', type: 'Point/Polygon', status: 'Partial', desc: 'EIA locations and assessed areas' },
+        { name: 'Vanuatu National Statistics Office — Census boundaries', type: 'Polygon', status: 'Available', desc: 'Administrative boundaries for spatial planning context' }
+      ],
+      globalSources: [
+        { name: 'BirdLife / KBA Partnership — Key Biodiversity Areas', type: 'Polygon', status: 'Available', desc: 'Internationally recognised sites of global importance for biodiversity' },
+        { name: 'UN-Habitat — National Urban Policies database', type: 'Reference', status: 'Available', desc: 'Urban planning frameworks and policy documents' },
+        { name: 'UNEP-WCMC — Protected Planet (WDPA)', type: 'Polygon', status: 'Available', desc: 'For cross-referencing spatial plans with existing protected areas' }
+      ],
+      proposedActions: [
+        'Digitise all six provincial physical/development plans into GIS format (priority: Shefa, Sanma)',
+        'Overlay KBA boundaries with existing spatial plans to identify biodiversity gaps in planning',
+        'Develop marine spatial planning zones for coastal provinces (Torba, Sanma, Shefa)',
+        'Integrate CCA boundary zones into provincial spatial planning frameworks',
+        'Establish annual GIS update cycle for spatial plan monitoring'
+      ],
+      revisions: [
+        'Expand target scope to explicitly include marine spatial planning alongside terrestrial plans',
+        'Add indicator for proportion of KBAs covered by spatial plans',
+        'Include climate vulnerability overlay in spatial planning data requirements'
+      ]
+    },
+    T2: {
+      feasibility: 'Moderate — Degradation mapping requires remote sensing analysis (satellite imagery change detection). Restoration site mapping relies on field survey data from DEPC and NGO partners. Technical capacity for remote sensing analysis may need strengthening.',
+      clarity: 'Moderate — Target references "degraded areas" without specifying degradation criteria or thresholds. Operational definitions needed for consistent mapping.',
+      dataRequirements: [
+        'Satellite imagery time series (Sentinel-2, Landsat) for change detection',
+        'Field survey data on degraded terrestrial and marine ecosystems',
+        'Restoration project locations and boundaries',
+        'Baseline land cover / vegetation maps for comparison',
+        'Coral reef health assessment data'
+      ],
+      nationalSources: [
+        { name: 'DEPC — Ecosystem health monitoring reports', type: 'Report/Point', status: 'Partial', desc: 'Field assessments of ecosystem condition at specific sites' },
+        { name: 'Department of Forests — Forest inventory data', type: 'Polygon', status: 'Available', desc: 'Forest cover assessments and logging concession areas' },
+        { name: 'Fisheries Department — Reef monitoring data', type: 'Point', status: 'Partial', desc: 'Coral reef health survey points and assessments' }
+      ],
+      globalSources: [
+        { name: 'Global Forest Watch (WRI) — Forest loss/gain layers', type: 'Raster', status: 'Available', desc: 'Annual tree cover loss and gain at 30m resolution (Hansen et al.)' },
+        { name: 'Allen Coral Atlas — Coral reef maps', type: 'Polygon', status: 'Available', desc: 'High-resolution benthic and geomorphic maps of coral reefs' },
+        { name: 'UNEP — World Environment Situation Room', type: 'Raster/Vector', status: 'Available', desc: 'Environmental indicators and degradation indices' },
+        { name: 'ESA Climate Change Initiative — Land cover', type: 'Raster', status: 'Available', desc: 'Global land cover time series at 300m resolution' }
+      ],
+      proposedActions: [
+        'Conduct national satellite-based degradation assessment using Sentinel-2 change detection (2015–2025)',
+        'Map degraded coral reef areas using Allen Coral Atlas combined with local reef monitoring data',
+        'Establish degradation criteria and thresholds for consistent national mapping',
+        'Create a restoration project register with spatial boundaries for all active/planned sites',
+        'Integrate Global Forest Watch data for forest degradation baseline'
+      ],
+      revisions: [
+        'Define clear degradation criteria (e.g., canopy loss >30%, reef health index <3)',
+        'Add quantitative restoration targets (hectares per province per year)',
+        'Include inland water ecosystem degradation explicitly'
+      ]
+    },
+    T3: {
+      feasibility: 'High — Vanuatu has a strong tradition of community-based conservation (Custom Tabu Areas, CCAs, LMMAs). Boundary mapping is operationally feasible through community participatory mapping. WDPA provides baseline for formal protected areas.',
+      clarity: 'High — Target is well-defined under GBF: 30% of terrestrial and 30% of marine areas effectively conserved by 2030. Clear, measurable indicators.',
+      dataRequirements: [
+        'Community Conserved Area (CCA/Tabu) boundaries — all provinces',
+        'Marine Protected Area (MPA) boundaries — gazetted and proposed',
+        'Locally Managed Marine Area (LMMA) boundaries',
+        'World Database on Protected Areas (WDPA) records for Vanuatu',
+        'OECM (Other Effective Conservation Measures) boundaries'
+      ],
+      nationalSources: [
+        { name: 'DEPC — Community Conservation Area register', type: 'Polygon', status: 'Partial', desc: 'CCA and Tabu area boundaries from community participatory mapping' },
+        { name: 'DEPC — Protected Areas database', type: 'Polygon', status: 'Available', desc: 'Nationally gazetted protected areas and management zones' },
+        { name: 'Vanuatu Fisheries Department — LMMA register', type: 'Polygon', status: 'Partial', desc: 'Locally managed marine areas registered with fisheries authorities' },
+        { name: 'Provincial Government offices — Tabu area records', type: 'Polygon/Tabular', status: 'Incomplete', desc: 'Custom Tabu area records held at provincial level' }
+      ],
+      globalSources: [
+        { name: 'UNEP-WCMC — Protected Planet (WDPA)', type: 'Polygon', status: 'Available', desc: 'Global database of protected areas — Vanuatu records' },
+        { name: 'UNEP-WCMC — World Database on OECMs', type: 'Polygon', status: 'Available', desc: 'Other effective area-based conservation measures' },
+        { name: 'Blue Ventures / WCS — LMMA Network Pacific', type: 'Polygon', status: 'Available', desc: 'Pacific LMMA network mapping data' },
+        { name: 'BirdLife / KBA Partnership — KBAs', type: 'Polygon', status: 'Available', desc: 'For identifying priority areas for new conservation designations' }
+      ],
+      proposedActions: [
+        'Complete participatory boundary mapping for all registered CCAs across six provinces',
+        'Update WDPA submissions for Vanuatu with latest CCA/MPA boundaries',
+        'Digitise and verify all LMMA boundaries in collaboration with Fisheries Department',
+        'Conduct gap analysis: overlay current protection with KBAs to identify priority expansion areas',
+        'Develop dissolved area calculation methodology for official 30x30 reporting (UNEP-WCMC standard)',
+        'Establish annual reporting cycle for conservation area changes'
+      ],
+      revisions: [
+        'Include explicit recognition of Custom Tabu Areas as OECMs in national reporting',
+        'Add management effectiveness indicators alongside area-based targets',
+        'Set provincial sub-targets to ensure equitable distribution of conservation across all provinces'
+      ]
+    },
+    T4: {
+      feasibility: 'Moderate — Species distribution mapping requires systematic field surveys and expert identification. Some species (Megapode, Starling) have existing survey data; others (Plerandra) have very limited baseline data.',
+      clarity: 'Clear — Target specifies six priority species and KBAs. Distribution mapping is a standard conservation planning output.',
+      dataRequirements: [
+        'Vanuatu Megapode (Megapodius layardi) — nesting sites and range polygons',
+        'Mountain Starling (Aplonis santovestris) — observation records and modelled range',
+        'Streaked Fantail (Rhipidura spilodera) — observation records and habitat range',
+        'Vanuatu Kingfisher (Todiramphus farquhari) — island-level distribution',
+        'Flying Fox (Pteropus anetianus) — roost sites and foraging range',
+        'Plerandra vanuatuensis — known populations and habitat suitability model'
+      ],
+      nationalSources: [
+        { name: 'DEPC — National biodiversity database', type: 'Point/Polygon', status: 'Partial', desc: 'Species observation records from government monitoring programmes' },
+        { name: 'Vanuatu Environment Science Society (VESS)', type: 'Point', status: 'Partial', desc: 'Citizen science and research observation records' },
+        { name: 'National Herbarium — Plant collections', type: 'Point', status: 'Available', desc: 'Herbarium specimen records for Plerandra and other endemic plants' }
+      ],
+      globalSources: [
+        { name: 'GBIF — Global Biodiversity Information Facility', type: 'Point', status: 'Available', desc: 'Aggregated species occurrence records from museums, surveys, and citizen science' },
+        { name: 'IUCN Red List — Species range maps', type: 'Polygon', status: 'Available', desc: 'Expert-assessed range maps for listed species' },
+        { name: 'eBird / Cornell Lab — Bird observations', type: 'Point', status: 'Available', desc: 'Citizen science bird observation records for Vanuatu' },
+        { name: 'BirdLife International — Important Bird Areas', type: 'Polygon', status: 'Available', desc: 'IBA boundaries relevant to endemic bird species' }
+      ],
+      proposedActions: [
+        'Compile all existing species observation records into a national spatial biodiversity database',
+        'Conduct targeted field surveys for Mountain Starling and Plerandra in under-sampled islands',
+        'Generate species distribution models (MaxEnt) using GBIF + local records for all six priority species',
+        'Map critical habitat for each species and overlay with existing conservation areas',
+        'Integrate eBird and GBIF data as reference layers for cross-validation'
+      ],
+      revisions: [
+        'Add population trend indicators alongside distribution mapping',
+        'Include marine species (sea turtles, dugong) for comprehensive biodiversity assessment',
+        'Set explicit targets for species monitoring frequency and coverage'
+      ]
+    },
+    T6: {
+      feasibility: 'High — Invasive species are visible and mappable through remote sensing (Merremia, Mile a Minute) and field surveys (Solanum, Crown of Thorns). Drone and satellite imagery can detect vine coverage. Community reporting networks can support data collection.',
+      clarity: 'Clear — Target specifies key IAS and requires total coverage (ha) and distribution mapping. Measurable and achievable with available technology.',
+      dataRequirements: [
+        'Merremia peltata (Big Leaf) — remote sensing detections and field survey polygons',
+        'Crown of Thorns Starfish (Acanthaster planci) — reef outbreak locations and affected areas',
+        'Mile a Minute Vine (Mikania micrantha) — coverage polygons from field/remote sensing',
+        'Solanum torvum (Devil Fig) — infestation area boundaries from field surveys',
+        'Other IAS: Fire Ants, African Snail, Sako, Coconut Beetle — occurrence points and affected areas'
+      ],
+      nationalSources: [
+        { name: 'DEPC — Invasive species monitoring programme', type: 'Point/Polygon', status: 'Partial', desc: 'Field survey records and management intervention sites' },
+        { name: 'Department of Agriculture — Pest control records', type: 'Point', status: 'Partial', desc: 'Agricultural pest reporting and control intervention locations' },
+        { name: 'Fisheries Department — Crown of Thorns monitoring', type: 'Point', status: 'Partial', desc: 'Reef monitoring stations tracking COTS outbreaks' },
+        { name: 'Vanuatu Biosecurity — Border interception data', type: 'Point', status: 'Available', desc: 'IAS interception and quarantine records' }
+      ],
+      globalSources: [
+        { name: 'GBIF — Invasive species occurrence records', type: 'Point', status: 'Available', desc: 'Global observation records for target IAS species' },
+        { name: 'CABI — Invasive Species Compendium', type: 'Reference', status: 'Available', desc: 'Comprehensive datasheets on ecology, distribution, and management of IAS' },
+        { name: 'Pacific Invasives Partnership — Regional IAS database', type: 'Point/Reference', status: 'Available', desc: 'Pacific-focused invasive species occurrence and management data' },
+        { name: 'AIMS — Crown of Thorns Starfish monitoring (Pacific)', type: 'Point', status: 'Available', desc: 'Australian Institute of Marine Science COTS reef monitoring data' }
+      ],
+      proposedActions: [
+        'Conduct national Merremia peltata coverage mapping using Sentinel-2 satellite imagery and NDVI analysis',
+        'Establish systematic Crown of Thorns reef monitoring transects at priority reef sites',
+        'Map Mile a Minute Vine distribution through field surveys combined with drone imagery in affected provinces',
+        'Survey and map Solanum torvum infestations focusing on agricultural areas in Shefa and Sanma',
+        'Create IAS early warning system with community reporting linked to GIS database',
+        'Develop eradication priority map based on proximity to conservation areas and agricultural land'
+      ],
+      revisions: [
+        'Add monitoring frequency targets for each priority IAS (e.g., annual Merremia coverage update)',
+        'Include cost-benefit analysis for IAS management actions per province',
+        'Link IAS distribution data to biodiversity impact assessment for conservation areas'
+      ]
+    },
+    T7: {
+      feasibility: 'Moderate — Mapping requires collaboration with agricultural sector and Department of Agriculture. Farmer surveys and agrochemical import records can provide spatial data. Remote sensing cannot directly detect pesticide use.',
+      clarity: 'Moderate — Target references "large-scale and small-scale commercial farming" but lacks quantitative thresholds. Criteria for what constitutes a mappable pesticide use area need definition.',
+      dataRequirements: [
+        'Commercial farm boundaries (large-scale and smallholder)',
+        'Agrochemical use records by location and type',
+        'Agricultural land use maps',
+        'Water quality monitoring data near agricultural areas',
+        'Crop type maps for identifying high-pesticide-use crops'
+      ],
+      nationalSources: [
+        { name: 'Department of Agriculture — Farm registration data', type: 'Point/Polygon', status: 'Partial', desc: 'Registered commercial farm locations and crop types' },
+        { name: 'Vanuatu Customs — Agrochemical import records', type: 'Tabular', status: 'Available', desc: 'Import volumes of pesticides and herbicides by product type' },
+        { name: 'Department of Agriculture — Extension office records', type: 'Point', status: 'Partial', desc: 'Agricultural extension activities and pesticide advice records' }
+      ],
+      globalSources: [
+        { name: 'FAO — Global agro-chemical use database', type: 'Tabular', status: 'Available', desc: 'National-level pesticide use statistics' },
+        { name: 'ESA — Cropland mapping (WorldCover)', type: 'Raster', status: 'Available', desc: '10m resolution global land cover including cropland classes' },
+        { name: 'NASA — Agricultural productivity indices', type: 'Raster', status: 'Available', desc: 'Satellite-derived crop health and agricultural intensity indicators' }
+      ],
+      proposedActions: [
+        'Conduct agricultural pesticide use survey targeting commercial farms in Shefa, Sanma, and Malampa',
+        'Map all commercial farm boundaries and classify by crop type and pesticide intensity',
+        'Overlay pesticide use areas with adjacent conservation areas and water bodies for risk assessment',
+        'Establish baseline water quality monitoring near high-pesticide-use areas',
+        'Create pesticide risk heat map combining use intensity, proximity to conservation areas, and downstream impacts'
+      ],
+      revisions: [
+        'Define measurable indicators (e.g., hectares under integrated pest management)',
+        'Add explicit targets for pesticide reduction in areas adjacent to KBAs and protected areas',
+        'Include organic farming promotion as a measurable alternative action'
+      ]
+    },
+    T8: {
+      feasibility: 'Moderate — Coastal eutrophication mapping requires water quality monitoring data (chlorophyll-a, nutrient levels). Satellite remote sensing (Sentinel-2) can detect chlorophyll concentrations in coastal waters. Field validation is needed.',
+      clarity: 'Moderate — Target references "coastal eutrophication and nutrient-impacted zones" without specifying monitoring methodology or thresholds.',
+      dataRequirements: [
+        'Coastal water quality monitoring data (chlorophyll-a, nitrogen, phosphorus)',
+        'Sewage discharge and waste management site locations',
+        'River discharge points and catchment land use data',
+        'Satellite-derived chlorophyll-a concentration maps',
+        'Coral reef health data as impact indicator'
+      ],
+      nationalSources: [
+        { name: 'DEPC — Water quality monitoring programme', type: 'Point', status: 'Partial', desc: 'Coastal water quality sample stations and results' },
+        { name: 'Public Works Department — Sewage infrastructure', type: 'Point', status: 'Partial', desc: 'Sewage treatment and discharge locations' },
+        { name: 'Port Vila Municipal Council — Waste management', type: 'Point/Polygon', status: 'Partial', desc: 'Waste disposal sites and drainage infrastructure' }
+      ],
+      globalSources: [
+        { name: 'Copernicus Marine Service — Ocean colour products', type: 'Raster', status: 'Available', desc: 'Satellite-derived chlorophyll-a and water quality indicators' },
+        { name: 'UN Environment — Global Nutrient Management System', type: 'Reference', status: 'Available', desc: 'Global nutrient pollution assessment data and methodology' },
+        { name: 'Allen Coral Atlas — Reef water quality', type: 'Raster', status: 'Available', desc: 'Water clarity and turbidity indicators for reef areas' }
+      ],
+      proposedActions: [
+        'Establish permanent coastal water quality monitoring stations at key sites (Port Vila, Luganville, Lakatoro)',
+        'Generate satellite-derived eutrophication risk maps using Sentinel-2 chlorophyll-a analysis',
+        'Map all point-source nutrient discharge locations (sewage, agriculture, aquaculture)',
+        'Conduct catchment-level nutrient loading analysis for priority coastal zones',
+        'Develop early warning thresholds for coastal eutrophication based on WHO/UNEP guidelines'
+      ],
+      revisions: [
+        'Define specific eutrophication thresholds (e.g., chlorophyll-a >5 µg/L)',
+        'Add monitoring frequency targets (monthly at key sites)',
+        'Include freshwater eutrophication in inland water bodies'
+      ]
+    },
+    T10: {
+      feasibility: 'High — Land cover mapping is a well-established remote sensing application. Sentinel-2 (10m) and Landsat (30m) imagery are freely available. National land cover mapping can be completed with existing technical capacity.',
+      clarity: 'Clear — Target requires mapping of land cover change for agriculture, livestock, fisheries and forestry. Standard remote sensing classification output.',
+      dataRequirements: [
+        'Multi-temporal satellite imagery (Sentinel-2, Landsat) for change detection',
+        'Ground truth / field survey points for classification training and validation',
+        'Existing land use maps and agricultural census data',
+        'Forest inventory and logging concession boundaries',
+        'Fisheries infrastructure and aquaculture site locations'
+      ],
+      nationalSources: [
+        { name: 'Department of Forests — Forest inventory and concessions', type: 'Polygon', status: 'Available', desc: 'Forest cover assessments and logging concession boundaries' },
+        { name: 'Department of Agriculture — Agricultural census', type: 'Tabular/Point', status: 'Available', desc: 'Agricultural production data by area council' },
+        { name: 'Vanuatu Lands Department — Land tenure and use', type: 'Polygon', status: 'Partial', desc: 'Registered land parcels and designated land uses' },
+        { name: 'VANRIS — Vanuatu Resource Information System', type: 'Polygon', status: 'Available', desc: 'Historical land resource mapping (soils, vegetation, climate zones)' }
+      ],
+      globalSources: [
+        { name: 'ESA WorldCover — 10m land cover', type: 'Raster', status: 'Available', desc: '10m resolution global land cover (2020/2021) with 11 classes' },
+        { name: 'Global Forest Watch — Tree cover loss/gain', type: 'Raster', status: 'Available', desc: 'Annual forest change data at 30m resolution (Hansen et al.)' },
+        { name: 'FAO — Global Land Cover Network (GLCN)', type: 'Raster', status: 'Available', desc: 'UN land cover classification system products' },
+        { name: 'Copernicus Global Land Service — Land cover', type: 'Raster', status: 'Available', desc: 'Annual 100m dynamic land cover with change detection' }
+      ],
+      proposedActions: [
+        'Produce national land cover / land use map at 10m resolution using Sentinel-2 imagery',
+        'Generate 2015–2025 land cover change analysis for agriculture expansion and deforestation',
+        'Classify agricultural areas by crop type (coconut, cocoa, kava, cattle, food crops)',
+        'Map forest-to-agriculture conversion hotspots per province for REDD+ reporting',
+        'Establish annual land cover monitoring programme using satellite change detection',
+        'Validate land cover maps using field surveys and community ground-truthing'
+      ],
+      revisions: [
+        'Add explicit change detection indicators (e.g., hectares of forest loss per year)',
+        'Include sustainable land management practices as a positive action indicator',
+        'Link land cover change to carbon stock estimates for climate reporting'
+      ]
+    },
+    T12: {
+      feasibility: 'Moderate — Green and blue space mapping in urban areas requires detailed spatial data. Provincial capitals have varying levels of existing urban mapping. Drone surveys may be needed for accurate park boundary delineation.',
+      clarity: 'Moderate — Target references "parks within provincial and municipal areas, and botanical gardens" but lacks criteria for what constitutes a blue/green space. Needs operational definition.',
+      dataRequirements: [
+        'Urban park and public garden boundaries',
+        'Botanical garden extents',
+        'Municipal area boundaries and land use zoning',
+        'Waterfront/coastal public access areas (blue spaces)',
+        'Tree canopy cover in urban areas'
+      ],
+      nationalSources: [
+        { name: 'Port Vila Municipal Council — Park and open space register', type: 'Polygon', status: 'Partial', desc: 'Municipal parks, gardens, and public open spaces in Port Vila' },
+        { name: 'Luganville Municipal Council — Green space inventory', type: 'Polygon', status: 'Partial', desc: 'Parks and recreational areas in Luganville' },
+        { name: 'Department of Forests — Botanical garden boundaries', type: 'Polygon', status: 'Available', desc: 'National botanical garden and arboretum boundaries' }
+      ],
+      globalSources: [
+        { name: 'OpenStreetMap — Urban land use features', type: 'Polygon', status: 'Available', desc: 'Community-mapped parks, gardens, and recreational areas' },
+        { name: 'ESA WorldCover — Urban vegetation detection', type: 'Raster', status: 'Available', desc: 'Tree cover and vegetation within urban extents' },
+        { name: 'Google Open Buildings — Building footprints', type: 'Polygon', status: 'Available', desc: 'For calculating green space ratio vs built-up area' }
+      ],
+      proposedActions: [
+        'Map all public parks and green spaces in Port Vila and Luganville using drone imagery',
+        'Conduct green space inventory for all provincial capitals (Lakatoro, Saratamata, Isangel, Sola)',
+        'Calculate green space per capita ratios for each urban area (WHO recommends 9 m² per person)',
+        'Map blue spaces (coastal access, waterfront parks, mangrove boardwalks) in urban areas',
+        'Develop green space expansion plan for under-served urban communities'
+      ],
+      revisions: [
+        'Define minimum green space standards (e.g., WHO 9 m² per capita)',
+        'Add accessibility indicators (% of population within 300m of green space)',
+        'Include urban tree canopy targets alongside ground-level green space'
+      ]
+    }
+  };
+
+  return content[targetCode] || {
+    feasibility: 'Assessment pending — requires further analysis of data availability and institutional capacity.',
+    clarity: 'Assessment pending — target definition review needed.',
+    dataRequirements: ['Spatial datasets relevant to target objectives'],
+    nationalSources: [],
+    globalSources: [],
+    proposedActions: ['Conduct baseline data assessment for this target'],
+    revisions: ['Review target indicators for measurability and spatial relevance']
+  };
+}
+
+/**
+ * Renders the Data Sources & Proposed Actions page (Page 3).
+ * Aligns with ToR Sections I, II, III.
+ */
+function renderDataSourcesAndActionsPage(container, targetCode, target, analysis) {
+  const page = document.createElement('div');
+  page.className = 'print-page print-analysis-page';
+
+  const tor = getTargetToRContent(targetCode);
+  const baselines = ENV.nationalBaselines;
+
+  // ── National data sources table ──
+  const nationalRows = tor.nationalSources.map(s =>
+    `<tr><td><strong>${s.name}</strong></td><td>${s.type}</td><td class="status-${s.status === 'Available' ? 'ok' : s.status === 'Partial' ? 'partial' : 'gap'}">${s.status}</td><td>${s.desc}</td></tr>`
+  ).join('');
+
+  // ── Global data sources table ──
+  const globalRows = tor.globalSources.map(s =>
+    `<tr><td><strong>${s.name}</strong></td><td>${s.type}</td><td class="status-${s.status === 'Available' ? 'ok' : s.status === 'Partial' ? 'partial' : 'gap'}">${s.status}</td><td>${s.desc}</td></tr>`
+  ).join('');
+
+  // ── Data requirements list ──
+  const dataReqHtml = tor.dataRequirements.map(r =>
+    `<div class="analysis-finding-item"><span class="analysis-bullet">&#9654;</span><span>${r}</span></div>`
+  ).join('');
+
+  // ── Proposed actions ──
+  const actionsHtml = tor.proposedActions.map((a, i) =>
+    `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#006B3F"><strong>${i + 1}.</strong></span><span>${a}</span></div>`
+  ).join('');
+
+  // ── Proposed revisions ──
+  const revisionsHtml = tor.revisions.map(r =>
+    `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#ED6C02">&#9670;</span><span>${r}</span></div>`
+  ).join('');
+
+  // ── Uploaded data sources summary ──
+  const uploadedCount = analysis.dataLayers;
+  const missingCount = analysis.missingLayers.length;
+  const expectedCount = uploadedCount + missingCount;
+
+  page.innerHTML = `
+    <div class="print-title-block">
+      <div class="print-title-left">
+        <div class="print-title-brand">
+          ${FLAG_SVG}
+          <div>
+            <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
+            <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
+          </div>
+        </div>
+      </div>
+      <div class="print-title-right">
+        <div class="print-title-date">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="print-title-crs">Data Sources &amp; Proposed Actions</div>
+      </div>
+    </div>
+
+    <div class="print-target-bar">
+      <div class="print-target-code">${targetCode}</div>
+      <div class="print-target-info">
+        <div class="print-target-name">${target.name}</div>
+        <div class="print-target-desc">${target.description}</div>
+      </div>
+    </div>
+
+    <div class="analysis-layout">
+      <div class="analysis-col-left">
+        <div class="analysis-card analysis-card-highlight">
+          <div class="analysis-card-title">I. Target Review &mdash; Feasibility &amp; Data Requirements</div>
+          <div class="tor-review-grid">
+            <div class="tor-review-item">
+              <div class="tor-review-label">Feasibility Assessment</div>
+              <div class="tor-review-text">${tor.feasibility}</div>
+            </div>
+            <div class="tor-review-item">
+              <div class="tor-review-label">Clarity &amp; Measurability</div>
+              <div class="tor-review-text">${tor.clarity}</div>
+            </div>
+            <div class="tor-review-item">
+              <div class="tor-review-label">Current Status (Geospatial Assessment)</div>
+              <div class="tor-review-text">${analysis.dataLayers > 0
+                ? `<strong>${uploadedCount}</strong> of ${expectedCount} expected data layers uploaded (${analysis.dataCompleteness}% complete). Net coverage: <strong>${fmtHaFull(analysis.totalNetArea)} ha</strong> (${fmtPct(analysis.tPct)} terrestrial, ${fmtPct(analysis.mPct)} marine). ${analysis.provincesWithData.length} of 6 provinces have data.`
+                : 'No geospatial data uploaded for this target. Baseline data collection is required to assess current status.'
+              }</div>
+            </div>
+          </div>
+          <div class="tor-review-item" style="margin-top:4px">
+            <div class="tor-review-label">Data Requirements</div>
+            <div class="analysis-findings">${dataReqHtml}</div>
+          </div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">II. Identification of Geospatial Data Sources &mdash; National</div>
+          ${nationalRows ? `
+            <table class="analysis-table">
+              <thead><tr><th>Source</th><th>Type</th><th>Status</th><th>Description</th></tr></thead>
+              <tbody>${nationalRows}</tbody>
+            </table>
+          ` : '<div style="color:#999;font-size:8px">No national data sources identified</div>'}
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">II. Identification of Geospatial Data Sources &mdash; Global</div>
+          ${globalRows ? `
+            <table class="analysis-table">
+              <thead><tr><th>Source</th><th>Type</th><th>Status</th><th>Description</th></tr></thead>
+              <tbody>${globalRows}</tbody>
+            </table>
+          ` : '<div style="color:#999;font-size:8px">No global data sources identified</div>'}
+        </div>
+      </div>
+
+      <div class="analysis-col-right">
+        <div class="analysis-card">
+          <div class="analysis-card-title">III. Strengthening NBSAP Actions &mdash; Proposed New Geospatial Actions</div>
+          <div class="analysis-findings">${actionsHtml}</div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">III. Proposed Revisions to Existing Actions</div>
+          <div class="analysis-findings">${revisionsHtml}</div>
+        </div>
+
+        <div class="analysis-card">
+          <div class="analysis-card-title">Data Upload Status</div>
+          <div class="analysis-assessment">
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Expected Layers</span>
+              <span class="analysis-assess-value">${expectedCount}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Uploaded</span>
+              <span class="analysis-assess-value" style="color:#2E7D32">${uploadedCount}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Missing</span>
+              <span class="analysis-assess-value" style="color:${missingCount > 0 ? '#D32F2F' : '#2E7D32'}">${missingCount}</span>
+            </div>
+            <div class="analysis-assess-row">
+              <span class="analysis-assess-label">Completeness</span>
+              <div style="display:flex;align-items:center;gap:6px;flex:1">
+                <div class="analysis-comp-track"><div class="analysis-comp-fill" style="width:${analysis.dataCompleteness}%;background:${analysis.dataCompleteness >= 80 ? '#2E7D32' : analysis.dataCompleteness >= 50 ? '#ED6C02' : '#D32F2F'}"></div></div>
+                <span class="analysis-assess-value">${analysis.dataCompleteness}%</span>
+              </div>
+            </div>
+          </div>
+          ${analysis.missingLayers.length > 0 ? `
+            <div style="margin-top:4px;border-top:0.5px solid #eee;padding-top:3px">
+              <div style="font-size:7px;font-weight:700;color:#666;margin-bottom:2px">MISSING LAYERS:</div>
+              ${analysis.missingLayers.map(l => `<div class="analysis-gap-item"><span class="analysis-gap-dot"></span>${l.name}</div>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="analysis-methodology">
+      <strong>Reference:</strong> Terms of Reference — Vanuatu NBSAP Geospatial Consultancy: (I) Review of NBSAP Geospatial Targets and Actions; (II) Identification of Geospatial Data Sources;
+      (III) Strengthening NBSAP Actions. Technical oversight: Biodiversity and Conservation Division &amp; NBSAP Draft and Update Team, DEPC.
+      National baselines: Terrestrial ${fmtHaFull(baselines.terrestrial_ha)} ha; Marine ${fmtHaFull(baselines.marine_ha)} ha.
+    </div>
+
+    <div class="print-footer">
+      <div class="print-footer-left">
+        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+      </div>
+      <div class="print-footer-right">
+        Generated: ${new Date().toLocaleString('en-GB')} &bull; NBSAP GIS Assessment
       </div>
     </div>
   `;
