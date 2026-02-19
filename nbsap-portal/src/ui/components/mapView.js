@@ -183,7 +183,45 @@ export function updateMapLayers() {
     }
   }
 
-  // ── Pass 2: Dissolved fill layers (per symbology group) ───────────
+  // ── Pass 2: Reference polygon layers (rendered first = behind data) ──
+  if (refPolygonFeatures.length > 0) {
+    const refByCat = {};
+    for (const { feature, meta, cat } of refPolygonFeatures) {
+      if (!refByCat[cat]) refByCat[cat] = { features: [], meta };
+      refByCat[cat].features.push(feature);
+    }
+    for (const [cat, group] of Object.entries(refByCat)) {
+      const refLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+        style: () => referencePolygonStyle(cat),
+        onEachFeature: (f, layer) => {
+          buildPopup(f, layer, group.meta, true);
+        }
+      });
+      overlayGroup.addLayer(refLayer);
+    }
+  }
+
+  // ── Pass 3: Reference point features (behind data points) ──────────
+  if (refPointFeatures.length > 0) {
+    const refPtByCat = {};
+    for (const { feature, meta, cat } of refPointFeatures) {
+      if (!refPtByCat[cat]) refPtByCat[cat] = { features: [], meta };
+      refPtByCat[cat].features.push(feature);
+    }
+    for (const [cat, group] of Object.entries(refPtByCat)) {
+      const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+        pointToLayer: (f, latlng) => {
+          return L.circleMarker(latlng, referencePointStyle(cat));
+        },
+        onEachFeature: (f, layer) => {
+          buildPopup(f, layer, group.meta, true);
+        }
+      });
+      overlayGroup.addLayer(pointLayer);
+    }
+  }
+
+  // ── Pass 4: Dissolved fill layers (per symbology group) ─────────────
   const MAP_DISSOLVE_LIMIT = 200;
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
@@ -207,7 +245,7 @@ export function updateMapLayers() {
     }
   }
 
-  // ── Pass 3: Feature outlines for popup interactivity ──────────────
+  // ── Pass 5: Feature outlines for popup interactivity ────────────────
   for (const [cat, layerGroups] of Object.entries(categoryPolygonMetas)) {
     for (const group of layerGroups) {
       const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
@@ -220,7 +258,7 @@ export function updateMapLayers() {
     }
   }
 
-  // ── Pass 4: Point features ────────────────────────────────────────
+  // ── Pass 6: Point features ──────────────────────────────────────────
   for (const [cat, group] of Object.entries(categoryPointFeatures)) {
     const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
       pointToLayer: (f, latlng) => {
@@ -231,44 +269,6 @@ export function updateMapLayers() {
       }
     });
     overlayGroup.addLayer(pointLayer);
-  }
-
-  // ── Pass 5: Reference polygon layers ──────────────────────────────
-  if (refPolygonFeatures.length > 0) {
-    const refByCat = {};
-    for (const { feature, meta, cat } of refPolygonFeatures) {
-      if (!refByCat[cat]) refByCat[cat] = { features: [], meta };
-      refByCat[cat].features.push(feature);
-    }
-    for (const [cat, group] of Object.entries(refByCat)) {
-      const refLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
-        style: () => referencePolygonStyle(cat),
-        onEachFeature: (f, layer) => {
-          buildPopup(f, layer, group.meta, true);
-        }
-      });
-      overlayGroup.addLayer(refLayer);
-    }
-  }
-
-  // ── Pass 6: Reference point features ──────────────────────────────
-  if (refPointFeatures.length > 0) {
-    const refPtByCat = {};
-    for (const { feature, meta, cat } of refPointFeatures) {
-      if (!refPtByCat[cat]) refPtByCat[cat] = { features: [], meta };
-      refPtByCat[cat].features.push(feature);
-    }
-    for (const [cat, group] of Object.entries(refPtByCat)) {
-      const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
-        pointToLayer: (f, latlng) => {
-          return L.circleMarker(latlng, referencePointStyle(cat));
-        },
-        onEachFeature: (f, layer) => {
-          buildPopup(f, layer, group.meta, true);
-        }
-      });
-      overlayGroup.addLayer(pointLayer);
-    }
   }
 
   // ── Legend ─────────────────────────────────────────────────────────

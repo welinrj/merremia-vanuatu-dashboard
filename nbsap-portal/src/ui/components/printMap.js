@@ -2232,21 +2232,7 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }
   }
 
-  // Render dissolved boundaries per symbology group
-  for (const [gk, features] of Object.entries(groupPolygons)) {
-    const { cat, typeValue } = groupMeta[gk];
-    const style = printDissolvedStyle(cat, typeValue);
-    const dissolved = dissolveFeatures(features);
-
-    if (dissolved) {
-      const geoLayer = L.geoJSON(dissolved, {
-        style: () => style
-      });
-      featureGroup.addLayer(geoLayer);
-    }
-  }
-
-  // Render reference layers with distinct dashed styling
+  // Render reference layers first (behind data layers)
   if (refFeatures.length > 0) {
     const refByCat = {};
     for (const { feature, cat } of refFeatures) {
@@ -2272,7 +2258,21 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }
   }
 
-  // Render non-reference point features
+  // Render dissolved boundaries per symbology group (on top of reference)
+  for (const [gk, features] of Object.entries(groupPolygons)) {
+    const { cat, typeValue } = groupMeta[gk];
+    const style = printDissolvedStyle(cat, typeValue);
+    const dissolved = dissolveFeatures(features);
+
+    if (dissolved) {
+      const geoLayer = L.geoJSON(dissolved, {
+        style: () => style
+      });
+      featureGroup.addLayer(geoLayer);
+    }
+  }
+
+  // Render non-reference point features (on top)
   for (const layerData of layers) {
     const meta = layerData.metadata;
     if (meta?.isReference) continue;
