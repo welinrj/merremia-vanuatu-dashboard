@@ -2370,6 +2370,48 @@ body.print-mode {
   line-height: 1.3;
 }
 
+/* ── ToR Review sections ────────────────────────────────── */
+.tor-review-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tor-review-item {
+  padding: 0;
+}
+
+.tor-review-label {
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #006B3F;
+  margin-bottom: 1px;
+}
+
+.tor-review-text {
+  font-size: 8px;
+  color: #444;
+  line-height: 1.35;
+}
+
+/* Data source status colours */
+.analysis-table td.status-ok {
+  color: #2E7D32;
+  font-weight: 600;
+}
+
+.analysis-table td.status-partial {
+  color: #ED6C02;
+  font-weight: 600;
+}
+
+.analysis-table td.status-gap {
+  color: #D32F2F;
+  font-weight: 600;
+}
+
 /* ════════════════════════════════════════════════════════════
    @media print — Hide everything except the print overlay
    ════════════════════════════════════════════════════════════ */
