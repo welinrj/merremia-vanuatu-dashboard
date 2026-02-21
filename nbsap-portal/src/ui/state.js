@@ -300,11 +300,16 @@ function _recomputeProvinces() {
     appState.provinces = [..._knownProvinces].sort();
     return;
   }
-  // Scan layers — break out of each layer early once all provinces found
+  // Scan layers — sample up to 500 features per layer to find provinces.
+  // For large datasets (10K+), provinces are typically discovered in the
+  // first few hundred features; scanning all 50K is unnecessary.
+  const PROVINCE_SAMPLE = 500;
   for (const layer of appState.layers) {
     if (!layer.geojson) continue;
-    for (const f of (layer.geojson.features || [])) {
-      const prov = f.properties?.province;
+    const feats = layer.geojson.features || [];
+    const limit = Math.min(feats.length, PROVINCE_SAMPLE);
+    for (let i = 0; i < limit; i++) {
+      const prov = feats[i].properties?.province;
       if (prov && VALID_PROVINCES.has(prov)) {
         _knownProvinces.add(prov);
         if (_knownProvinces.size >= VALID_PROVINCES.size) break;

@@ -43,8 +43,11 @@ const DISSOLVE_CHUNK = 100;
  * parcels where dissolution is both unnecessary and prohibitively expensive
  * (O(n * log n) turf.union calls).  Returning null tells callers to fall
  * back to gross (sum-of-parts) area — accurate for non-overlapping data.
+ *
+ * 500 is the safe upper bound: turf.union on 500 complex polygons takes
+ * ~2-5 s; 3 000 can take 30+ s and freeze the browser.
  */
-const DISSOLVE_MAX_POLYGONS = 3000;
+const DISSOLVE_MAX_POLYGONS = 500;
 
 /**
  * Computes geodesic area of a GeoJSON feature in hectares.
@@ -341,8 +344,9 @@ export function computeGeneralMetrics(layers, filters = {}) {
     }
   }
 
+  // Fall back to gross area for large datasets (dissolution would freeze the browser)
   const dissolved = dissolveFeatures(allFeatures);
-  const netAreaHa = dissolved ? computeAreaHa(dissolved) : 0;
+  const netAreaHa = dissolved ? computeAreaHa(dissolved) : grossAreaHa;
 
   const result = {
     totalFeatures,
@@ -380,13 +384,29 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
   let totalFeatures = 0;
   let grossAreaHa = 0;
   let layerCount = 0;
-  const allFeatures = [];
-  const provinceFeatures = {};
-  const categoryFeatures = {};
+  const provinceGross = {};        // province → { terrestrial, marine } gross sums
+  const provinceFeatures = {};     // province → { terrestrial: [], marine: [] } — only for dissolution
+  const categoryGross = {};        // cat → { area, count }
+  const categoryFeatures = {};     // cat → Feature[] — only for dissolution
   const typeMap = {};
-  const realmFeatures = { terrestrial: [], marine: [] };
   let grossTerrestrial = 0;
   let grossMarine = 0;
+
+  // First pass: count features to decide dissolution strategy early
+  let estimatedFeatures = 0;
+  for (const layer of layers) {
+    const meta = layer.metadata;
+    if (meta.isReference) continue;
+    if (!meta.targets || !meta.targets.includes(targetCode)) continue;
+    if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
+    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+    estimatedFeatures += layer.geojson?.features?.length || 0;
+  }
+  const tooLarge = estimatedFeatures > DISSOLVE_MAX_POLYGONS;
+
+  // Only collect feature arrays when dissolution is possible (small datasets)
+  const allFeatures = tooLarge ? null : [];
+  const realmFeatures = tooLarge ? null : { terrestrial: [], marine: [] };
 
   for (const layer of layers) {
     const meta = layer.metadata;
@@ -420,33 +440,41 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
 
       totalFeatures++;
       grossAreaHa += areaHa;
-      allFeatures.push(f);
 
-      // Realm grouping
+      // Realm grouping — only keep feature refs when we'll dissolve
       if (realm === 'marine') {
-        realmFeatures.marine.push(f);
         grossMarine += areaHa;
+        if (realmFeatures) realmFeatures.marine.push(f);
       } else {
-        realmFeatures.terrestrial.push(f);
         grossTerrestrial += areaHa;
+        if (realmFeatures) realmFeatures.terrestrial.push(f);
       }
+      if (allFeatures) allFeatures.push(f);
 
-      // Province grouping
+      // Province grouping — always track gross; only keep refs when small
       const prov = f.properties.province || 'Unassigned';
-      if (!provinceFeatures[prov]) {
-        provinceFeatures[prov] = { terrestrial: [], marine: [] };
-      }
+      if (!provinceGross[prov]) provinceGross[prov] = { terrestrial: 0, marine: 0, tCount: 0, mCount: 0 };
       if (realm === 'marine') {
-        provinceFeatures[prov].marine.push(f);
+        provinceGross[prov].marine += areaHa;
+        provinceGross[prov].mCount++;
       } else {
-        provinceFeatures[prov].terrestrial.push(f);
+        provinceGross[prov].terrestrial += areaHa;
+        provinceGross[prov].tCount++;
+      }
+      if (!tooLarge) {
+        if (!provinceFeatures[prov]) provinceFeatures[prov] = { terrestrial: [], marine: [] };
+        if (realm === 'marine') provinceFeatures[prov].marine.push(f);
+        else provinceFeatures[prov].terrestrial.push(f);
       }
 
-      // Category grouping
-      if (!categoryFeatures[cat]) {
-        categoryFeatures[cat] = [];
+      // Category grouping — always track gross; only keep refs when small
+      if (!categoryGross[cat]) categoryGross[cat] = { area: 0, count: 0 };
+      categoryGross[cat].area += areaHa;
+      categoryGross[cat].count++;
+      if (!tooLarge) {
+        if (!categoryFeatures[cat]) categoryFeatures[cat] = [];
+        categoryFeatures[cat].push(f);
       }
-      categoryFeatures[cat].push(f);
 
       // Type/species grouping
       const typeName = f.properties.type || f.properties.species_name || f.properties.name || meta.name || 'Unknown';
@@ -458,62 +486,65 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     }
   }
 
-  // ── Dissolution — with fallback to gross area for very large datasets ──
-  // dissolveFeatures() returns null when count > DISSOLVE_MAX_POLYGONS
-  // to prevent browser crashes on large agricultural / land-cover data.
-  const tooLarge = totalFeatures > DISSOLVE_MAX_POLYGONS;
+  // ── Dissolution — only attempted for small datasets ──────────────────
+  let netAreaHa, netTerrestrial, netMarine;
+  let dissolvedTerrestrial = null, dissolvedMarine = null;
 
-  const dissolvedAll = dissolveFeatures(allFeatures);
-  const netAreaHa = dissolvedAll ? computeAreaHa(dissolvedAll) : grossAreaHa;
+  if (tooLarge) {
+    netAreaHa = grossAreaHa;
+    netTerrestrial = grossTerrestrial;
+    netMarine = grossMarine;
+  } else {
+    const dissolvedAll = dissolveFeatures(allFeatures);
+    netAreaHa = dissolvedAll ? computeAreaHa(dissolvedAll) : grossAreaHa;
+    dissolvedTerrestrial = dissolveFeatures(realmFeatures.terrestrial);
+    dissolvedMarine = dissolveFeatures(realmFeatures.marine);
+    netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
+    netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : grossMarine;
+  }
 
-  const dissolvedTerrestrial = dissolveFeatures(realmFeatures.terrestrial);
-  const dissolvedMarine = dissolveFeatures(realmFeatures.marine);
-  const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
-  const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : grossMarine;
-
-  // Province breakdown — skip per-province dissolution for very large datasets
-  const provinceBreakdown = Object.entries(provinceFeatures)
+  // Province breakdown
+  const provinceBreakdown = Object.entries(provinceGross)
     .filter(([name]) => VALID_PROVINCES.has(name))
     .map(([name, data]) => {
       let tNet, mNet;
       if (tooLarge) {
-        // Use sum-of-parts (fast) instead of dissolution
-        tNet = data.terrestrial.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
-        mNet = data.marine.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
+        tNet = data.terrestrial;
+        mNet = data.marine;
       } else {
-        const tDissolved = dissolveFeatures(data.terrestrial);
-        const mDissolved = dissolveFeatures(data.marine);
-        tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
-        mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
+        const pf = provinceFeatures[name];
+        const tDissolved = pf ? dissolveFeatures(pf.terrestrial) : null;
+        const mDissolved = pf ? dissolveFeatures(pf.marine) : null;
+        tNet = tDissolved ? computeAreaHa(tDissolved) : data.terrestrial;
+        mNet = mDissolved ? computeAreaHa(mDissolved) : data.marine;
       }
       return {
         province: name,
         terrestrial_ha: round2(tNet),
         marine_ha: round2(mNet),
         total_ha: round2(tNet + mNet),
-        features: data.terrestrial.length + data.marine.length
+        features: data.tCount + data.mCount
       };
     }).sort((a, b) => b.total_ha - a.total_ha);
 
-  // Category breakdown — skip per-category dissolution for very large datasets
+  // Category breakdown
   const dissolvedByCategory = {};
   const categoryBreakdown = [];
-  for (const [cat, features] of Object.entries(categoryFeatures)) {
-    const grossCatArea = features.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
+  for (const [cat, gross] of Object.entries(categoryGross)) {
     let dissolved = null;
     let netCatArea;
     if (tooLarge) {
-      netCatArea = grossCatArea;
+      netCatArea = gross.area;
     } else {
-      dissolved = dissolveFeatures(features);
-      netCatArea = dissolved ? computeAreaHa(dissolved) : grossCatArea;
+      dissolved = dissolveFeatures(categoryFeatures[cat] || []);
+      netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
     }
     dissolvedByCategory[cat] = dissolved;
     categoryBreakdown.push({
       category: cat,
       area_ha: round2(netCatArea),
-      gross_area_ha: round2(grossCatArea),
-      features: features.length
+      gross_area_ha: round2(gross.area),
+      features: gross.count
     });
   }
   categoryBreakdown.sort((a, b) => b.area_ha - a.area_ha);

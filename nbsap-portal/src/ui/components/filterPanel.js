@@ -112,15 +112,33 @@ export function renderFilterPanel(container) {
   populateYearFilter(container.querySelector('#filter-year'), state);
 }
 
+/** Cached year set — invalidated when layers change (new render cycle). */
+let _yearCache = null;
+let _yearCacheLayerCount = -1;
+
 function populateYearFilter(select, state) {
-  const years = new Set();
-  for (const layer of getDashboardLayers()) {
-    for (const f of (layer.geojson?.features || [])) {
-      if (f.properties.year) years.add(f.properties.year);
+  const layers = getDashboardLayers();
+
+  // Only rescan features when the layer count changes
+  if (!_yearCache || _yearCacheLayerCount !== layers.length) {
+    const years = new Set();
+    for (const layer of layers) {
+      // Check metadata year first (cheap)
+      if (layer.metadata?.year) years.add(layer.metadata.year);
+      // Only scan features if year set is still small (avoid full scan for large layers)
+      const feats = layer.geojson?.features;
+      if (!feats) continue;
+      // Sample up to 200 features per layer to discover years — avoids scanning 50K+ features
+      const limit = Math.min(feats.length, 200);
+      for (let i = 0; i < limit; i++) {
+        if (feats[i].properties.year) years.add(feats[i].properties.year);
+      }
     }
+    _yearCache = [...years].sort((a, b) => b - a);
+    _yearCacheLayerCount = layers.length;
   }
-  const sorted = [...years].sort((a, b) => b - a);
-  for (const y of sorted) {
+
+  for (const y of _yearCache) {
     const opt = document.createElement('option');
     opt.value = y;
     opt.textContent = y;

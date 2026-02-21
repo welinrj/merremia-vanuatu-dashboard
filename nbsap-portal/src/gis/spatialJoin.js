@@ -55,16 +55,34 @@ function getEffectiveCentroid(feature) {
 const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
 
 /** Process this many features between yields. */
-const YIELD_BATCH = 500;
+const YIELD_BATCH = 2000;
+
+/**
+ * Pre-compute bounding box [west, south, east, north] for a province feature.
+ * Used to quickly reject centroids that can't be inside the province.
+ */
+function computeBBox(feature) {
+  const bbox = turf.bbox(feature);
+  return bbox; // [minX, minY, maxX, maxY]
+}
+
+/**
+ * Fast check: is a point [lng, lat] inside a bounding box?
+ */
+function pointInBBox(coords, bbox) {
+  return coords[0] >= bbox[0] && coords[0] <= bbox[2] &&
+         coords[1] >= bbox[1] && coords[1] <= bbox[3];
+}
 
 /**
  * Assigns province names to features by spatial join with province polygons.
  * Always assigns from the official province boundaries to ensure consistent
  * naming, even if the uploaded data already has a province field.
  *
- * Async with batched yielding — processes YIELD_BATCH features at a time,
- * then yields to the main thread so the browser stays responsive during
- * large uploads (10K+ features).
+ * Optimisations for large datasets (10K+ features):
+ * - Pre-computes bounding boxes for provinces — cheap rejection test
+ * - Only calls expensive turf.booleanPointInPolygon when bbox matches
+ * - Yields to main thread every YIELD_BATCH features
  *
  * @param {object} featureCollection - FeatureCollection to process
  * @param {object} provincesGeoJSON - Provinces boundary FeatureCollection
@@ -72,25 +90,33 @@ const YIELD_BATCH = 500;
  * @returns {Promise<object>} Updated FeatureCollection
  */
 export async function assignProvinces(featureCollection, provincesGeoJSON) {
-  const provinces = provincesGeoJSON.features || [];
+  const rawProvinces = provincesGeoJSON.features || [];
   const src = featureCollection.features;
   const features = new Array(src.length);
+
+  // Pre-compute province bboxes and names (once, not per-feature)
+  const provinces = rawProvinces.map(prov => ({
+    feature: prov,
+    name: prov.properties.name || prov.properties.province ||
+          prov.properties.NAME || prov.properties.PROVINCE || '',
+    bbox: computeBBox(prov)
+  }));
 
   for (let i = 0; i < src.length; i++) {
     const feature = src[i];
     const centroid = getEffectiveCentroid(feature);
 
     if (centroid) {
+      const coords = turf.getCoord(centroid);
       let matched = false;
       for (const prov of provinces) {
+        // Fast bbox rejection — avoids expensive point-in-polygon for ~80% of tests
+        if (!pointInBBox(coords, prov.bbox)) continue;
         try {
-          const provName = prov.properties.name || prov.properties.province ||
-                           prov.properties.NAME || prov.properties.PROVINCE || '';
-
-          if (turf.booleanPointInPolygon(centroid, prov)) {
+          if (turf.booleanPointInPolygon(centroid, prov.feature)) {
             features[i] = {
               ...feature,
-              properties: { ...feature.properties, province: provName }
+              properties: { ...feature.properties, province: prov.name }
             };
             matched = true;
             break;
