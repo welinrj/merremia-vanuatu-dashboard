@@ -2194,6 +2194,7 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
   }
 
   // Render dissolved boundaries per symbology group (on top of reference)
+  // Falls back to raw features when dissolution is skipped (large datasets)
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
     const style = printDissolvedStyle(cat, typeValue);
@@ -2201,6 +2202,12 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
 
     if (dissolved) {
       const geoLayer = L.geoJSON(dissolved, {
+        style: () => style
+      });
+      featureGroup.addLayer(geoLayer);
+    } else if (features.length > 0) {
+      // Dissolution skipped (too many polygons) — render raw features
+      const geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
         style: () => style
       });
       featureGroup.addLayer(geoLayer);
