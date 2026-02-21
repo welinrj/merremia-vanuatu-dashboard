@@ -139,7 +139,7 @@ function renderPortalTable() {
           <th>Category</th>
           <th>Targets</th>
           <th>Realm</th>
-          <th>Coverage</th>
+          <th>Records</th>
           <th>Status</th>
           <th>Last Updated</th>
           <th>Actions</th>
@@ -254,13 +254,10 @@ function renderLayerDetails(layerId) {
       </div>
       <div class="card-body">
         <table class="metadata-table">
-          <tr><td>Original file</td><td>${m.originalFilename}</td></tr>
           <tr><td>Uploaded</td><td>${new Date(m.uploadTimestamp).toLocaleString()}</td></tr>
-          <tr><td>Uploaded by</td><td>${m.uploadedBy}</td></tr>
           <tr><td>Category</td><td>${CATEGORIES[m.category]?.label || m.category}</td></tr>
           <tr><td>Targets</td><td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td></tr>
           <tr><td>Realm</td><td style="text-transform:capitalize">${m.realm}</td></tr>
-          <tr><td>CRS</td><td><code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:12px">${m.detectedCRS}</code></td></tr>
           ${m.isReference
             ? (() => {
                 const bl = ENV.nationalBaselines;
@@ -269,10 +266,7 @@ function renderLayerDetails(layerId) {
                 return `<tr><td>Coverage</td><td><strong>${pct.toFixed(1)}%</strong> of national ${m.realm === 'marine' ? 'marine' : 'terrestrial'} area</td></tr>
           <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`;
               })()
-            : `<tr><td>Features</td><td>${m.featureCount}</td></tr>
-          <tr><td>Valid geometries</td><td>${m.validGeometryCount}</td></tr>
-          <tr><td>Fixed</td><td>${m.fixedCount}</td></tr>
-          <tr><td>Dropped</td><td>${m.droppedCount}</td></tr>
+            : `<tr><td>Records</td><td>${m.featureCount}</td></tr>
           <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`
           }
           <tr><td>30x30</td><td>${m.countsToward30x30 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--text-secondary)">No</span>'}</td></tr>

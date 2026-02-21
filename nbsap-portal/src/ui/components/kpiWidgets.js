@@ -102,12 +102,10 @@ function renderTarget1KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(tNet)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">Net coverage (dissolved)${tHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.realmTotals.gross_terrestrial_ha)} ha</span>` : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${formatNumber(mNet)}</div>
         <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">Net coverage (dissolved)${mHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.realmTotals.gross_marine_ha)} ha</span>` : ''}</div>
       </div>
 
       <div class="kpi-card wide">
@@ -154,8 +152,8 @@ function renderTarget1KPIs(container, layers, filters) {
 
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
-        <div class="kpi-label">Features</div>
-        <div class="kpi-sublabel">${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''} uploaded</div>
+        <div class="kpi-label">Data Records</div>
+        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.provinceBreakdown.length}</div>
@@ -164,10 +162,6 @@ function renderTarget1KPIs(container, layers, filters) {
       </div>
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
-    ${refCount > 0 ? `<div class="kpi-methodology-note">${refCount} reference layer${refCount !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''}
-    <div class="kpi-methodology-note">
-      Areas dissolved (UNEP-WCMC method) to remove overlaps. Percentages based on national baselines.
-    </div>
   `;
 }
 
@@ -207,12 +201,10 @@ function renderTarget3KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">Net coverage (dissolved)${tHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.gross_terrestrial_ha)} ha</span>` : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
         <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">Net coverage (dissolved)${mHasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.gross_marine_ha)} ha</span>` : ''}</div>
       </div>
 
       <div class="kpi-card">
@@ -258,8 +250,7 @@ function renderTarget3KPIs(container, layers, filters) {
 
       <div class="kpi-card">
         <div class="kpi-value">${m.total_features}</div>
-        <div class="kpi-label">Features</div>
-        <div class="kpi-sublabel">Counted toward 30x30</div>
+        <div class="kpi-label">Data Records</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.provinceBreakdown.length}</div>
@@ -289,9 +280,7 @@ function renderTarget3KPIs(container, layers, filters) {
       </div>
     </div>
 
-    ${(() => { const rc = countReferenceLayers(layers, 'T3'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
     <div class="kpi-methodology-note">
-      Areas dissolved (UNEP-WCMC method) to remove overlaps. Each point counted once.<br>
       National baselines: ${formatNumber(baselines.terrestrial_ha)} ha terrestrial, ${formatNumber(baselines.marine_ha)} ha marine.
     </div>
   `;
@@ -347,7 +336,6 @@ function renderSpeciesKPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
         <div class="kpi-label">Total Distribution (ha)</div>
-        <div class="kpi-sublabel">Net coverage (dissolved)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${speciesWithData.length} / ${T4_SPECIES.length}</div>
@@ -376,7 +364,6 @@ function renderSpeciesKPIs(container, layers, filters) {
         </span>
       </div>
     ` : ''}
-    ${(() => { const rc = countReferenceLayers(layers, 'T4'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
   `;
 }
 
@@ -397,7 +384,7 @@ function renderInvasiveKPIs(container, layers, filters) {
       <div class="kpi-card accent-red">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
         <div class="kpi-label">Total IAS Area (ha)</div>
-        <div class="kpi-sublabel">${m.totalFeatures} detections across ${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''}${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
+        <div class="kpi-sublabel">${m.totalFeatures} detections</div>
       </div>
       <div class="kpi-card accent-red">
         <div class="kpi-value">${formatNumber(merremiaTypes ? merremiaTypes.area_ha : 0)}</div>
@@ -473,18 +460,16 @@ function renderLandCoverKPIs(container, layers, filters) {
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
-        <div class="kpi-label">Net Area (ha)</div>
-        <div class="kpi-sublabel">Dissolved coverage${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
+        <div class="kpi-label">Total Area (ha)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
-        <div class="kpi-label">Features</div>
-        <div class="kpi-sublabel">${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''} uploaded</div>
+        <div class="kpi-label">Data Records</div>
+        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${uniqueTypes}</div>
         <div class="kpi-label">Land Use Types</div>
-        <div class="kpi-sublabel">Classified by Land_Use_P</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.provinceBreakdown.length}</div>
@@ -503,7 +488,6 @@ function renderLandCoverKPIs(container, layers, filters) {
         </table>
       </div>
     ` : ''}
-    ${(() => { const rc = countReferenceLayers(layers, 'T10'); return rc > 0 ? `<div class="kpi-methodology-note">${rc} reference layer${rc !== 1 ? 's' : ''} excluded from calculations (visual only).</div>` : ''; })()}
   `;
 }
 
@@ -528,13 +512,13 @@ function renderTargetKPIs(container, layers, filters, targetCode) {
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
-        <div class="kpi-label">Net Area (ha)</div>
-        <div class="kpi-sublabel">${meta.unit}${hasOverlap ? `<br><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span>` : ''}</div>
+        <div class="kpi-label">Total Area (ha)</div>
+        <div class="kpi-sublabel">${meta.unit}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
-        <div class="kpi-label">Features</div>
-        <div class="kpi-sublabel">${m.layerCount} layer${m.layerCount !== 1 ? 's' : ''} uploaded</div>
+        <div class="kpi-label">Data Records</div>
+        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.realmTotals.terrestrial_ha)}</div>
@@ -559,12 +543,11 @@ function renderGeneralKPIs(container, layers, filters) {
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
-        <div class="kpi-label">Total Features</div>
+        <div class="kpi-label">Data Records</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.totalAreaHa)}</div>
-        <div class="kpi-label">Net Area (ha)</div>
-        ${hasOverlap ? `<div class="kpi-sublabel"><span style="color:var(--text-tertiary)">Gross: ${formatNumber(m.grossAreaHa)} ha</span></div>` : ''}
+        <div class="kpi-label">Total Area (ha)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.realmCounts.terrestrial || 0}</div>

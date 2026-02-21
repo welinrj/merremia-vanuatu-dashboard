@@ -371,20 +371,20 @@ function findMetaForFeature(feature, layerGroups) {
 function buildPopup(feature, layer, meta, isReference = false) {
   const p = feature.properties;
   const colors = resolveColors(meta.category, p.type);
+  const catLabel = CATEGORIES[meta.category]?.label || meta.category;
   const refBadge = isReference ? '<span style="display:inline-block;background:#f0ad4e;color:#fff;font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;margin-left:6px">REF</span>' : '';
   const colorDot = `<span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${colors.fill};border:1px solid ${colors.stroke};margin-right:5px;vertical-align:middle"></span>`;
   const popup = `
     <div style="min-width:200px">
       <strong>${colorDot}${p.name || 'Unnamed'}</strong>${refBadge}<br>
-      <small>${meta.category} | ${p.realm || ''} | ${p.province || 'No province'}</small>
+      <small>${catLabel} | ${p.province || 'No province'}</small>
       <hr style="margin:6px 0;border:none;border-top:1px solid #eee">
       <table style="font-size:12px;width:100%">
-        <tr><td><b>Type:</b></td><td>${p.type || '-'}</td></tr>
-        <tr><td><b>Status:</b></td><td>${p.status || '-'}</td></tr>
-        <tr><td><b>Year:</b></td><td>${p.year || '-'}</td></tr>
-        <tr><td><b>Area:</b></td><td>${p.area_ha ? p.area_ha.toFixed(2) + ' ha' : '-'}</td></tr>
-        <tr><td><b>Source:</b></td><td>${p.source || '-'}</td></tr>
-        <tr><td><b>Targets:</b></td><td>${(p.targets || []).join(', ')}</td></tr>
+        ${p.type ? `<tr><td><b>Type:</b></td><td>${p.type}</td></tr>` : ''}
+        ${p.status ? `<tr><td><b>Status:</b></td><td>${p.status}</td></tr>` : ''}
+        ${p.year ? `<tr><td><b>Year:</b></td><td>${p.year}</td></tr>` : ''}
+        ${p.area_ha ? `<tr><td><b>Area:</b></td><td>${p.area_ha.toFixed(2)} ha</td></tr>` : ''}
+        ${p.source ? `<tr><td><b>Source:</b></td><td>${p.source}</td></tr>` : ''}
       </table>
       ${p.notes ? `<p style="font-size:11px;margin-top:6px;color:#666">${p.notes}</p>` : ''}
     </div>
