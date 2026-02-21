@@ -35,6 +35,19 @@ let provincesLayer = null;
 let legendControl = null;
 
 /**
+ * Canvas renderer — much faster than SVG for large feature sets.
+ * SVG creates one DOM element per feature; canvas draws to a single bitmap.
+ */
+const canvasRenderer = L.canvas({ padding: 0.5 });
+
+/**
+ * Above this feature count, skip individual popup-outline layers
+ * and use a lightweight click handler on the fill layer instead.
+ * This prevents creating thousands of interactive DOM nodes.
+ */
+const LARGE_LAYER_THRESHOLD = 1000;
+
+/**
  * Initializes the Leaflet map.
  * @param {string} containerId - DOM element ID for the map
  * @returns {L.Map}
@@ -221,24 +234,46 @@ export function updateMapLayers() {
     }
   }
 
+  // ── Count total data polygons for performance decisions ─────────────
+  let totalDataPolygons = 0;
+  for (const feats of Object.values(groupPolygons)) totalDataPolygons += feats.length;
+  const isLargeDataset = totalDataPolygons > LARGE_LAYER_THRESHOLD;
+
   // ── Pass 4: Dissolved fill layers (per symbology group) ─────────────
-  const MAP_DISSOLVE_LIMIT = 200;
+  // Use canvas renderer for large datasets (far fewer DOM nodes than SVG)
+  const MAP_DISSOLVE_LIMIT = 500;
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
     const style = dissolvedFillStyle(cat, typeValue);
+    const rendererOpt = isLargeDataset ? { renderer: canvasRenderer } : {};
 
     if (features.length > MAP_DISSOLVE_LIMIT) {
+      // Too many polygons to dissolve — render raw with canvas
       const fillLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
         style: () => style,
-        interactive: false
+        interactive: isLargeDataset,   // interactive for click-based popups
+        ...rendererOpt
       });
+      // For large datasets, attach a click handler on the fill layer itself
+      // instead of creating thousands of separate outline layers
+      if (isLargeDataset) {
+        fillLayer.on('click', (e) => {
+          if (e.layer && e.layer.feature) {
+            const f = e.layer.feature;
+            const meta = findMetaForFeature(f, categoryPolygonMetas[cat]);
+            if (meta) buildPopup(f, e.layer, meta);
+            e.layer.openPopup(e.latlng);
+          }
+        });
+      }
       overlayGroup.addLayer(fillLayer);
     } else {
       const dissolved = dissolveFeatures(features);
       if (dissolved) {
         const dissolvedLayer = L.geoJSON(dissolved, {
           style: () => style,
-          interactive: false
+          interactive: false,
+          ...rendererOpt
         });
         overlayGroup.addLayer(dissolvedLayer);
       }
@@ -246,27 +281,32 @@ export function updateMapLayers() {
   }
 
   // ── Pass 5: Feature outlines for popup interactivity ────────────────
-  for (const [cat, layerGroups] of Object.entries(categoryPolygonMetas)) {
-    for (const group of layerGroups) {
-      const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
-        style: (feature) => featureOutlineStyle(feature, cat),
-        onEachFeature: (feature, layer) => {
-          buildPopup(feature, layer, group.meta);
-        }
-      });
-      overlayGroup.addLayer(geojsonLayer);
+  // Skip for large datasets — popups handled via fill-layer click above
+  if (!isLargeDataset) {
+    for (const [cat, layerGroups] of Object.entries(categoryPolygonMetas)) {
+      for (const group of layerGroups) {
+        const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
+          style: (feature) => featureOutlineStyle(feature, cat),
+          onEachFeature: (feature, layer) => {
+            buildPopup(feature, layer, group.meta);
+          }
+        });
+        overlayGroup.addLayer(geojsonLayer);
+      }
     }
   }
 
   // ── Pass 6: Point features ──────────────────────────────────────────
   for (const [cat, group] of Object.entries(categoryPointFeatures)) {
+    const rendererOpt = group.features.length > LARGE_LAYER_THRESHOLD ? { renderer: canvasRenderer } : {};
     const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
       pointToLayer: (f, latlng) => {
         return L.circleMarker(latlng, pointMarkerStyle(f, cat));
       },
       onEachFeature: (f, layer) => {
         buildPopup(f, layer, group.meta);
-      }
+      },
+      ...rendererOpt
     });
     overlayGroup.addLayer(pointLayer);
   }
@@ -311,6 +351,18 @@ function updateLegend(visibleLayers) {
     return div;
   };
   legendControl.addTo(map);
+}
+
+/**
+ * Finds the layer metadata object for a feature (used by large-dataset click handler).
+ */
+function findMetaForFeature(feature, layerGroups) {
+  if (!layerGroups) return null;
+  for (const group of layerGroups) {
+    if (group.features.includes(feature)) return group.meta;
+  }
+  // Fallback: return first group's meta
+  return layerGroups.length > 0 ? layerGroups[0].meta : null;
 }
 
 /**
