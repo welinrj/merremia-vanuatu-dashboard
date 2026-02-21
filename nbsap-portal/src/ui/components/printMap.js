@@ -394,7 +394,7 @@ function renderTargetPage(container, targetCode, target) {
 
     <div class="print-footer">
       <div class="print-footer-left">
-        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
         Printed: ${new Date().toLocaleString('en-GB')}
@@ -563,7 +563,7 @@ function renderProvincePage(container, targetCode, target, provinceName) {
 
     <div class="print-footer">
       <div class="print-footer-left">
-        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
         Printed: ${new Date().toLocaleString('en-GB')}
@@ -1311,7 +1311,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
 
     <div class="print-footer">
       <div class="print-footer-left">
-        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
         Generated: ${new Date().toLocaleString('en-GB')} &bull; Provincial Analysis &bull; ${provinceName}
@@ -1554,7 +1554,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
 
     <div class="print-footer">
       <div class="print-footer-left">
-        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
         Generated: ${new Date().toLocaleString('en-GB')}
@@ -2066,7 +2066,7 @@ function renderDataSourcesAndActionsPage(container, targetCode, target, analysis
 
     <div class="print-footer">
       <div class="print-footer-left">
-        <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
         Generated: ${new Date().toLocaleString('en-GB')} &bull; NBSAP GIS Assessment
