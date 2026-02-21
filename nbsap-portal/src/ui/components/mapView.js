@@ -239,33 +239,29 @@ export function updateMapLayers() {
   for (const feats of Object.values(groupPolygons)) totalDataPolygons += feats.length;
   const isLargeDataset = totalDataPolygons > LARGE_LAYER_THRESHOLD;
 
-  // ── Pass 4: Dissolved fill layers (per symbology group) ─────────────
-  // Use canvas renderer for large datasets (far fewer DOM nodes than SVG)
-  const MAP_DISSOLVE_LIMIT = 500;
+  // ── Pass 4: Fill layers (per symbology group) ───────────────────────
+  // Canvas renderer for large datasets; dissolve only small groups.
+  const MAP_DISSOLVE_LIMIT = 200;
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
     const style = dissolvedFillStyle(cat, typeValue);
     const rendererOpt = isLargeDataset ? { renderer: canvasRenderer } : {};
 
-    if (features.length > MAP_DISSOLVE_LIMIT) {
-      // Too many polygons to dissolve — render raw with canvas
+    if (isLargeDataset || features.length > MAP_DISSOLVE_LIMIT) {
+      // Large dataset or too many polygons — render raw with canvas, no dissolution
       const fillLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
         style: () => style,
-        interactive: isLargeDataset,   // interactive for click-based popups
-        ...rendererOpt
+        interactive: true,
+        renderer: canvasRenderer
       });
-      // For large datasets, attach a click handler on the fill layer itself
-      // instead of creating thousands of separate outline layers
-      if (isLargeDataset) {
-        fillLayer.on('click', (e) => {
-          if (e.layer && e.layer.feature) {
-            const f = e.layer.feature;
-            const meta = findMetaForFeature(f, categoryPolygonMetas[cat]);
-            if (meta) buildPopup(f, e.layer, meta);
-            e.layer.openPopup(e.latlng);
-          }
-        });
-      }
+      fillLayer.on('click', (e) => {
+        if (e.layer && e.layer.feature) {
+          const f = e.layer.feature;
+          const meta = findMetaForFeature(f, categoryPolygonMetas[cat]);
+          if (meta) buildPopup(f, e.layer, meta);
+          e.layer.openPopup(e.latlng);
+        }
+      });
       overlayGroup.addLayer(fillLayer);
     } else {
       const dissolved = dissolveFeatures(features);

@@ -196,31 +196,28 @@ function renderPortalTable() {
     </table>
   `;
 
-  // Bind row click → show details
-  container.querySelectorAll('tr[data-layer-id]').forEach(tr => {
-    tr.addEventListener('click', (e) => {
-      if (e.target.closest('button')) return;
+  // Event delegation — one handler on the table instead of per-row/per-button
+  container.addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) {
+      const id = btn.dataset.id;
+      if (btn.classList.contains('action-view')) {
+        selectedLayerId = id;
+        renderLayerDetails(id);
+        renderPortalTable();
+      } else if (btn.classList.contains('action-download')) {
+        downloadLayerGeoJSON(id);
+      } else if (btn.classList.contains('action-remove')) {
+        removeLayerAction(id);
+      }
+      return;
+    }
+    const tr = e.target.closest('tr[data-layer-id]');
+    if (tr) {
       selectedLayerId = tr.dataset.layerId;
       renderLayerDetails(selectedLayerId);
       renderPortalTable();
-    });
-  });
-
-  // Action buttons
-  container.querySelectorAll('.action-view').forEach(btn => {
-    btn.addEventListener('click', () => {
-      selectedLayerId = btn.dataset.id;
-      renderLayerDetails(btn.dataset.id);
-      renderPortalTable();
-    });
-  });
-
-  container.querySelectorAll('.action-download').forEach(btn => {
-    btn.addEventListener('click', () => downloadLayerGeoJSON(btn.dataset.id));
-  });
-
-  container.querySelectorAll('.action-remove').forEach(btn => {
-    btn.addEventListener('click', () => removeLayerAction(btn.dataset.id));
+    }
   });
 }
 
@@ -298,9 +295,10 @@ function renderLayerDetails(layerId) {
 function downloadLayerGeoJSON(layerId) {
   const state = getAppState();
   const layer = state.layers.find(l => l.id === layerId);
-  if (!layer) return;
+  if (!layer || !layer.geojson) return;
 
-  const json = JSON.stringify(layer.geojson, null, 2);
+  // No pretty-print (null, 2) — saves ~30% memory on large datasets
+  const json = JSON.stringify(layer.geojson);
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
