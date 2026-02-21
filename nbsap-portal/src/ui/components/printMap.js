@@ -2096,7 +2096,8 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     dragging: false,
     scrollWheelZoom: false,
     doubleClickZoom: false,
-    touchZoom: false
+    touchZoom: false,
+    preferCanvas: true          // Canvas renderer — handles thousands of features without crashing
   });
 
   // Use CartoDB Light basemap for clean print output
