@@ -389,7 +389,6 @@ function renderTargetPage(container, targetCode, target) {
       ${provTableHtml}
       <div class="print-bottom-right">
         ${catTableHtml}
-        ${srcTableHtml}
       </div>
     </div>
 
@@ -405,10 +404,9 @@ function renderTargetPage(container, targetCode, target) {
 
   container.appendChild(page);
 
-  // ── Render comprehensive analysis pages (ToR Sections I, II, III) ──
+  // ── Render technical analysis page ──
   const analysis = generateTargetAnalysis(targetCode, layers, metrics, expected, baselines);
   renderAnalysisPage(container, targetCode, target, analysis);
-  renderDataSourcesAndActionsPage(container, targetCode, target, analysis);
 
   requestAnimationFrame(() => {
     setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson), 100);
@@ -561,7 +559,6 @@ function renderProvincePage(container, targetCode, target, provinceName) {
 
     <div class="print-bottom-section">
       ${catTableHtml}
-      ${srcTableHtml}
     </div>
 
     <div class="print-footer">
@@ -1253,20 +1250,6 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
         </div>
 
         ${typeTableHtml}
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Feasibility &amp; Data Requirements (ToR Section I)</div>
-          <div class="tor-review-grid">
-            <div class="tor-review-item">
-              <div class="tor-review-label">Target Feasibility</div>
-              <div class="tor-review-text">${tor.feasibility}</div>
-            </div>
-            <div class="tor-review-item">
-              <div class="tor-review-label">Data Requirements</div>
-              <div class="tor-review-text">${tor.dataRequirements.slice(0, 3).join('; ')}.</div>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div class="analysis-col-right">
@@ -1286,11 +1269,11 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
             </div>
             <div class="analysis-assess-row">
               <span class="analysis-assess-label">Records</span>
-              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
+              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()}</span>
             </div>
             <div class="analysis-assess-row">
               <span class="analysis-assess-label">Categories</span>
-              <span class="analysis-assess-value">${analysis.categoriesPresent} types present</span>
+              <span class="analysis-assess-value">${analysis.categoriesPresent}</span>
             </div>
             <div class="analysis-assess-row">
               <span class="analysis-assess-label">National Share</span>
@@ -1317,26 +1300,6 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
               : '<div style="color:#999;font-size:8px">Upload data to generate provincial insights</div>'
             }
           </div>
-        </div>
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Data Gaps &mdash; ${provinceName}</div>
-          ${missingHtml}
-        </div>
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Recommendations</div>
-          <div class="analysis-findings">
-            ${analysis.recommendations.length > 0
-              ? analysis.recommendations.map(r => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#ED6C02">&#9670;</span><span>${r}</span></div>`).join('')
-              : '<div style="color:#2E7D32;font-size:8px">Provincial data is comprehensive — continue routine monitoring</div>'
-            }
-          </div>
-        </div>
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Proposed Actions (ToR Section III)</div>
-          <div class="analysis-findings">${provActionsHtml}</div>
         </div>
       </div>
     </div>
@@ -1401,11 +1364,9 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
 
   // ── Coverage assessment table ──
   const coverageRows = [
-    { label: 'Terrestrial (net)', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
-    { label: 'Marine (net)', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
-    { label: 'Total Area', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
-    { label: 'Total (gross sum)', value: fmtHaFull(analysis.totalGrossArea) + ' ha', pct: '' },
-    { label: 'Overlap removed', value: fmtHaFull(analysis.totalGrossArea - analysis.totalNetArea) + ' ha', pct: analysis.overlapPct.toFixed(1) + '%' }
+    { label: 'Terrestrial', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
+    { label: 'Marine', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
+    { label: 'Total Area', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' }
   ];
 
   // ── Category composition table ──
@@ -1554,20 +1515,12 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
               </div>
             </div>
             <div class="analysis-assess-row">
-              <span class="analysis-assess-label">Geometry Quality</span>
-              <span class="analysis-assess-value">${analysis.geomQuality}%</span>
-            </div>
-            <div class="analysis-assess-row">
-              <span class="analysis-assess-label">Data Layers</span>
-              <span class="analysis-assess-value">${analysis.dataLayers}${analysis.refLayers > 0 ? ` + ${analysis.refLayers} ref` : ''}</span>
+              <span class="analysis-assess-label">Datasets</span>
+              <span class="analysis-assess-value">${analysis.dataLayers}</span>
             </div>
             <div class="analysis-assess-row">
               <span class="analysis-assess-label">Records</span>
-              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
-            </div>
-            <div class="analysis-assess-row">
-              <span class="analysis-assess-label">Dissolution Factor</span>
-              <span class="analysis-assess-value">${analysis.dissolutionFactor.toFixed(3)}</span>
+              <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()}</span>
             </div>
           </div>
         </div>
@@ -1588,21 +1541,6 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
             ${analysis.insights.length > 0
               ? analysis.insights.map(f => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#006B3F">&#9679;</span><span>${f}</span></div>`).join('')
               : '<div style="color:#999;font-size:8px">Upload data to generate target-specific insights</div>'
-            }
-          </div>
-        </div>
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Data Gaps</div>
-          ${missingHtml}
-        </div>
-
-        <div class="analysis-card">
-          <div class="analysis-card-title">Recommendations</div>
-          <div class="analysis-findings">
-            ${analysis.recommendations.length > 0
-              ? analysis.recommendations.map(r => `<div class="analysis-finding-item"><span class="analysis-bullet" style="color:#ED6C02">&#9670;</span><span>${r}</span></div>`).join('')
-              : '<div style="color:#2E7D32;font-size:8px">No immediate actions required — data is comprehensive</div>'
             }
           </div>
         </div>
