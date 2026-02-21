@@ -420,44 +420,17 @@ function renderInvasiveKPIs(container, layers, filters) {
 
 /**
  * Renders Target 10 (Land Cover Change) KPIs with Land_Use_P breakdown.
- * Reads the Land_Use_P property directly from features to categorise
- * agricultural land use data by type.
+ * Reuses the typeBreakdown already computed by computeTargetMetrics()
+ * instead of re-iterating all features — critical for large datasets.
  */
 function renderLandCoverKPIs(container, layers, filters) {
   const m = computeTargetMetrics(layers, 'T10', filters);
 
   const hasOverlap = m.grossAreaHa > 0 && Math.abs(m.grossAreaHa - m.totalAreaHa) > 1;
 
-  // Aggregate features by Land_Use_P directly from GeoJSON
-  const landUseMap = {};
-  for (const layer of layers) {
-    const meta = layer.metadata;
-    if (meta.isReference) continue;
-    if (!meta.targets || !meta.targets.includes('T10')) continue;
-
-    const features = (layer.geojson?.features || []).filter(f => {
-      if (filters.province && filters.province !== 'All') {
-        if (f.properties.province !== filters.province) return false;
-      }
-      return true;
-    });
-
-    for (const f of features) {
-      const landUse = f.properties.Land_Use_P || f.properties.land_use_p
-        || f.properties.LAND_USE_P || f.properties.type || 'Unclassified';
-      if (!landUseMap[landUse]) {
-        landUseMap[landUse] = { area_ha: 0, features: 0 };
-      }
-      landUseMap[landUse].area_ha += f.properties.area_ha || 0;
-      landUseMap[landUse].features++;
-    }
-  }
-
-  // Sort by area descending
-  const landUseBreakdown = Object.entries(landUseMap)
-    .map(([type, data]) => ({ type, ...data }))
-    .sort((a, b) => b.area_ha - a.area_ha);
-
+  // Use the type breakdown already aggregated in computeTargetMetrics()
+  // (keyed by feature.properties.type / name — same as Land_Use_P mapping)
+  const landUseBreakdown = m.typeBreakdown;
   const uniqueTypes = landUseBreakdown.length;
 
   // Color palette for land use types
@@ -467,8 +440,11 @@ function renderLandCoverKPIs(container, layers, filters) {
     '#E91E63', '#FFC107', '#009688', '#2196F3', '#FF5722'
   ];
 
-  // Build land use breakdown table rows
-  const luRows = landUseBreakdown.map((lu, i) => {
+  // Build land use breakdown table rows — cap at 25 to avoid massive DOM
+  const MAX_LU_ROWS = 25;
+  const displayRows = landUseBreakdown.slice(0, MAX_LU_ROWS);
+  const hiddenCount = landUseBreakdown.length - displayRows.length;
+  const luRows = displayRows.map((lu, i) => {
     const color = LU_COLORS[i % LU_COLORS.length];
     const pct = m.grossAreaHa > 0 ? (lu.area_ha / m.grossAreaHa * 100) : 0;
     return `
@@ -482,7 +458,7 @@ function renderLandCoverKPIs(container, layers, filters) {
         <td style="text-align:right">${lu.features}</td>
       </tr>
     `;
-  }).join('');
+  }).join('') + (hiddenCount > 0 ? `<tr><td colspan="4" style="text-align:center;color:var(--text-tertiary);font-size:11px">+ ${hiddenCount} more types</td></tr>` : '');
 
   const totalRow = `
     <tr style="font-weight:600;border-top:2px solid var(--border)">

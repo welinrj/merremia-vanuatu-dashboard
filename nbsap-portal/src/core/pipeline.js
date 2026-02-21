@@ -117,7 +117,7 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
   progress(5, 'Assigning provinces...');
   let step5 = step4;
   if (provincesGeojson && provincesGeojson.features && provincesGeojson.features.length > 0) {
-    step5 = assignProvinces(step4, provincesGeojson);
+    step5 = await assignProvinces(step4, provincesGeojson);
     const assigned = step5.features.filter(f => f.properties.province).length;
     progress(5, `Province assigned to ${assigned}/${step5.features.length} features`);
   } else {

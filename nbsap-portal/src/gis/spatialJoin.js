@@ -51,43 +51,64 @@ function getEffectiveCentroid(feature) {
   }
 }
 
+/** Yield to main thread so the browser stays responsive. */
+const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
+
+/** Process this many features between yields. */
+const YIELD_BATCH = 500;
+
 /**
  * Assigns province names to features by spatial join with province polygons.
  * Always assigns from the official province boundaries to ensure consistent
  * naming, even if the uploaded data already has a province field.
  *
+ * Async with batched yielding — processes YIELD_BATCH features at a time,
+ * then yields to the main thread so the browser stays responsive during
+ * large uploads (10K+ features).
+ *
  * @param {object} featureCollection - FeatureCollection to process
  * @param {object} provincesGeoJSON - Provinces boundary FeatureCollection
  *   Each province feature must have a 'name' or 'province' property.
- * @returns {object} Updated FeatureCollection (new object, features mutated in place)
+ * @returns {Promise<object>} Updated FeatureCollection
  */
-export function assignProvinces(featureCollection, provincesGeoJSON) {
+export async function assignProvinces(featureCollection, provincesGeoJSON) {
   const provinces = provincesGeoJSON.features || [];
+  const src = featureCollection.features;
+  const features = new Array(src.length);
 
-  const features = featureCollection.features.map(feature => {
+  for (let i = 0; i < src.length; i++) {
+    const feature = src[i];
     const centroid = getEffectiveCentroid(feature);
-    if (!centroid) return feature;
 
-    // Find which province contains this centroid
-    for (const prov of provinces) {
-      try {
-        const provName = prov.properties.name || prov.properties.province ||
-                         prov.properties.NAME || prov.properties.PROVINCE || '';
+    if (centroid) {
+      let matched = false;
+      for (const prov of provinces) {
+        try {
+          const provName = prov.properties.name || prov.properties.province ||
+                           prov.properties.NAME || prov.properties.PROVINCE || '';
 
-        if (turf.booleanPointInPolygon(centroid, prov)) {
-          return {
-            ...feature,
-            properties: { ...feature.properties, province: provName }
-          };
+          if (turf.booleanPointInPolygon(centroid, prov)) {
+            features[i] = {
+              ...feature,
+              properties: { ...feature.properties, province: provName }
+            };
+            matched = true;
+            break;
+          }
+        } catch {
+          continue;
         }
-      } catch {
-        // Skip invalid province polygon
-        continue;
       }
+      if (!matched) features[i] = feature;
+    } else {
+      features[i] = feature;
     }
 
-    return feature;
-  });
+    // Yield every YIELD_BATCH features so the UI thread isn't blocked
+    if (i > 0 && i % YIELD_BATCH === 0) {
+      await yieldToMain();
+    }
+  }
 
   return { type: 'FeatureCollection', features };
 }

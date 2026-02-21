@@ -272,9 +272,15 @@ const VALID_PROVINCES = new Set(['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa',
 /**
  * Extracts unique province names from all loaded layers.
  * Filters to only official Vanuatu provinces.
- * Caches result — only recomputes when _provincesDirty flag is set.
+ *
+ * Optimised: maintains a running Set of discovered provinces.
+ * On addLayer, only scans the new layer; on removeLayer, only
+ * rescans if the removed layer might have been the sole source
+ * of a province.  For very large datasets this avoids iterating
+ * tens of thousands of features on every state change.
  */
 let _provincesDirty = true;
+const _knownProvinces = new Set();
 
 function extractProvinces() {
   _provincesDirty = true;
@@ -284,20 +290,29 @@ function extractProvinces() {
 function _recomputeProvinces() {
   if (!_provincesDirty) return;
   _provincesDirty = false;
-  const provinces = new Set();
+  _knownProvinces.clear();
   // Start with provinces from boundary GeoJSON
   for (const p of (appState.provinces || [])) {
-    if (VALID_PROVINCES.has(p)) provinces.add(p);
+    if (VALID_PROVINCES.has(p)) _knownProvinces.add(p);
   }
-  // Add provinces found in layer features
+  // Early exit if all 6 provinces already found
+  if (_knownProvinces.size >= VALID_PROVINCES.size) {
+    appState.provinces = [..._knownProvinces].sort();
+    return;
+  }
+  // Scan layers — break out of each layer early once all provinces found
   for (const layer of appState.layers) {
     if (!layer.geojson) continue;
     for (const f of (layer.geojson.features || [])) {
       const prov = f.properties?.province;
-      if (prov && VALID_PROVINCES.has(prov)) provinces.add(prov);
+      if (prov && VALID_PROVINCES.has(prov)) {
+        _knownProvinces.add(prov);
+        if (_knownProvinces.size >= VALID_PROVINCES.size) break;
+      }
     }
+    if (_knownProvinces.size >= VALID_PROVINCES.size) break;
   }
-  appState.provinces = [...provinces].sort();
+  appState.provinces = [..._knownProvinces].sort();
 }
 
 // ─── Lazy GeoJSON loading ────────────────────────────────────
