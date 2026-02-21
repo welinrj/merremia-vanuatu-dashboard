@@ -260,7 +260,7 @@ function renderTargetPage(container, targetCode, target) {
       <div class="print-metric"><span class="print-metric-value">${fmtHa(netMarine)}</span><span class="print-metric-label">Marine (net, ha)</span></div>
       <div class="print-metric"><span class="print-metric-value">${fmtPct(tPct)}</span><span class="print-metric-label">% Land (of ${fmtHa(baselines.terrestrial_ha)})</span></div>
       <div class="print-metric"><span class="print-metric-value">${fmtPct(mPct)}</span><span class="print-metric-label">% Sea (of ${fmtHa(baselines.marine_ha)})</span></div>
-      <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Features</span></div>
+      <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Records</span></div>
       <div class="print-metric"><span class="print-metric-value">${dataLayerCount}</span><span class="print-metric-label">Data Layers</span></div>
     </div>
   `;
@@ -284,9 +284,9 @@ function renderTargetPage(container, targetCode, target) {
     const tTotalF = provBreakdown.reduce((s, p) => s + (p.features || 0), 0);
     provTableHtml = `
       <div class="print-detail-table">
-        <div class="print-section-title">Provincial Breakdown (dissolved net area, UNEP-WCMC)</div>
+        <div class="print-section-title">Provincial Breakdown</div>
         <table>
-          <thead><tr><th>Province</th><th class="r">Terrestrial (ha)</th><th class="r">Marine (ha)</th><th class="r">Total (ha)</th><th class="r">Features</th></tr></thead>
+          <thead><tr><th>Province</th><th class="r">Terrestrial (ha)</th><th class="r">Marine (ha)</th><th class="r">Total (ha)</th><th class="r">Records</th></tr></thead>
           <tbody>${provRows}</tbody>
           <tfoot><tr class="total-row"><td><b>TOTAL</b></td><td class="r"><b>${fmtHaFull(tTotalT)}</b></td><td class="r"><b>${fmtHaFull(tTotalM)}</b></td><td class="r"><b>${fmtHaFull(tTotalA)}</b></td><td class="r"><b>${tTotalF}</b></td></tr></tfoot>
         </table>
@@ -301,13 +301,13 @@ function renderTargetPage(container, targetCode, target) {
     const catRows = catBreakdown.map(c => {
       const colors = resolveColors(c.category);
       const catDef = CATEGORIES[c.category] || { label: c.category };
-      return `<tr><td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${fmtHaFull(c.gross_area_ha)}</td><td class="r">${c.features}</td></tr>`;
+      return `<tr><td><span class="cat-dot" style="background:${colors.fill};border-color:${colors.stroke}"></span>${catDef.label}</td><td class="r">${fmtHaFull(c.area_ha)}</td><td class="r">${c.features}</td></tr>`;
     }).join('');
     catTableHtml = `
       <div class="print-detail-table">
         <div class="print-section-title">Category Breakdown</div>
         <table>
-          <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">Gross Area (ha)</th><th class="r">Features</th></tr></thead>
+          <thead><tr><th>Category</th><th class="r">Area (ha)</th><th class="r">Records</th></tr></thead>
           <tbody>${catRows}</tbody>
         </table>
       </div>
@@ -324,21 +324,20 @@ function renderTargetPage(container, targetCode, target) {
     const areaHa = (l.geojson?.features || []).reduce((s, f) => s + (f.properties?.area_ha || 0), 0);
     const uploaded = meta.uploadTimestamp ? new Date(meta.uploadTimestamp).toLocaleDateString('en-GB') : '-';
     const ref = meta.isReference ? '<span class="ref-badge">REF</span>' : '';
-    return `<tr><td>${name} ${ref}</td><td>${catLabel}</td><td>${realm}</td><td class="r">${feats}</td><td class="r">${fmtHaFull(areaHa)}</td><td>${uploaded}</td></tr>`;
+    return `<tr><td>${name} ${ref}</td><td>${catLabel}</td><td>${realm}</td><td class="r">${feats}</td><td>${uploaded}</td></tr>`;
   }).join('');
   const srcTableHtml = layers.length > 0 ? `
     <div class="print-detail-table print-src-table">
       <div class="print-section-title">Data Sources</div>
       <table>
-        <thead><tr><th>Layer Name</th><th>Category</th><th>Realm</th><th class="r">Features</th><th class="r">Gross Area (ha)</th><th>Uploaded</th></tr></thead>
+        <thead><tr><th>Layer Name</th><th>Category</th><th>Realm</th><th class="r">Records</th><th>Uploaded</th></tr></thead>
         <tbody>${srcRows}</tbody>
       </table>
     </div>
-  ` : '<div class="print-detail-table"><div class="print-section-title">Data Sources</div><div style="color:#999;font-size:9px">No data layers uploaded for this target</div></div>';
+  ` : '<div class="print-detail-table"><div class="print-section-title">Data Sources</div><div style="color:#999;font-size:9px">No data uploaded for this target</div></div>';
 
   // ── Summary stats line ──
-  const overlapPct = totalGrossArea > 0 ? ((1 - totalNetArea / totalGrossArea) * 100).toFixed(1) : '0.0';
-  const summaryLine = `Net area: ${fmtHaFull(totalNetArea)} ha | Gross area: ${fmtHaFull(totalGrossArea)} ha | Overlap removed: ${overlapPct}%${refLayerCount > 0 ? ` | Reference layers: ${refLayerCount} (excluded from calculations)` : ''}`;
+  const summaryLine = `Total area: ${fmtHaFull(totalNetArea)} ha | ${totalFeatures} records across ${layers.filter(l => !l.metadata?.isReference).length} dataset${layers.filter(l => !l.metadata?.isReference).length !== 1 ? 's' : ''}`;
 
   page.innerHTML = `
     <div class="print-title-block">
@@ -399,7 +398,7 @@ function renderTargetPage(container, targetCode, target) {
         <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
-        Printed: ${new Date().toLocaleString('en-GB')} &bull; WGS 84 &bull; Dissolution: UNEP-WCMC methodology
+        Printed: ${new Date().toLocaleString('en-GB')}
       </div>
     </div>
   `;
@@ -465,7 +464,7 @@ function renderProvincePage(container, targetCode, target, provinceName) {
       <div class="print-metric"><span class="print-metric-value">${fmtHa(netMarine)}</span><span class="print-metric-label">Marine (net, ha)</span></div>
       <div class="print-metric"><span class="print-metric-value">${fmtPct(tPct)}</span><span class="print-metric-label">% National Land</span></div>
       <div class="print-metric"><span class="print-metric-value">${fmtPct(mPct)}</span><span class="print-metric-label">% National Sea</span></div>
-      <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Features</span></div>
+      <div class="print-metric"><span class="print-metric-value">${totalFeatures.toLocaleString()}</span><span class="print-metric-label">Records</span></div>
       <div class="print-metric"><span class="print-metric-value">${fmtHa(totalNetArea)}</span><span class="print-metric-label">Total Net (ha)</span></div>
     </div>
   `;
@@ -483,7 +482,7 @@ function renderProvincePage(container, targetCode, target, provinceName) {
       <div class="print-detail-table">
         <div class="print-section-title">Category Breakdown</div>
         <table>
-          <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">Features</th></tr></thead>
+          <thead><tr><th>Category</th><th class="r">Area (ha)</th><th class="r">Records</th></tr></thead>
           <tbody>${catRows}</tbody>
         </table>
       </div>
@@ -505,7 +504,7 @@ function renderProvincePage(container, targetCode, target, provinceName) {
     <div class="print-detail-table">
       <div class="print-section-title">Data Sources (${provinceName})</div>
       <table>
-        <thead><tr><th>Layer</th><th>Category</th><th class="r">Features</th><th class="r">Gross Area (ha)</th></tr></thead>
+        <thead><tr><th>Layer</th><th>Category</th><th class="r">Records</th><th class="r">Area (ha)</th></tr></thead>
         <tbody>${srcRows}</tbody>
       </table>
     </div>
@@ -570,7 +569,7 @@ function renderProvincePage(container, targetCode, target, provinceName) {
         <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
-        Printed: ${new Date().toLocaleString('en-GB')} &bull; WGS 84 &bull; Dissolution: UNEP-WCMC methodology
+        Printed: ${new Date().toLocaleString('en-GB')}
       </div>
     </div>
   `;
@@ -716,7 +715,7 @@ function generateTargetAnalysis(targetCode, layers, metrics, expected, baselines
   // ── Key findings (auto-generated) ──
   const findings = [];
   if (totalNetArea > 0) {
-    findings.push(`Total dissolved (net) coverage is <strong>${fmtHaFull(totalNetArea)} ha</strong>, representing <strong>${fmtPct(tPct)}</strong> of national terrestrial area and <strong>${fmtPct(mPct)}</strong> of marine area.`);
+    findings.push(`Total coverage is <strong>${fmtHaFull(totalNetArea)} ha</strong>, representing <strong>${fmtPct(tPct)}</strong> of national terrestrial area and <strong>${fmtPct(mPct)}</strong> of marine area.`);
   }
   if (overlapPct > 5) {
     findings.push(`Significant spatial overlap detected: <strong>${overlapPct.toFixed(1)}%</strong> of gross area removed during dissolution, indicating overlapping ${CATEGORIES[catBreakdown[0]?.category]?.label || 'conservation'} designations.`);
@@ -746,7 +745,7 @@ function generateTargetAnalysis(targetCode, layers, metrics, expected, baselines
     findings.push(`Coverage is concentrated in <strong>${CATEGORIES[dominantCategory.category]?.label || dominantCategory.category}</strong> (${catConcentration.toFixed(0)}% of total), suggesting limited diversity of designation types.`);
   }
   if (refLayers.length > 0) {
-    findings.push(`${refLayers.length} reference layer(s) displayed for context but excluded from area calculations.`);
+    findings.push(`${refLayers.length} reference dataset${refLayers.length !== 1 ? 's' : ''} shown for context (not included in area totals).`);
   }
   if (totalPoints > 0 && totalPolygons > 0) {
     findings.push(`Dataset contains both polygon (<strong>${totalPolygons}</strong>) and point (<strong>${totalPoints}</strong>) features. Only polygon features contribute to area calculations.`);
@@ -781,7 +780,7 @@ function generateTargetAnalysis(targetCode, layers, metrics, expected, baselines
     recommendations.push(`Convert point observations to polygon coverage areas where feasible to enable area-based reporting.`);
   }
   if (dataLayers.length === 0) {
-    recommendations.push(`No data layers have been uploaded for this target. Upload spatial datasets to enable quantitative analysis.`);
+    recommendations.push(`No data has been uploaded for this target yet. Upload datasets to enable analysis.`);
   }
 
   return {
@@ -840,7 +839,7 @@ function generateTargetInsights(targetCode, data) {
       const tGap = Math.max(0, 30 - data.tPct);
       const mGap = Math.max(0, 30 - data.mPct);
       if (data.tPct >= 30 && data.mPct >= 30) {
-        insights.push(`Vanuatu has achieved the GBF 30x30 target for both terrestrial and marine realms. This analysis uses dissolved area calculations per UNEP-WCMC methodology to prevent double-counting of overlapping designations.`);
+        insights.push(`Vanuatu has achieved the GBF 30x30 target for both terrestrial and marine realms. Overlapping areas have been merged to prevent double-counting.`);
       } else {
         const gaps = [];
         if (tGap > 0) gaps.push(`terrestrial (${fmtPct(tGap)} remaining)`);
@@ -1030,7 +1029,7 @@ function generateProvinceAnalysis(targetCode, layers, metrics, expected, baselin
   // Key findings — province specific
   const findings = [];
   if (totalNetArea > 0) {
-    findings.push(`${provinceName} province contributes <strong>${fmtHaFull(totalNetArea)} ha</strong> (net dissolved) to ${targetCode}, representing <strong>${provinceSharePct.toFixed(1)}%</strong> of the national total for this target.`);
+    findings.push(`${provinceName} province contributes <strong>${fmtHaFull(totalNetArea)} ha</strong> to ${targetCode}, representing <strong>${provinceSharePct.toFixed(1)}%</strong> of the national total for this target.`);
   }
   if (netTerrestrial > 0) {
     findings.push(`Terrestrial coverage: <strong>${fmtHaFull(netTerrestrial)} ha</strong> (${fmtPct(tPct)} of national terrestrial baseline).`);
@@ -1122,7 +1121,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
   const coverageRows = [
     { label: 'Terrestrial (net)', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
     { label: 'Marine (net)', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
-    { label: 'Total net (dissolved)', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
+    { label: 'Total Area', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
     { label: 'Total gross (sum)', value: fmtHaFull(analysis.totalGrossArea) + ' ha', pct: '' },
     { label: 'Share of national total', value: analysis.provinceSharePct.toFixed(1) + '%', pct: '' },
     { label: 'Overlap removed', value: analysis.overlapPct.toFixed(1) + '%', pct: '' }
@@ -1148,7 +1147,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
       <div class="analysis-card">
         <div class="analysis-card-title">${typeLabel} &mdash; ${provinceName}</div>
         <table class="analysis-table">
-          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">%</th><th class="r">Features</th></tr></thead>
+          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">%</th><th class="r">Records</th></tr></thead>
           <tbody>${typeRows}</tbody>
         </table>
       </div>
@@ -1232,7 +1231,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
     <div class="analysis-layout">
       <div class="analysis-col-left">
         <div class="analysis-card analysis-card-highlight">
-          <div class="analysis-card-title">Coverage Assessment &mdash; ${provinceName} (UNEP-WCMC Dissolved)</div>
+          <div class="analysis-card-title">Coverage Assessment &mdash; ${provinceName}</div>
           <table class="analysis-table">
             <thead><tr><th>Metric</th><th class="r">Value</th><th class="r">% National</th></tr></thead>
             <tbody>
@@ -1247,7 +1246,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
           <div class="analysis-card-title">Category Composition &mdash; ${provinceName}</div>
           ${analysis.catBreakdown.length > 0 ? `
             <table class="analysis-table">
-              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Records</th></tr></thead>
               <tbody>${catCompRows}</tbody>
             </table>
           ` : '<div style="color:#999;font-size:8px">No category data for this province</div>'}
@@ -1286,7 +1285,7 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
               </div>
             </div>
             <div class="analysis-assess-row">
-              <span class="analysis-assess-label">Features</span>
+              <span class="analysis-assess-label">Records</span>
               <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
             </div>
             <div class="analysis-assess-row">
@@ -1343,9 +1342,8 @@ function renderProvinceAnalysisPage(container, targetCode, target, provinceName,
     </div>
 
     <div class="analysis-methodology">
-      <strong>Methodology:</strong> Area calculations use geodesic measurements (turf.js/WGS84). Overlapping features dissolved per UNEP-WCMC methodology.
+      <strong>Note:</strong> Overlapping areas have been merged to avoid double-counting.
       National baselines: Terrestrial ${fmtHaFull(baselines.terrestrial_ha)} ha; Marine ${fmtHaFull(baselines.marine_ha)} ha.
-      Province share = province net area / national target net area.
     </div>
 
     <div class="print-footer">
@@ -1405,7 +1403,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
   const coverageRows = [
     { label: 'Terrestrial (net)', value: fmtHaFull(analysis.netTerrestrial) + ' ha', pct: fmtPct(analysis.tPct) },
     { label: 'Marine (net)', value: fmtHaFull(analysis.netMarine) + ' ha', pct: fmtPct(analysis.mPct) },
-    { label: 'Total (net dissolved)', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
+    { label: 'Total Area', value: fmtHaFull(analysis.totalNetArea) + ' ha', pct: '' },
     { label: 'Total (gross sum)', value: fmtHaFull(analysis.totalGrossArea) + ' ha', pct: '' },
     { label: 'Overlap removed', value: fmtHaFull(analysis.totalGrossArea - analysis.totalNetArea) + ' ha', pct: analysis.overlapPct.toFixed(1) + '%' }
   ];
@@ -1428,7 +1426,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
     ? analysis.missingLayers.map(l =>
         `<div class="analysis-gap-item"><span class="analysis-gap-dot"></span>${l.name} <span style="color:#999">(${CATEGORIES[l.category]?.label || l.category})</span></div>`
       ).join('')
-    : '<div style="color:#2E7D32;font-size:8px">All expected data layers have been uploaded</div>';
+    : '<div style="color:#2E7D32;font-size:8px">All expected datasets have been uploaded</div>';
 
   // ── 30x30 progress bars (for T3) ──
   let progressHtml = '';
@@ -1470,7 +1468,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
       <div class="analysis-card">
         <div class="analysis-card-title">${targetCode === 'T10' ? 'Land Cover Types' : targetCode === 'T4' ? 'Species Distribution' : 'Type Breakdown'}</div>
         <table class="analysis-table">
-          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+          <thead><tr><th>${targetCode === 'T4' ? 'Species' : 'Type'}</th><th class="r">Area (ha)</th><th class="r">% Total</th><th class="r">Records</th></tr></thead>
           <tbody>${typeRows}</tbody>
         </table>
         ${analysis.typeBreakdown.length > 10 ? `<div style="font-size:7px;color:#999;margin-top:2px">Showing top 10 of ${analysis.typeBreakdown.length} types</div>` : ''}
@@ -1509,7 +1507,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
     <div class="analysis-layout">
       <div class="analysis-col-left">
         <div class="analysis-card">
-          <div class="analysis-card-title">Coverage Assessment (UNEP-WCMC Dissolved)</div>
+          <div class="analysis-card-title">Coverage Assessment</div>
           <table class="analysis-table">
             <thead><tr><th>Metric</th><th class="r">Area</th><th class="r">% National</th></tr></thead>
             <tbody>
@@ -1531,7 +1529,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
           <div class="analysis-card-title">Category Composition</div>
           ${analysis.catBreakdown.length > 0 ? `
             <table class="analysis-table">
-              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Features</th></tr></thead>
+              <thead><tr><th>Category</th><th class="r">Net Area (ha)</th><th class="r">% Total</th><th class="r">Records</th></tr></thead>
               <tbody>${catCompRows}</tbody>
             </table>
           ` : '<div style="color:#999;font-size:8px">No category data available</div>'}
@@ -1564,7 +1562,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
               <span class="analysis-assess-value">${analysis.dataLayers}${analysis.refLayers > 0 ? ` + ${analysis.refLayers} ref` : ''}</span>
             </div>
             <div class="analysis-assess-row">
-              <span class="analysis-assess-label">Features</span>
+              <span class="analysis-assess-label">Records</span>
               <span class="analysis-assess-value">${analysis.totalFeatures.toLocaleString()} (${analysis.totalPolygons} poly, ${analysis.totalPoints} pt)</span>
             </div>
             <div class="analysis-assess-row">
@@ -1612,8 +1610,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
     </div>
 
     <div class="analysis-methodology">
-      <strong>Methodology:</strong> Area calculations use geodesic measurements (turf.js/WGS84). Overlapping features dissolved per UNEP-WCMC methodology to prevent double-counting.
-      Net area = dissolved coverage; Gross area = sum of individual features. Dissolution factor = net/gross ratio (1.0 = no overlap).
+      <strong>Note:</strong> Overlapping areas have been merged to avoid double-counting.
       National baselines: Terrestrial ${fmtHaFull(baselines.terrestrial_ha)} ha; Marine ${fmtHaFull(baselines.marine_ha)} ha.
     </div>
 
@@ -1622,7 +1619,7 @@ function renderAnalysisPage(container, targetCode, target, analysis) {
         <strong>Prepared by:</strong> Vanua Spatial Solutions &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
       </div>
       <div class="print-footer-right">
-        Generated: ${new Date().toLocaleString('en-GB')} &bull; Analysis Engine v1.0
+        Generated: ${new Date().toLocaleString('en-GB')}
       </div>
     </div>
   `;
@@ -1737,7 +1734,7 @@ function getTargetToRContent(targetCode) {
         'Update WDPA submissions for Vanuatu with latest CCA/MPA boundaries',
         'Digitise and verify all LMMA boundaries in collaboration with Fisheries Department',
         'Conduct gap analysis: overlay current protection with KBAs to identify priority expansion areas',
-        'Develop dissolved area calculation methodology for official 30x30 reporting (UNEP-WCMC standard)',
+        'Develop standardised area calculation methodology for official 30x30 reporting',
         'Establish annual reporting cycle for conservation area changes'
       ],
       revisions: [
@@ -2047,7 +2044,7 @@ function renderDataSourcesAndActionsPage(container, targetCode, target, analysis
             <div class="tor-review-item">
               <div class="tor-review-label">Current Status (Geospatial Assessment)</div>
               <div class="tor-review-text">${analysis.dataLayers > 0
-                ? `<strong>${uploadedCount}</strong> of ${expectedCount} expected data layers uploaded (${analysis.dataCompleteness}% complete). Net coverage: <strong>${fmtHaFull(analysis.totalNetArea)} ha</strong> (${fmtPct(analysis.tPct)} terrestrial, ${fmtPct(analysis.mPct)} marine). ${analysis.provincesWithData.length} of 6 provinces have data.`
+                ? `<strong>${uploadedCount}</strong> of ${expectedCount} expected datasets uploaded (${analysis.dataCompleteness}% complete). Total coverage: <strong>${fmtHaFull(analysis.totalNetArea)} ha</strong> (${fmtPct(analysis.tPct)} terrestrial, ${fmtPct(analysis.mPct)} marine). ${analysis.provincesWithData.length} of 6 provinces have data.`
                 : 'No geospatial data uploaded for this target. Baseline data collection is required to assess current status.'
               }</div>
             </div>
