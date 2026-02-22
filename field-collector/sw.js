@@ -1,4 +1,4 @@
-var CACHE_NAME = 'merremia-collector-v10-multi-officer';
+var CACHE_NAME = 'merremia-collector-v11-polygon';
 var URLS_TO_CACHE = [
   './',
   './index.html',
