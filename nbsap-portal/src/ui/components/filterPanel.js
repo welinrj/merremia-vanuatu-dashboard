@@ -28,7 +28,7 @@ export function renderFilterPanel(container) {
           ${targetsConfig.targets.map(t => `
             <label class="target-checkbox ${state.filters.targets.includes(t.code) ? 'selected' : ''}"
                    data-code="${t.code}" title="${t.description}">
-              <input type="checkbox" value="${t.code}"
+              <input type="radio" name="nbsap-target" value="${t.code}"
                      ${state.filters.targets.includes(t.code) ? 'checked' : ''}>
               ${t.code}
             </label>
@@ -74,19 +74,12 @@ export function renderFilterPanel(container) {
     </div>
   `;
 
-  // Bind target checkbox events
+  // Bind target selection events (single target at a time)
   container.querySelectorAll('.target-checkbox').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       const code = el.dataset.code;
-      const current = [...state.filters.targets];
-      const idx = current.indexOf(code);
-      if (idx >= 0) {
-        current.splice(idx, 1);
-      } else {
-        current.push(code);
-      }
-      updateFilters({ targets: current });
+      updateFilters({ targets: [code] });
     });
   });
 
@@ -112,22 +105,40 @@ export function renderFilterPanel(container) {
 
   // Clear button
   container.querySelector('#btn-clear-filters').addEventListener('click', () => {
-    updateFilters({ targets: [], province: 'All', category: 'All', realm: 'All', year: 'All' });
+    updateFilters({ targets: ['T3'], province: 'All', category: 'All', realm: 'All', year: 'All' });
   });
 
   // Populate year dropdown from loaded layers
   populateYearFilter(container.querySelector('#filter-year'), state);
 }
 
+/** Cached year set — invalidated when layers change (new render cycle). */
+let _yearCache = null;
+let _yearCacheLayerCount = -1;
+
 function populateYearFilter(select, state) {
-  const years = new Set();
-  for (const layer of getDashboardLayers()) {
-    for (const f of (layer.geojson?.features || [])) {
-      if (f.properties.year) years.add(f.properties.year);
+  const layers = getDashboardLayers();
+
+  // Only rescan features when the layer count changes
+  if (!_yearCache || _yearCacheLayerCount !== layers.length) {
+    const years = new Set();
+    for (const layer of layers) {
+      // Check metadata year first (cheap)
+      if (layer.metadata?.year) years.add(layer.metadata.year);
+      // Only scan features if year set is still small (avoid full scan for large layers)
+      const feats = layer.geojson?.features;
+      if (!feats) continue;
+      // Sample up to 200 features per layer to discover years — avoids scanning 50K+ features
+      const limit = Math.min(feats.length, 200);
+      for (let i = 0; i < limit; i++) {
+        if (feats[i].properties.year) years.add(feats[i].properties.year);
+      }
     }
+    _yearCache = [...years].sort((a, b) => b - a);
+    _yearCacheLayerCount = layers.length;
   }
-  const sorted = [...years].sort((a, b) => b - a);
-  for (const y of sorted) {
+
+  for (const y of _yearCache) {
     const opt = document.createElement('option');
     opt.value = y;
     opt.textContent = y;

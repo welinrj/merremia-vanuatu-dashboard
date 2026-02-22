@@ -2,59 +2,66 @@ export default {
   "targets": [
     {
       "code": "T1",
-      "name": "Target 1: Spatial Planning",
-      "description": "Plan and manage all areas to reduce biodiversity loss, ensuring participation of indigenous peoples and local communities.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["OTHER"]
+      "name": "Target 1: Biodiversity Spatial Planning",
+      "description": "Percentage of land and sea area covered by biodiversity-inclusive spatial plans (provincial/municipal physical plans, CCA boundary zones, marine spatial planning).",
+      "isMetricTarget": true,
+      "recommendedCategories": ["SPATIAL_PLAN", "KBA", "CCA"]
     },
     {
       "code": "T2",
-      "name": "Target 2: Ecosystem Restoration",
-      "description": "Ensure effective restoration of at least 30% of degraded terrestrial, inland water, coastal and marine ecosystems.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["RESTORATION"]
+      "name": "Target 2: Degraded Area Mapping & Restoration",
+      "description": "Mapping of degraded areas and restoration of degraded terrestrial, inland water, marine and coastal ecosystems.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["DEGRADED", "RESTORATION"]
     },
     {
       "code": "T3",
       "name": "Target 3: 30x30 Conservation",
-      "description": "Ensure at least 30% of terrestrial and 30% of marine areas are effectively conserved through protected areas and OECMs.",
+      "description": "Coverage of protected areas and other effective area-based conservation measures (Custom Tabu Areas, MPAs, LMMAs, Custom Forest Tabu Areas, Community Conservation Areas).",
       "isMetricTarget": true,
-      "recommendedCategories": ["CCA", "MPA", "PA", "OECM"]
+      "recommendedCategories": ["CCA", "MPA", "PA", "OECM", "LMMA"]
     },
     {
       "code": "T4",
-      "name": "Target 4: Species Recovery",
-      "description": "Ensure urgent management actions to halt human-induced extinction of known threatened species and recover populations.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["OTHER"]
-    },
-    {
-      "code": "T5",
-      "name": "Target 5: Sustainable Harvesting",
-      "description": "Ensure sustainable, safe and legal harvesting and trade of wild species.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["OTHER"]
+      "name": "Target 4: Species & Biodiversity Distribution",
+      "description": "Distribution maps of significant species (Vanuatu Megapode, Mountain Starling, Streaked Fantail, Kingfisher, Flying Fox, Plerandra vanuatuensis) and Key Biodiversity Areas.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["MEGAPODE", "STARLING", "FANTAIL", "KINGFISHER", "FLYING_FOX", "PLERANDRA", "KBA", "SPECIES_DIST"]
     },
     {
       "code": "T6",
-      "name": "Target 6: Invasive Species",
-      "description": "Eliminate, minimize, reduce or mitigate impacts of invasive alien species on biodiversity.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["INVASIVE"]
+      "name": "Target 6: Invasive Alien Species",
+      "description": "Spatial analysis to identify total coverage (ha) and distribution of key Invasive Alien Species (IAS) — Merremia peltata (Big Leaf), Crown of Thorns Starfish, Mile a Minute Vine, Solanum torvum (Devil Fig), Fire Ants, African Snail, Sako, Coconut Beetle.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["MERREMIA", "CROWN_OF_THORNS", "MILE_A_MINUTE", "SOLANUM_TORVUM", "INVASIVE"]
     },
     {
       "code": "T7",
-      "name": "Target 7: Pollution Reduction",
-      "description": "Reduce pollution risks and the negative impact of pollution from all sources.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["OTHER"]
+      "name": "Target 7: Pesticide & Herbicide Mapping",
+      "description": "Map out areas of pesticide and herbicide used in large-scale and/or small-scale commercial farming.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["PESTICIDE"]
     },
     {
       "code": "T8",
-      "name": "Target 8: Climate Change",
-      "description": "Minimize the impact of climate change on biodiversity and contribute to mitigation and adaptation.",
-      "isMetricTarget": false,
-      "recommendedCategories": ["OTHER"]
+      "name": "Target 8: Coastal Eutrophication",
+      "description": "Mapping of coastal eutrophication and nutrient-impacted zones around Vanuatu islands.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["EUTROPHICATION"]
+    },
+    {
+      "code": "T10",
+      "name": "Target 10: Agriculture & Land Cover Change",
+      "description": "Mapping of land cover change for agriculture, livestock, fisheries and forestry.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["LAND_COVER"]
+    },
+    {
+      "code": "T12",
+      "name": "Target 12: Blue & Green Spaces",
+      "description": "Mapping of blue and green spaces — parks within provincial and municipal areas, and botanical gardens.",
+      "isMetricTarget": true,
+      "recommendedCategories": ["GREEN_SPACE"]
     }
   ]
 };

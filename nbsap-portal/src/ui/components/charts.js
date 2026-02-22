@@ -1,7 +1,11 @@
 /**
  * Simple bar chart component (vanilla JS, no dependencies).
  * Renders horizontal bar charts for province breakdown data.
+ * Province names are clickable — zoom to that province on the map.
  */
+import { getMap } from './mapView.js';
+import { getAppState } from '../state.js';
+import L from 'leaflet';
 
 /**
  * Renders a horizontal bar chart for province breakdown.
@@ -22,7 +26,7 @@ export function renderProvinceChart(container, data) {
 
     return `
       <div class="bar-row">
-        <span class="bar-label" title="${d.province}">${d.province}</span>
+        <a href="#" class="bar-label province-zoom-link" data-province="${d.province}" title="Zoom to ${d.province}" style="cursor:pointer;color:var(--primary);text-decoration:none">${d.province}</a>
         <div class="bar-track">
           <div class="bar-fill terrestrial" style="width: ${tPct}%; position:absolute; left:0; top:0; height:100%"></div>
           <div class="bar-fill marine" style="width: ${mPct}%; position:absolute; left:${tPct}%; top:0; height:100%"></div>
@@ -48,6 +52,14 @@ export function renderProvinceChart(container, data) {
   container.querySelectorAll('.bar-track').forEach(track => {
     track.style.position = 'relative';
   });
+
+  // Bind click-to-zoom on province names in chart
+  container.querySelectorAll('.province-zoom-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      zoomToProvince(link.dataset.province);
+    });
+  });
 }
 
 /**
@@ -63,7 +75,7 @@ export function renderProvinceTable(container, data) {
 
   const rows = data.map(d => `
     <tr>
-      <td>${d.province}</td>
+      <td><a href="#" class="province-zoom-link" data-province="${d.province}" style="color:var(--primary);cursor:pointer;text-decoration:none;font-weight:500" title="Zoom to ${d.province}">${d.province}</a></td>
       <td style="text-align:right">${formatHa(d.terrestrial_ha)}</td>
       <td style="text-align:right">${formatHa(d.marine_ha)}</td>
       <td style="text-align:right"><strong>${formatHa(d.total_ha)}</strong></td>
@@ -103,6 +115,42 @@ export function renderProvinceTable(container, data) {
       </tfoot>
     </table>
   `;
+
+  // Bind click-to-zoom on province names
+  container.querySelectorAll('.province-zoom-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      zoomToProvince(link.dataset.province);
+    });
+  });
+}
+
+/**
+ * Zooms the map to the boundary of a province by name.
+ * Looks up the province in the provincesGeojson and fits the map to its bounds.
+ */
+function zoomToProvince(provinceName) {
+  const map = getMap();
+  if (!map) return;
+
+  const state = getAppState();
+  const geojson = state.provincesGeojson;
+  if (!geojson || !geojson.features) return;
+
+  // Find the province feature by name
+  const provFeature = geojson.features.find(f => {
+    const name = f.properties.name || f.properties.province || f.properties.NAME || '';
+    return name === provinceName;
+  });
+
+  if (!provFeature) return;
+
+  // Create a temporary Leaflet layer to get bounds, then zoom
+  const tempLayer = L.geoJSON(provFeature);
+  const bounds = tempLayer.getBounds();
+  if (bounds.isValid()) {
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+  }
 }
 
 function formatHa(val) {

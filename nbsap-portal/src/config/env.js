@@ -12,8 +12,8 @@ const ENV = {
   /** API base URL — blank for static-only mode */
   apiBaseUrl: '',
 
-  /** Storage backend: 'indexeddb' | 'api' */
-  storageBackend: 'indexeddb',
+  /** Storage backend: 'firestore' | 'indexeddb' | 'api' */
+  storageBackend: 'firestore',
 
   /** Auth provider: 'local-passphrase' | 'api-token' */
   authProvider: 'local-passphrase',

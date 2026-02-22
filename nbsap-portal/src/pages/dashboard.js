@@ -1,14 +1,30 @@
 /**
  * Dashboard page.
- * Target-based results, Target 3 analytics, map, charts, and export buttons.
+ * Per-target results, analytics, map, charts, and export buttons.
+ * Shows target-specific breakdowns when a single target is selected.
  */
 import { renderFilterPanel } from '../ui/components/filterPanel.js';
 import { renderKPIWidgets } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
-import { compute30x30Metrics } from '../gis/areaCalc.js';
+import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps } from '../ui/components/printMap.js';
+import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
+import { CATEGORIES } from '../config/categories.js';
+
+/** Target descriptions for the dashboard header */
+const TARGET_HEADERS = {
+  T1: { title: 'Target 1: Biodiversity Spatial Planning', desc: 'Percentage of land and sea covered by biodiversity-inclusive spatial plans' },
+  T2: { title: 'Target 2: Degraded Areas & Restoration', desc: 'Mapping of degraded areas and active restoration sites' },
+  T3: { title: 'Target 3: 30x30 Conservation', desc: 'Conserve 30% of terrestrial and 30% of marine areas by 2030' },
+  T4: { title: 'Target 4: Species & Biodiversity', desc: 'Distribution maps of significant species and key biodiversity areas' },
+  T6: { title: 'Target 6: Invasive Alien Species', desc: 'Coverage and distribution of key IAS — Merremia, Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle' },
+  T7: { title: 'Target 7: Pesticide & Herbicide', desc: 'Areas of pesticide and herbicide use in commercial farming' },
+  T8: { title: 'Target 8: Coastal Eutrophication', desc: 'Coastal eutrophication and nutrient-impacted zones' },
+  T10: { title: 'Target 10: Land Cover Change', desc: 'Land cover change mapping for agriculture, livestock, fisheries and forestry' },
+  T12: { title: 'Target 12: Blue & Green Spaces', desc: 'Parks within provincial and municipal areas, and botanical gardens' }
+};
 
 /**
  * Initializes the Dashboard page.
@@ -35,8 +51,24 @@ export function initDashboard() {
             PNG
           </button>
         </div>
+        <div class="sidebar-section-title">Print Maps</div>
+        <div class="export-toolbar">
+          <button class="btn btn-sm btn-outline" id="btn-print-target" title="Print map for the selected target" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Target
+          </button>
+          <button class="btn btn-sm btn-outline" id="btn-print-province" title="Print target maps by province (select a target first)" disabled>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            By Province
+          </button>
+          <button class="btn btn-sm btn-primary" id="btn-print-all" title="Print maps for all 9 NBSAP targets">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            All Targets
+          </button>
+        </div>
       </div>
       <div class="dashboard-main">
+        <div id="target-header-container"></div>
         <div class="map-container">
           <div id="map"></div>
         </div>
@@ -57,6 +89,7 @@ export function initDashboard() {
               <div id="province-chart-container"></div>
             </div>
           </div>
+          <div id="category-breakdown-container" style="margin-top:20px"></div>
         </div>
       </div>
     </div>
@@ -72,12 +105,28 @@ export function initDashboard() {
   document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
   document.getElementById('btn-export-json').addEventListener('click', exportTORSnapshot);
   document.getElementById('btn-export-png').addEventListener('click', exportMapPNG);
+
+  // Print map buttons
+  document.getElementById('btn-print-all').addEventListener('click', openPrintAllMaps);
+  document.getElementById('btn-print-target').addEventListener('click', () => {
+    const state = getAppState();
+    if (state.filters.targets.length === 1) {
+      openPrintMap(state.filters.targets[0]);
+    }
+  });
+  document.getElementById('btn-print-province').addEventListener('click', () => {
+    const state = getAppState();
+    if (state.filters.targets.length === 1) {
+      openPrintProvinceMaps(state.filters.targets[0]);
+    }
+  });
 }
 
 /**
  * Refreshes all dashboard components with current state.
  */
 export function refreshDashboard() {
+  _dashboardDirty = false;
   const state = getAppState();
 
   // Re-render filter panel
@@ -91,28 +140,151 @@ export function refreshDashboard() {
   // Update map layers
   updateMapLayers();
 
-  // Update province breakdown (only for T3)
+  // Determine active target context
   const filters = state.filters;
-  const t3Active = filters.targets.length === 0 || filters.targets.includes('T3');
+  const activeTargets = filters.targets;
+  const dashLayers = getDashboardLayers();
 
+  // Render target header
+  const headerContainer = document.getElementById('target-header-container');
+  const printTargetBtn = document.getElementById('btn-print-target');
+  const printProvinceBtn = document.getElementById('btn-print-province');
+  if (headerContainer) {
+    if (activeTargets.length === 1) {
+      const t = activeTargets[0];
+      const hdr = TARGET_HEADERS[t] || { title: t, desc: '' };
+      headerContainer.innerHTML = `
+        <div class="target-header-bar">
+          <div style="flex:1">
+            <strong>${hdr.title}</strong>
+            <span style="color:var(--text-secondary);font-size:13px;margin-left:12px">${hdr.desc}</span>
+          </div>
+          <button class="btn btn-sm btn-outline" id="btn-print-header" title="Print map for ${t}" style="flex-shrink:0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Print Map
+          </button>
+        </div>
+      `;
+      // Wire header print button
+      document.getElementById('btn-print-header').addEventListener('click', () => openPrintMap(t));
+      // Enable sidebar print target + province buttons
+      if (printTargetBtn) {
+        printTargetBtn.disabled = false;
+        printTargetBtn.title = `Print map for ${t}`;
+      }
+      if (printProvinceBtn) {
+        printProvinceBtn.disabled = false;
+        printProvinceBtn.title = `Print ${t} maps by province`;
+      }
+    } else {
+      headerContainer.innerHTML = '';
+      if (printTargetBtn) {
+        printTargetBtn.disabled = true;
+        printTargetBtn.title = 'Select a single target first';
+      }
+      if (printProvinceBtn) {
+        printProvinceBtn.disabled = true;
+        printProvinceBtn.title = 'Select a single target first';
+      }
+    }
+  }
+
+  // Update province breakdown
   const tableContainer = document.getElementById('province-table-container');
   const chartContainer = document.getElementById('province-chart-container');
+  const catContainer = document.getElementById('category-breakdown-container');
 
-  if (t3Active) {
-    const dashLayers = getDashboardLayers();
-    const metrics = compute30x30Metrics(dashLayers, filters);
+  if (activeTargets.length === 1) {
+    // Single target selected — show that target's province breakdown
+    const targetCode = activeTargets[0];
+
+    // Compute metrics once and reuse for province table, chart, and category breakdown
+    const metrics = targetCode === 'T3'
+      ? compute30x30Metrics(dashLayers, filters)
+      : computeTargetMetrics(dashLayers, targetCode, filters);
+
     if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
     if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+
+    // Render category breakdown for all single-target views
+    if (catContainer) {
+      renderCategoryBreakdown(catContainer, metrics);
+    }
   } else {
-    if (tableContainer) tableContainer.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px;padding:12px 0">Select Target 3 to see provincial breakdown</p>';
-    if (chartContainer) chartContainer.innerHTML = '';
+    // Multiple or no targets — show T3 if included
+    const t3Active = activeTargets.length === 0 || activeTargets.includes('T3');
+
+    if (t3Active) {
+      const metrics = compute30x30Metrics(dashLayers, filters);
+      if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
+      if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
+    } else {
+      if (tableContainer) tableContainer.innerHTML = '<p style="color:var(--text-tertiary);font-size:13px;padding:12px 0">Select a target to see provincial breakdown</p>';
+      if (chartContainer) chartContainer.innerHTML = '';
+    }
+
+    if (catContainer) catContainer.innerHTML = '';
   }
 }
 
 /**
- * Called when dashboard tab becomes active.
+ * Renders a category breakdown section for the selected target.
  */
+function renderCategoryBreakdown(container, metrics) {
+  if (!metrics.categoryBreakdown || metrics.categoryBreakdown.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const rows = metrics.categoryBreakdown.map(c => {
+    const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
+    return `
+      <tr>
+        <td>
+          <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${catDef.color};margin-right:6px"></span>
+          ${catDef.label}
+        </td>
+        <td style="text-align:right">${formatHa(c.area_ha)}</td>
+        <td style="text-align:right">${c.features}</td>
+      </tr>
+    `;
+  }).join('');
+
+  container.innerHTML = `
+    <div class="breakdown-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20"/><path d="M12 2v20"/></svg>
+      Category Breakdown
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr><th>Category</th><th style="text-align:right">Area (ha)</th><th style="text-align:right">Features</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `;
+}
+
+function formatHa(val) {
+  if (!val && val !== 0) return '-';
+  if (val >= 1000000) return (val / 1000000).toFixed(1) + 'M';
+  if (val >= 1000) return (val / 1000).toFixed(1) + 'K';
+  return val.toFixed(1);
+}
+
+/**
+ * Called when dashboard tab becomes active.
+ * Resizes the map (needed after tab switch) but only refreshes data
+ * if state has changed since the last render (via dirty flag).
+ */
+let _dashboardDirty = true;
+
+export function markDashboardDirty() {
+  _dashboardDirty = true;
+}
+
 export function onDashboardShow() {
   resizeMap();
-  refreshDashboard();
+  if (_dashboardDirty) {
+    refreshDashboard();
+  }
 }

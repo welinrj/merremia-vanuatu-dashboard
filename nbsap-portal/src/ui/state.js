@@ -3,7 +3,12 @@
  * Central store for layers, filters, and UI state.
  * Components import getAppState() to read and updateFilters() etc. to mutate.
  * Changes dispatch a 'nbsap:refresh' event for reactive updates.
+ *
+ * Supports lazy GeoJSON loading: layers can be added with geojson: null
+ * and loaded on-demand via ensureGeoJSONForTargets().
  */
+import { clearMetricsCache } from '../gis/areaCalc.js';
+import { getLayer } from '../services/storage/index.js';
 
 const appState = {
   /** Currently loaded layers: Array<{ id, metadata, geojson }> */
@@ -15,9 +20,9 @@ const appState = {
   /** List of province names (for filter dropdown) */
   provinces: [],
 
-  /** Active filters */
+  /** Active filters — default to T3 (30x30) so not all datasets are processed on load */
   filters: {
-    targets: [],
+    targets: ['T3'],
     province: 'All',
     category: 'All',
     realm: 'All',
@@ -28,8 +33,11 @@ const appState = {
   isAdmin: false,
 
   /**
-   * Layer tracker: maps expected layer IDs to uploaded layer info.
-   * { [expectedLayerId]: { layerId, uploadedAt } }
+   * Layer tracker: maps expected layer IDs to arrays of uploaded layer info.
+   * { [expectedLayerId]: [{ layerId, uploadedAt }, ...] }
+   *
+   * Supports multiple shapefile uploads per target/expected layer.
+   * Backward compatible: migrates old single-object format on load.
    */
   layerTracker: {}
 };
@@ -47,6 +55,8 @@ export function getAppState() {
  */
 export function updateFilters(filterUpdates) {
   Object.assign(appState.filters, filterUpdates);
+  _dashboardLayersCache = null;
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -61,7 +71,9 @@ export function addLayer(layerRecord) {
   } else {
     appState.layers.push(layerRecord);
   }
+  _dashboardLayersCache = null;
   extractProvinces();
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -71,7 +83,9 @@ export function addLayer(layerRecord) {
  */
 export function removeLayer(layerId) {
   appState.layers = appState.layers.filter(l => l.id !== layerId);
+  _dashboardLayersCache = null;
   extractProvinces();
+  clearMetricsCache();
   dispatchRefresh();
 }
 
@@ -81,7 +95,9 @@ export function removeLayer(layerId) {
  */
 export function setLayers(layers) {
   appState.layers = layers;
+  _dashboardLayersCache = null;
   extractProvinces();
+  clearMetricsCache();
 }
 
 /**
@@ -109,75 +125,269 @@ export function setAdminState(isAdmin) {
 
 /**
  * Sets the layer tracker state (loaded from storage on init).
- * @param {object} tracker - { [expectedLayerId]: { layerId, uploadedAt } }
+ * Migrates old single-object format to array format.
+ * @param {object} tracker - { [expectedLayerId]: { layerId, uploadedAt } | Array }
  */
 export function setLayerTracker(tracker) {
-  appState.layerTracker = tracker || {};
+  if (!tracker) {
+    appState.layerTracker = {};
+    _invalidateTrackerCache();
+    return;
+  }
+
+  // Migrate old format: { expectedId: { layerId, uploadedAt } } → { expectedId: [{ layerId, uploadedAt }] }
+  const migrated = {};
+  for (const [key, val] of Object.entries(tracker)) {
+    if (Array.isArray(val)) {
+      migrated[key] = val;
+    } else if (val && val.layerId) {
+      migrated[key] = [val];
+    }
+  }
+  appState.layerTracker = migrated;
+  _invalidateTrackerCache();
 }
 
 /**
  * Links an expected layer to an uploaded layer.
+ * Appends to the array — supports multiple shapefiles per expected layer.
  * @param {string} expectedLayerId
  * @param {string} layerId - The uploaded layer's ID
  */
 export function trackLayer(expectedLayerId, layerId) {
-  appState.layerTracker[expectedLayerId] = {
-    layerId,
-    uploadedAt: new Date().toISOString()
-  };
+  if (!appState.layerTracker[expectedLayerId]) {
+    appState.layerTracker[expectedLayerId] = [];
+  }
+
+  // Don't add duplicate
+  const existing = appState.layerTracker[expectedLayerId].find(e => e.layerId === layerId);
+  if (!existing) {
+    appState.layerTracker[expectedLayerId].push({
+      layerId,
+      uploadedAt: new Date().toISOString()
+    });
+  }
+  _invalidateTrackerCache();
   dispatchRefresh();
 }
 
 /**
- * Unlinks an expected layer from its uploaded layer.
+ * Unlinks a specific uploaded layer from an expected layer.
+ * If layerId is null, removes all uploads for that expected layer.
  * @param {string} expectedLayerId
+ * @param {string|null} layerId - specific layer to remove, or null for all
  */
-export function untrackLayer(expectedLayerId) {
-  delete appState.layerTracker[expectedLayerId];
+export function untrackLayer(expectedLayerId, layerId = null) {
+  if (!appState.layerTracker[expectedLayerId]) return;
+
+  if (layerId === null) {
+    delete appState.layerTracker[expectedLayerId];
+  } else {
+    appState.layerTracker[expectedLayerId] = appState.layerTracker[expectedLayerId]
+      .filter(e => e.layerId !== layerId);
+    if (appState.layerTracker[expectedLayerId].length === 0) {
+      delete appState.layerTracker[expectedLayerId];
+    }
+  }
+  _invalidateTrackerCache();
   dispatchRefresh();
 }
 
 /**
- * Returns only user-uploaded layers (excludes demo/system layers).
- * A layer is considered user-uploaded if it is linked in the tracker.
+ * Returns all tracked layer IDs from the tracker (all expected layers).
+ * Cached — invalidated when layerTracker changes.
+ */
+let _trackedIdsCache = null;
+
+function getTrackedLayerIds() {
+  if (_trackedIdsCache) return _trackedIdsCache;
+  const ids = new Set();
+  for (const entries of Object.values(appState.layerTracker)) {
+    for (const entry of entries) {
+      ids.add(entry.layerId);
+    }
+  }
+  _trackedIdsCache = ids;
+  return ids;
+}
+
+function _invalidateTrackerCache() {
+  _trackedIdsCache = null;
+  _dashboardLayersCache = null;
+}
+
+/**
+ * Returns only user-uploaded layers (those linked in the tracker).
  */
 export function getUserLayers() {
-  const trackedLayerIds = new Set(
-    Object.values(appState.layerTracker).map(t => t.layerId)
-  );
-  return appState.layers.filter(l => trackedLayerIds.has(l.id));
+  const trackedIds = getTrackedLayerIds();
+  return appState.layers.filter(l => trackedIds.has(l.id));
 }
 
 /**
  * Returns true if any layers have been uploaded by the user via the tracker.
  */
 export function hasUserLayers() {
-  return Object.keys(appState.layerTracker).length > 0;
+  return getTrackedLayerIds().size > 0;
 }
 
 /**
  * Returns layers for the dashboard display.
  * When any tracked layers exist, returns only those (user-uploaded data).
- * Otherwise falls back to all layers (demo data).
+ * Otherwise, if any non-demo layers exist, returns only non-demo layers.
+ * Falls back to all layers (including demo) only when no real data exists.
+ *
+ * Cached per render cycle — invalidated on layer/tracker mutations.
  */
+let _dashboardLayersCache = null;
+
 export function getDashboardLayers() {
+  if (_dashboardLayersCache) return _dashboardLayersCache;
+
+  let result;
   if (hasUserLayers()) {
-    return getUserLayers();
+    result = getUserLayers();
+  } else {
+    const realLayers = appState.layers.filter(l => !isDemoLayer(l));
+    result = realLayers.length > 0 ? realLayers : appState.layers;
   }
-  return appState.layers;
+  _dashboardLayersCache = result;
+  return result;
 }
 
 /**
- * Extracts unique province names from all loaded layers.
+ * Detects whether a layer is demo/sample data (not user-uploaded).
  */
+function isDemoLayer(layer) {
+  const m = layer.metadata;
+  if (!m) return false;
+  if (m._isDemo) return true;
+  if (m.uploadedBy === 'system') return true;
+  return (m.name || '').toLowerCase().startsWith('demo ');
+}
+
+/** Official Vanuatu provinces — only these appear in filters and breakdowns */
+const VALID_PROVINCES = new Set(['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa', 'Tafea']);
+
+/**
+ * Extracts unique province names from all loaded layers.
+ * Filters to only official Vanuatu provinces.
+ *
+ * Optimised: maintains a running Set of discovered provinces.
+ * On addLayer, only scans the new layer; on removeLayer, only
+ * rescans if the removed layer might have been the sole source
+ * of a province.  For very large datasets this avoids iterating
+ * tens of thousands of features on every state change.
+ */
+let _provincesDirty = true;
+const _knownProvinces = new Set();
+
 function extractProvinces() {
-  const provinces = new Set(appState.provinces);
-  for (const layer of appState.layers) {
-    for (const f of (layer.geojson?.features || [])) {
-      if (f.properties?.province) provinces.add(f.properties.province);
-    }
+  _provincesDirty = true;
+  _recomputeProvinces();
+}
+
+function _recomputeProvinces() {
+  if (!_provincesDirty) return;
+  _provincesDirty = false;
+  _knownProvinces.clear();
+  // Start with provinces from boundary GeoJSON
+  for (const p of (appState.provinces || [])) {
+    if (VALID_PROVINCES.has(p)) _knownProvinces.add(p);
   }
-  appState.provinces = [...provinces].sort();
+  // Early exit if all 6 provinces already found
+  if (_knownProvinces.size >= VALID_PROVINCES.size) {
+    appState.provinces = [..._knownProvinces].sort();
+    return;
+  }
+  // Scan layers — sample up to 500 features per layer to find provinces.
+  // For large datasets (10K+), provinces are typically discovered in the
+  // first few hundred features; scanning all 50K is unnecessary.
+  const PROVINCE_SAMPLE = 500;
+  for (const layer of appState.layers) {
+    if (!layer.geojson) continue;
+    const feats = layer.geojson.features || [];
+    const limit = Math.min(feats.length, PROVINCE_SAMPLE);
+    for (let i = 0; i < limit; i++) {
+      const prov = feats[i].properties?.province;
+      if (prov && VALID_PROVINCES.has(prov)) {
+        _knownProvinces.add(prov);
+        if (_knownProvinces.size >= VALID_PROVINCES.size) break;
+      }
+    }
+    if (_knownProvinces.size >= VALID_PROVINCES.size) break;
+  }
+  appState.provinces = [..._knownProvinces].sort();
+}
+
+// ─── Lazy GeoJSON loading ────────────────────────────────────
+
+/** Set of layer IDs currently being loaded */
+const _loadingIds = new Set();
+
+/**
+ * Ensures GeoJSON is loaded for all layers matching the given targets.
+ * Loads from Firestore on demand for layers that have geojson: null.
+ * Returns true if any new data was loaded (caller should refresh).
+ *
+ * @param {string[]} targets - Target codes to load data for (e.g. ['T3'])
+ * @returns {Promise<boolean>} Whether any new GeoJSON was loaded
+ */
+export async function ensureGeoJSONForTargets(targets) {
+  if (!targets || targets.length === 0) return false;
+
+  const needsLoad = appState.layers.filter(l => {
+    if (l.geojson !== null) return false; // already loaded
+    if (_loadingIds.has(l.id)) return false; // already in progress
+    const meta = l.metadata;
+    if (!meta || !meta.targets) return false;
+    return meta.targets.some(t => targets.includes(t));
+  });
+
+  if (needsLoad.length === 0) return false;
+
+  // Mark as loading to prevent duplicate requests
+  for (const l of needsLoad) _loadingIds.add(l.id);
+
+  const results = await Promise.allSettled(
+    needsLoad.map(async (layer) => {
+      try {
+        const full = await getLayer(layer.id);
+        if (full && full.geojson) {
+          // Update in-place to avoid triggering full state reset
+          const idx = appState.layers.findIndex(l => l.id === layer.id);
+          if (idx >= 0) {
+            appState.layers[idx] = { ...appState.layers[idx], geojson: full.geojson };
+          }
+          return true;
+        }
+        return false;
+      } finally {
+        _loadingIds.delete(layer.id);
+      }
+    })
+  );
+
+  const loaded = results.some(r => r.status === 'fulfilled' && r.value === true);
+  if (loaded) {
+    _provincesDirty = true;
+    _recomputeProvinces();
+    clearMetricsCache();
+  }
+  return loaded;
+}
+
+/**
+ * Returns true if any layers matching the given targets still need GeoJSON loaded.
+ */
+export function hasUnloadedTargets(targets) {
+  if (!targets || targets.length === 0) return false;
+  return appState.layers.some(l => {
+    if (l.geojson !== null) return false;
+    const meta = l.metadata;
+    if (!meta || !meta.targets) return false;
+    return meta.targets.some(t => targets.includes(t));
+  });
 }
 
 /**

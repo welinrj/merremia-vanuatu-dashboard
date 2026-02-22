@@ -7,17 +7,19 @@ import { vi, beforeEach } from 'vitest'
 
 const store = new Map<string, Record<string, unknown>>()
 
-function getPath(collectionPath: string, docId: string): string {
-  return `${collectionPath}/${docId}`
+// Mock doc reference — supports both doc(db, coll, id) and doc(db, coll, id, subcoll, subId)
+function mockDoc(_db: unknown, ...segments: string[]) {
+  const fullPath = segments.join('/')
+  // collectionPath = all but last segment, docId = last segment
+  const parts = fullPath.split('/')
+  const docId = parts[parts.length - 1]
+  const collectionPath = parts.slice(0, -1).join('/')
+  return { __type: 'docRef', collectionPath, docId, fullPath, ref: { collectionPath, docId, fullPath } }
 }
 
-// Mock doc reference
-function mockDoc(_db: unknown, collectionPath: string, docId: string) {
-  return { __type: 'docRef', collectionPath, docId }
-}
-
-// Mock collection reference
-function mockCollection(_db: unknown, collectionPath: string) {
+// Mock collection reference — supports subcollections: collection(db, coll, id, subcoll)
+function mockCollection(_db: unknown, ...segments: string[]) {
+  const collectionPath = segments.join('/')
   return { __type: 'collectionRef', collectionPath }
 }
 
@@ -35,11 +37,11 @@ async function mockSetDoc(
   ref: { collectionPath: string; docId: string },
   data: Record<string, unknown>,
 ) {
-  store.set(getPath(ref.collectionPath, ref.docId), { ...data })
+  store.set(`${ref.collectionPath}/${ref.docId}`, { ...data })
 }
 
 async function mockGetDoc(ref: { collectionPath: string; docId: string }) {
-  const path = getPath(ref.collectionPath, ref.docId)
+  const path = `${ref.collectionPath}/${ref.docId}`
   const data = store.get(path)
   return {
     exists: () => data != null,
@@ -49,20 +51,25 @@ async function mockGetDoc(ref: { collectionPath: string; docId: string }) {
 
 async function mockGetDocs(ref: { collectionPath: string }) {
   const prefix = ref.collectionPath + '/'
-  const docs: Array<{ data: () => Record<string, unknown> }> = []
+  const docs: Array<{ id: string; data: () => Record<string, unknown>; ref: { collectionPath: string; docId: string; fullPath: string } }> = []
   for (const [key, value] of store.entries()) {
-    if (key.startsWith(prefix)) {
-      docs.push({ data: () => value })
+    if (key.startsWith(prefix) && !key.slice(prefix.length).includes('/')) {
+      const docId = key.slice(prefix.length)
+      docs.push({
+        id: docId,
+        data: () => value,
+        ref: { collectionPath: ref.collectionPath, docId, fullPath: key },
+      })
     }
   }
-  return { docs }
+  return { docs, empty: docs.length === 0 }
 }
 
 async function mockUpdateDoc(
   ref: { collectionPath: string; docId: string },
   updates: Record<string, unknown>,
 ) {
-  const path = getPath(ref.collectionPath, ref.docId)
+  const path = `${ref.collectionPath}/${ref.docId}`
   const existing = store.get(path)
   if (existing) {
     store.set(path, { ...existing, ...updates })
@@ -70,7 +77,23 @@ async function mockUpdateDoc(
 }
 
 async function mockDeleteDoc(ref: { collectionPath: string; docId: string }) {
-  store.delete(getPath(ref.collectionPath, ref.docId))
+  store.delete(`${ref.collectionPath}/${ref.docId}`)
+}
+
+// Mock writeBatch
+function mockWriteBatch() {
+  const ops: Array<() => void> = []
+  return {
+    set(ref: { collectionPath: string; docId: string }, data: Record<string, unknown>) {
+      ops.push(() => store.set(`${ref.collectionPath}/${ref.docId}`, { ...data }))
+    },
+    delete(ref: { collectionPath: string; docId: string }) {
+      ops.push(() => store.delete(`${ref.collectionPath}/${ref.docId}`))
+    },
+    async commit() {
+      for (const op of ops) op()
+    },
+  }
 }
 
 // Reset store between tests
@@ -92,6 +115,7 @@ vi.mock('firebase/firestore', () => ({
   setDoc: mockSetDoc,
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
+  writeBatch: mockWriteBatch,
   query: mockQuery,
   orderBy: mockOrderBy,
   onSnapshot: (_query: { collectionPath: string }, callback: (snapshot: { docs: Array<{ data: () => Record<string, unknown> }> }) => void) => {

@@ -17,9 +17,99 @@ import {
   query,
   orderBy,
   onSnapshot,
+  writeBatch,
 } from 'firebase/firestore'
 
 const COLLECTION = 'datasets'
+const CHUNKS_SUB = 'chunks'
+
+/**
+ * Firestore limits: no nested arrays, 1 MB per document.
+ * Strategy: store metadata in the parent doc, serialize the GeoJSON
+ * FeatureCollection as a JSON string, then split it into ≤800 KB
+ * chunk documents in a `chunks` subcollection.  This removes any
+ * practical size limit on datasets.
+ */
+const CHUNK_SIZE = 800_000 // 800 KB per chunk doc — safely under 1 MB
+
+/** Write a dataset: metadata in parent doc, geo data in chunks subcollection */
+async function writeDataset(dataset: GeoDataset): Promise<void> {
+  const { data, ...meta } = dataset
+  const json = JSON.stringify(data)
+  const numChunks = Math.ceil(json.length / CHUNK_SIZE)
+
+  // Parent doc stores everything except raw geo data
+  const parentRef = doc(db, COLLECTION, dataset.id)
+  await setDoc(parentRef, { ...meta, _chunkCount: numChunks })
+
+  // Write chunks in batches of 500 (Firestore batch limit)
+  for (let batchStart = 0; batchStart < numChunks; batchStart += 499) {
+    const batch = writeBatch(db)
+    const batchEnd = Math.min(batchStart + 499, numChunks)
+    for (let i = batchStart; i < batchEnd; i++) {
+      const chunkRef = doc(db, COLLECTION, dataset.id, CHUNKS_SUB, String(i))
+      batch.set(chunkRef, { d: json.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE) })
+    }
+    await batch.commit()
+  }
+}
+
+/** Read geo data back by reassembling chunks */
+async function readGeoData(datasetId: string): Promise<FeatureCollection> {
+  const chunksSnap = await getDocs(
+    collection(db, COLLECTION, datasetId, CHUNKS_SUB),
+  )
+
+  if (chunksSnap.empty) {
+    // Fall back: try reading legacy formats from the parent doc
+    const parentSnap = await getDoc(doc(db, COLLECTION, datasetId))
+    if (!parentSnap.exists()) throw new Error('Dataset not found')
+    const raw = parentSnap.data() as Record<string, unknown>
+    return readLegacyGeoData(raw)
+  }
+
+  // Sort chunks by numeric id and reassemble
+  const sorted = chunksSnap.docs
+    .map((d) => ({ idx: parseInt(d.id, 10), data: d.data().d as string }))
+    .sort((a, b) => a.idx - b.idx)
+
+  return JSON.parse(sorted.map((c) => c.data).join(''))
+}
+
+/** Handle old document formats that stored geo data inline */
+function readLegacyGeoData(raw: Record<string, unknown>): FeatureCollection {
+  // v2: single-doc chunked format (_geoData_0, _geoData_1, ...)
+  if (typeof raw._geoChunks === 'number') {
+    const chunks: string[] = []
+    for (let i = 0; i < raw._geoChunks; i++) {
+      chunks.push(raw[`_geoData_${i}`] as string)
+    }
+    return JSON.parse(chunks.join(''))
+  }
+  // v1: single _geoData field
+  if (typeof raw._geoData === 'string') {
+    return JSON.parse(raw._geoData as string)
+  }
+  // v0: raw nested data (pre-serialization)
+  return (raw as unknown as GeoDataset).data
+}
+
+/** Delete all chunk documents for a dataset */
+async function deleteChunks(datasetId: string): Promise<void> {
+  const chunksSnap = await getDocs(
+    collection(db, COLLECTION, datasetId, CHUNKS_SUB),
+  )
+  if (chunksSnap.empty) return
+
+  for (let i = 0; i < chunksSnap.docs.length; i += 499) {
+    const batch = writeBatch(db)
+    const slice = chunksSnap.docs.slice(i, i + 499)
+    for (const d of slice) {
+      batch.delete(d.ref)
+    }
+    await batch.commit()
+  }
+}
 
 /** No-op — kept for backward compatibility with tests */
 export function _resetForTests(): void {
@@ -102,7 +192,7 @@ export async function migrateFromLocalStorage(): Promise<void> {
         const ref = doc(db, COLLECTION, dataset.id)
         const existing = await getDoc(ref)
         if (!existing.exists()) {
-          await setDoc(ref, dataset)
+          await writeDataset(dataset)
         }
       }
     }
@@ -156,7 +246,9 @@ export async function getDataset(id: string): Promise<GeoDataset | null> {
   const ref = doc(db, COLLECTION, id)
   const snapshot = await getDoc(ref)
   if (!snapshot.exists()) return null
-  return snapshot.data() as GeoDataset
+  const meta = snapshot.data() as Record<string, unknown>
+  const data = await readGeoData(id)
+  return { ...meta, data } as unknown as GeoDataset
 }
 
 export async function addDataset(
@@ -191,7 +283,7 @@ export async function addDataset(
     data,
   }
 
-  await setDoc(doc(db, COLLECTION, id), dataset)
+  await writeDataset(dataset)
   return dataset
 }
 
@@ -218,6 +310,7 @@ export async function deleteDataset(id: string): Promise<boolean> {
   const snapshot = await getDoc(ref)
   if (!snapshot.exists()) return false
 
+  await deleteChunks(id)
   await deleteDoc(ref)
   return true
 }
@@ -380,7 +473,13 @@ export async function updateGitHubSha(
 /** Export all datasets as a single JSON blob for backup */
 export async function exportAllDatasets(): Promise<GeoDataset[]> {
   const snapshot = await getDocs(collection(db, COLLECTION))
-  return snapshot.docs.map((d) => d.data() as GeoDataset)
+  const results: GeoDataset[] = []
+  for (const d of snapshot.docs) {
+    const meta = d.data() as Record<string, unknown>
+    const data = await readGeoData(d.id)
+    results.push({ ...meta, data } as unknown as GeoDataset)
+  }
+  return results
 }
 
 /** Import datasets from a backup, skipping any that already exist */
@@ -399,7 +498,7 @@ export async function importDatasets(
       continue
     }
 
-    await setDoc(ref, dataset)
+    await writeDataset(dataset)
     imported++
   }
 
