@@ -296,9 +296,8 @@
     <div class="modal-box">
       <img src="assets/vanuatu-coat-of-arms.svg" alt="Republic of Vanuatu Coat of Arms" style="width:90px;height:auto;margin-bottom:12px">
       <h3>Admin Login</h3>
-      <p>Enter admin credentials to enable record management.</p>
-      <input type="password" id="admin-password" placeholder="Admin password" onkeydown="if(event.key==='Enter')document.getElementById('admin-token-input').focus()">
-      <input type="password" id="admin-token-input" placeholder="GitHub personal access token" onkeydown="if(event.key==='Enter')confirmAdminLogin()">
+      <p>Enter admin password to enable record management.</p>
+      <input type="password" id="admin-password" placeholder="Admin password" onkeydown="if(event.key==='Enter')confirmAdminLogin()">
       <div class="modal-err" id="admin-error">Incorrect password. Try again.</div>
       <div class="modal-actions">
         <button class="modal-cancel" onclick="closeAdminModal()">Cancel</button>
@@ -380,7 +379,6 @@
     var lastUpdateTime = null;
     var checkCount = 0;
     var isAdmin = false;
-    var adminToken = null;
     var ADMIN_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
     var pendingDeleteId = null;
 
@@ -1242,14 +1240,12 @@
     function toggleAdmin() {
       if (isAdmin) {
         isAdmin = false;
-        adminToken = null;
         document.getElementById('btn-admin').textContent = 'Admin Login';
         document.getElementById('btn-admin').classList.remove('logged-in');
         renderForTab();
         return;
       }
       document.getElementById('admin-password').value = '';
-      document.getElementById('admin-token-input').value = '';
       document.getElementById('admin-error').style.display = 'none';
       document.getElementById('admin-modal').classList.add('active');
       document.getElementById('admin-password').focus();
@@ -1261,9 +1257,11 @@
 
     async function confirmAdminLogin() {
       var pw = document.getElementById('admin-password').value;
-      var token = document.getElementById('admin-token-input').value.trim();
-      if (!pw) { document.getElementById('admin-error').textContent = 'Password is required.'; document.getElementById('admin-error').style.display = 'block'; return; }
-      if (!token) { document.getElementById('admin-error').textContent = 'GitHub token is required for deletions.'; document.getElementById('admin-error').style.display = 'block'; return; }
+      if (!pw) {
+        document.getElementById('admin-error').textContent = 'Password is required.';
+        document.getElementById('admin-error').style.display = 'block';
+        return;
+      }
       var hash = await sha256(pw);
       if (hash !== ADMIN_HASH) {
         document.getElementById('admin-error').textContent = 'Incorrect password. Try again.';
@@ -1272,22 +1270,7 @@
         document.getElementById('admin-password').focus();
         return;
       }
-      try {
-        var testResp = await fetch('https://api.github.com/user', {
-          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
-        });
-        if (!testResp.ok) {
-          document.getElementById('admin-error').textContent = 'GitHub token is invalid or expired (HTTP ' + testResp.status + ').';
-          document.getElementById('admin-error').style.display = 'block';
-          return;
-        }
-      } catch(e) {
-        document.getElementById('admin-error').textContent = 'Could not verify GitHub token. Check your connection.';
-        document.getElementById('admin-error').style.display = 'block';
-        return;
-      }
       isAdmin = true;
-      adminToken = token;
       closeAdminModal();
       document.getElementById('btn-admin').textContent = 'Admin (Logout)';
       document.getElementById('btn-admin').classList.add('logged-in');
@@ -1337,7 +1320,14 @@
 
     async function executeDeleteRecord() {
       var deleteId = pendingDeleteId;
-      if (!deleteId || !isAdmin || !adminToken) return;
+      if (!deleteId || !isAdmin) return;
+      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      var token = cfg.token || '';
+      if (!token) {
+        document.getElementById('delete-error').textContent = 'GitHub token not configured. Please configure token first.';
+        document.getElementById('delete-error').style.display = 'block';
+        return;
+      }
       var record = allRecordsData.find(function(r) { return r.id === deleteId; });
       if (!record) {
         document.getElementById('delete-error').textContent = 'Record not found.';
@@ -1353,26 +1343,26 @@
       statusEl.classList.add('active');
       try {
         var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
-          headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (getResp.ok) {
           var fileData = await getResp.json();
           await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
             method: 'DELETE',
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Delete record: ' + getDeleteLabel(record), sha: fileData.sha })
           });
         }
         statusEl.textContent = 'Deleting photos...';
         for (var j = 0; j < 5; j++) {
           var photoResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
-            headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
           });
           if (photoResp.ok) {
             var photoData = await photoResp.json();
             await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
               method: 'DELETE',
-              headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
               body: JSON.stringify({ message: 'Delete photo for ' + deleteId, sha: photoData.sha })
             });
           } else { break; }
@@ -1393,7 +1383,7 @@
     async function removeRecordFromAllRecords(owner, repo, deleteId) {
       try {
         var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (!getResp.ok) return;
         var existing = await getResp.json();
@@ -1403,7 +1393,7 @@
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
         await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
         });
       } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
