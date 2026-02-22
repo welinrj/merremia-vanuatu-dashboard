@@ -93,6 +93,59 @@ export const LAND_COVER_TYPES = {
   'No Data':               { fill: '#BDBDBD', stroke: '#9E9E9E' }
 };
 
+/**
+ * Dynamic colour palette for LAND_COVER sub-types that don't match
+ * the predefined LAND_COVER_TYPES. Each unknown type gets a stable,
+ * distinct colour derived from a hash of the type name.
+ *
+ * 20 high-contrast colours chosen for cartographic clarity on
+ * both screen and print.
+ */
+const DYNAMIC_LC_PALETTE = [
+  { fill: '#1B5E20', stroke: '#0D3311' },   // deep green
+  { fill: '#F9A825', stroke: '#F57F17' },   // amber
+  { fill: '#0277BD', stroke: '#01579B' },   // blue
+  { fill: '#E53935', stroke: '#C62828' },   // red
+  { fill: '#6A1B9A', stroke: '#4A148C' },   // purple
+  { fill: '#00838F', stroke: '#006064' },   // teal
+  { fill: '#EF6C00', stroke: '#E65100' },   // deep orange
+  { fill: '#558B2F', stroke: '#33691E' },   // olive green
+  { fill: '#AD1457', stroke: '#880E4F' },   // magenta
+  { fill: '#4527A0', stroke: '#311B92' },   // deep purple
+  { fill: '#00695C', stroke: '#004D40' },   // dark teal
+  { fill: '#9E9D24', stroke: '#6D6B1E' },   // lime
+  { fill: '#C62828', stroke: '#B71C1C' },   // dark red
+  { fill: '#1565C0', stroke: '#0D47A1' },   // strong blue
+  { fill: '#FF8F00', stroke: '#FF6F00' },   // orange
+  { fill: '#2E7D32', stroke: '#1B5E20' },   // forest green
+  { fill: '#5C6BC0', stroke: '#3949AB' },   // indigo
+  { fill: '#D84315', stroke: '#BF360C' },   // burnt orange
+  { fill: '#00897B', stroke: '#00695C' },   // cyan
+  { fill: '#827717', stroke: '#524A03' }    // dark lime
+];
+
+/** Cache for dynamically assigned LAND_COVER colours (stable across renders). */
+const _dynamicLCCache = new Map();
+
+/**
+ * Returns a stable colour for a LAND_COVER type string not found in
+ * the predefined LAND_COVER_TYPES table.  Uses a simple hash to pick
+ * from DYNAMIC_LC_PALETTE so the same type always gets the same colour.
+ */
+function dynamicLandCoverColor(typeValue) {
+  if (_dynamicLCCache.has(typeValue)) return _dynamicLCCache.get(typeValue);
+
+  // Simple string hash → palette index (stable, deterministic)
+  let hash = 0;
+  for (let i = 0; i < typeValue.length; i++) {
+    hash = ((hash << 5) - hash + typeValue.charCodeAt(i)) | 0;
+  }
+  const idx = Math.abs(hash) % DYNAMIC_LC_PALETTE.length;
+  const color = DYNAMIC_LC_PALETTE[idx];
+  _dynamicLCCache.set(typeValue, color);
+  return color;
+}
+
 // ── Status-based style modifiers ─────────────────────────────────────
 const STATUS_STYLES = {
   'Designated': { fillOpacity: 0.35, dashArray: null,    weight: 2.0 },
@@ -132,6 +185,9 @@ export function resolveColors(category, typeValue) {
         return val;
       }
     }
+
+    // Dynamic colour — every unknown type gets its own stable colour
+    return dynamicLandCoverColor(typeValue);
   }
 
   return sym;
