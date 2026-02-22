@@ -117,6 +117,19 @@
     .modal-actions button{padding:0.5rem 1.25rem;border-radius:0.4rem;font-size:0.82rem;font-weight:600;cursor:pointer;border:none}
     .modal-cancel{background:#f1f5f9;color:#64748b}
     .modal-confirm{background:#065f46;color:#ecfdf5;border:1px solid #10b981}
+    .btn-admin{padding:0.4rem 1rem;background:#1e293b;color:#f1f5f9;border:1px solid #475569;border-radius:0.4rem;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+    .btn-admin:hover{background:#334155;box-shadow:0 2px 8px rgba(71,85,105,0.3)}
+    .btn-admin.logged-in{background:#065f46;border-color:#10b981;color:#ecfdf5}
+    .btn-admin.logged-in:hover{background:#047857}
+    .btn-row-delete{padding:0.2rem 0.6rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:0.3rem;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.15s}
+    .btn-row-delete:hover{background:#fecaca;border-color:#ef4444;box-shadow:0 1px 4px rgba(239,68,68,0.2)}
+    .modal-box.delete-confirm h3{color:#dc2626}
+    .delete-record-summary{text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.4rem;padding:0.75rem;font-size:0.78rem;color:#475569;margin-bottom:0.75rem;line-height:1.6}
+    .delete-record-summary strong{color:#1e293b}
+    .modal-confirm.danger{background:#dc2626;color:#fff;border:1px solid #ef4444}
+    .modal-confirm.danger:hover{background:#b91c1c}
+    .delete-status{font-size:0.75rem;color:#64748b;margin-top:0.5rem;display:none}
+    .delete-status.active{display:block}
     .analysis-section{padding:0 2rem 1.5rem}
     .analysis-panel{background:#ffffff;border-radius:0.75rem;padding:1.25rem;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
     .analysis-panel h2{font-size:0.9rem;font-weight:700;color:#475569;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.04em}
@@ -150,7 +163,7 @@
     @media print{
       body{background:#fff;color:#000;font-size:11pt}
       header{background:#065f46!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .config-bar,.basemap-toggle,.download-section,.photo-overlay,.live-alert-banner .alert-dismiss{display:none!important}
+      .config-bar,.basemap-toggle,.download-section,.photo-overlay,.live-alert-banner .alert-dismiss,.btn-admin,.btn-row-delete{display:none!important}
       .grid{display:grid;grid-template-columns:repeat(5,1fr)}
       .card,.map-panel,.analysis-panel,.records-panel{break-inside:avoid;border:1px solid #ccc;box-shadow:none;margin-bottom:8px}
       #live-map{max-height:400px;overflow:hidden}
@@ -178,6 +191,7 @@
     <input id="cfg-owner" type="hidden" value="welinrj">
     <input id="cfg-repo" type="hidden" value="merremia-field-data">
     <button onclick="loadFieldData()">Load Data</button>
+    <button class="btn-admin" id="btn-admin" onclick="toggleAdmin()">Admin Login</button>
     <span class="status-msg" id="status-msg">
       <span class="status-indicator" id="status-indicator"></span>
       <span id="status-text"></span>
@@ -278,6 +292,34 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="admin-modal">
+    <div class="modal-box">
+      <h3>Admin Login</h3>
+      <p>Enter admin credentials to enable record management.</p>
+      <input type="password" id="admin-password" placeholder="Admin password" onkeydown="if(event.key==='Enter')document.getElementById('admin-token-input').focus()">
+      <input type="password" id="admin-token-input" placeholder="GitHub personal access token" onkeydown="if(event.key==='Enter')confirmAdminLogin()">
+      <div class="modal-err" id="admin-error">Incorrect password. Try again.</div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeAdminModal()">Cancel</button>
+        <button class="modal-confirm" onclick="confirmAdminLogin()">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="delete-confirm-modal">
+    <div class="modal-box delete-confirm">
+      <h3>Delete Record</h3>
+      <p>This will permanently delete this record from GitHub.</p>
+      <div class="delete-record-summary" id="delete-record-summary"></div>
+      <div class="modal-err" id="delete-error"></div>
+      <div class="delete-status" id="delete-status">Deleting...</div>
+      <div class="modal-actions" id="delete-actions">
+        <button class="modal-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
+        <button class="modal-confirm danger" id="btn-confirm-delete" onclick="executeDeleteRecord()">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <div class="footer-inner">
       <div class="footer-coa">
@@ -336,6 +378,10 @@
     var TABLE_PAGE_SIZE = 50;
     var lastUpdateTime = null;
     var checkCount = 0;
+    var isAdmin = false;
+    var adminToken = null;
+    var ADMIN_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
+    var pendingDeleteId = null;
 
     // Load saved config
     try {
@@ -842,35 +888,37 @@
     function changeTablePage(delta) { tablePage += delta; renderTable(getTabRecords()); }
 
     function buildHeaders() {
-      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>';
-      if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>';
-      if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>';
-      if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>';
+      var del = isAdmin ? '<th style="width:70px">Delete</th>' : '';
+      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>' + del;
+      if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>' + del;
+      if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>' + del;
+      if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>' + del;
       return '';
     }
 
     function buildRow(r) {
       var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+      var del = isAdmin ? '<td><button class="btn-row-delete" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button></td>' : '';
       if (activeTab === 'merremia') {
         var t = (r.threatLevel||'low').toLowerCase();
         var bc = t === 'high' ? 'badge-high' : t === 'moderate' ? 'badge-moderate' : 'badge-low';
         var sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'degraded') {
         var sv = (r.severity||'').toLowerCase();
         var bc = sv === 'severe' ? 'badge-severe' : sv === 'moderate' ? 'badge-moderate' : 'badge-mild';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.degradationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.severity||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.landUseType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.degradationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.severity||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.landUseType||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'restoration') {
         var st = (r.restorationStage||'').toLowerCase();
         var bc = st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? 'badge-established' : st.indexOf('mid') >= 0 ? 'badge-mid' : 'badge-planning';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.restorationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.restorationStage||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.projectName||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.restorationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.restorationStage||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.projectName||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'threatened') {
         var iu = (r.iucnStatus||'').toLowerCase();
         var bc = iu.indexOf('critical') >= 0 ? 'badge-cr' : iu.indexOf('endangered') >= 0 ? 'badge-en' : iu.indexOf('vulnerable') >= 0 ? 'badge-vu' : iu.indexOf('near') >= 0 ? 'badge-nt' : 'badge-dd';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + (r.speciesName||'-') + '</em></td><td><span class="badge ' + bc + '">' + (r.iucnStatus||'-') + '</span></td><td>' + (r.populationEstimate||'-') + '</td><td>' + (r.habitatType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + (r.speciesName||'-') + '</em></td><td><span class="badge ' + bc + '">' + (r.iucnStatus||'-') + '</span></td><td>' + (r.populationEstimate||'-') + '</td><td>' + (r.habitatType||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       return '';
     }
@@ -1188,6 +1236,179 @@
     }
 
     document.getElementById('dl-modal').addEventListener('click', function(e) { if (e.target === this) closeDlModal(); });
+
+    // ── Admin Login ──
+    function toggleAdmin() {
+      if (isAdmin) {
+        isAdmin = false;
+        adminToken = null;
+        document.getElementById('btn-admin').textContent = 'Admin Login';
+        document.getElementById('btn-admin').classList.remove('logged-in');
+        renderForTab();
+        return;
+      }
+      document.getElementById('admin-password').value = '';
+      document.getElementById('admin-token-input').value = '';
+      document.getElementById('admin-error').style.display = 'none';
+      document.getElementById('admin-modal').classList.add('active');
+      document.getElementById('admin-password').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('admin-modal').classList.remove('active');
+    }
+
+    async function confirmAdminLogin() {
+      var pw = document.getElementById('admin-password').value;
+      var token = document.getElementById('admin-token-input').value.trim();
+      if (!pw) { document.getElementById('admin-error').textContent = 'Password is required.'; document.getElementById('admin-error').style.display = 'block'; return; }
+      if (!token) { document.getElementById('admin-error').textContent = 'GitHub token is required for deletions.'; document.getElementById('admin-error').style.display = 'block'; return; }
+      var hash = await sha256(pw);
+      if (hash !== ADMIN_HASH) {
+        document.getElementById('admin-error').textContent = 'Incorrect password. Try again.';
+        document.getElementById('admin-error').style.display = 'block';
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password').focus();
+        return;
+      }
+      try {
+        var testResp = await fetch('https://api.github.com/user', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!testResp.ok) {
+          document.getElementById('admin-error').textContent = 'GitHub token is invalid or expired (HTTP ' + testResp.status + ').';
+          document.getElementById('admin-error').style.display = 'block';
+          return;
+        }
+      } catch(e) {
+        document.getElementById('admin-error').textContent = 'Could not verify GitHub token. Check your connection.';
+        document.getElementById('admin-error').style.display = 'block';
+        return;
+      }
+      isAdmin = true;
+      adminToken = token;
+      closeAdminModal();
+      document.getElementById('btn-admin').textContent = 'Admin (Logout)';
+      document.getElementById('btn-admin').classList.add('logged-in');
+      renderForTab();
+    }
+
+    document.getElementById('admin-modal').addEventListener('click', function(e) { if (e.target === this) closeAdminModal(); });
+
+    // ── Record Deletion ──
+    function getDeleteLabel(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return ((Array.isArray(r.species) ? r.species.join(', ') : r.species) || 'Merremia') + ' at ' + (r.island || 'Unknown');
+      if (cat === 'degraded') return 'Degraded area at ' + (r.island || 'Unknown');
+      if (cat === 'restoration') return 'Restoration site at ' + (r.island || 'Unknown');
+      if (cat === 'threatened') return (r.speciesName || 'Threatened species') + ' at ' + (r.island || 'Unknown');
+      return 'Record at ' + (r.island || 'Unknown');
+    }
+
+    function promptDeleteRecord(id) {
+      pendingDeleteId = id;
+      var record = allRecordsData.find(function(r) { return r.id === id; });
+      if (!record) return;
+      var cat = record.category || 'merremia';
+      var label = '';
+      if (cat === 'merremia') label = (Array.isArray(record.species) ? record.species.join(', ') : (record.species || 'Merremia'));
+      else if (cat === 'degraded') label = record.degradationType || 'Degraded Area';
+      else if (cat === 'restoration') label = record.restorationType || 'Restoration';
+      else if (cat === 'threatened') label = record.speciesName || 'Threatened Species';
+      var summary = '<strong>ID:</strong> ' + record.id + '<br>' +
+        '<strong>Category:</strong> ' + cat + '<br>' +
+        '<strong>Type:</strong> ' + label + '<br>' +
+        '<strong>Island:</strong> ' + (record.island || '-') + '<br>' +
+        '<strong>Site:</strong> ' + (record.siteName || '-') + '<br>' +
+        '<strong>Date:</strong> ' + new Date(record.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) + '<br>' +
+        '<strong>Observer:</strong> ' + (record.observer || '-');
+      document.getElementById('delete-record-summary').innerHTML = summary;
+      document.getElementById('delete-error').style.display = 'none';
+      document.getElementById('delete-status').classList.remove('active');
+      document.getElementById('btn-confirm-delete').disabled = false;
+      document.getElementById('delete-confirm-modal').classList.add('active');
+    }
+
+    function closeDeleteConfirmModal() {
+      pendingDeleteId = null;
+      document.getElementById('delete-confirm-modal').classList.remove('active');
+    }
+
+    async function executeDeleteRecord() {
+      var deleteId = pendingDeleteId;
+      if (!deleteId || !isAdmin || !adminToken) return;
+      var record = allRecordsData.find(function(r) { return r.id === deleteId; });
+      if (!record) {
+        document.getElementById('delete-error').textContent = 'Record not found.';
+        document.getElementById('delete-error').style.display = 'block';
+        return;
+      }
+      var owner = document.getElementById('cfg-owner').value.trim();
+      var repo = document.getElementById('cfg-repo').value.trim();
+      var statusEl = document.getElementById('delete-status');
+      var btnEl = document.getElementById('btn-confirm-delete');
+      btnEl.disabled = true;
+      statusEl.textContent = 'Deleting record file...';
+      statusEl.classList.add('active');
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
+          headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (getResp.ok) {
+          var fileData = await getResp.json();
+          await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Delete record: ' + getDeleteLabel(record), sha: fileData.sha })
+          });
+        }
+        statusEl.textContent = 'Deleting photos...';
+        for (var j = 0; j < 5; j++) {
+          var photoResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
+            headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+          });
+          if (photoResp.ok) {
+            var photoData = await photoResp.json();
+            await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Delete photo for ' + deleteId, sha: photoData.sha })
+            });
+          } else { break; }
+        }
+        statusEl.textContent = 'Updating all-records.json...';
+        await removeRecordFromAllRecords(owner, repo, deleteId);
+        allRecordsData = allRecordsData.filter(function(r) { return r.id !== deleteId; });
+        closeDeleteConfirmModal();
+        renderForTab();
+      } catch(e) {
+        document.getElementById('delete-error').textContent = 'Error: ' + (e.message || 'Deletion failed. Check token permissions.');
+        document.getElementById('delete-error').style.display = 'block';
+        btnEl.disabled = false;
+        statusEl.classList.remove('active');
+      }
+    }
+
+    async function removeRecordFromAllRecords(owner, repo, deleteId) {
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + adminToken, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!getResp.ok) return;
+        var existing = await getResp.json();
+        var allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
+        var filtered = allRecords.filter(function(r) { return r.id !== deleteId; });
+        if (filtered.length === allRecords.length) return;
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
+        await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + adminToken, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
+        });
+      } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
+    }
+
+    document.getElementById('delete-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeDeleteConfirmModal(); });
 
     if (document.getElementById('cfg-owner').value) { setTimeout(loadFieldData, 300); }
   </script>
