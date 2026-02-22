@@ -1,9 +1,10 @@
 /**
  * Export tools component.
- * Provides CSV, JSON, and optional PNG export of filtered data.
+ * Provides CSV, JSON, and PNG export of filtered data.
  */
 import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
+import { getMap } from './mapView.js';
 
 /**
  * Exports the current summary table as CSV, respecting active filters.
@@ -94,27 +95,91 @@ export function exportTORSnapshot() {
 }
 
 /**
- * Exports the current map view as a PNG (basic screenshot via canvas).
- * Uses the Leaflet map container's built-in rendering.
+ * Exports the current map view as a PNG by compositing tile images and
+ * Leaflet canvas layers onto a single export canvas.
  */
 export async function exportMapPNG() {
+  const leafletMap = getMap();
+  const mapEl = document.getElementById('map');
+  if (!leafletMap || !mapEl) {
+    alert('Map not ready. Please wait for layers to load.');
+    return;
+  }
+
   try {
-    const mapEl = document.getElementById('map');
-    if (!mapEl) throw new Error('Map not found');
-
-    // Use html2canvas-like approach: just capture the map container
+    const size = leafletMap.getSize();
+    const dpr = 2; // retina-quality output
     const canvas = document.createElement('canvas');
-    const rect = mapEl.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
+    canvas.width = size.x * dpr;
+    canvas.height = size.y * dpr;
     const ctx = canvas.getContext('2d');
-    ctx.scale(2, 2);
-    ctx.fillStyle = '#f0f0f0';
-    ctx.fillRect(0, 0, rect.width, rect.height);
-    ctx.fillStyle = '#333';
-    ctx.font = '14px sans-serif';
-    ctx.fillText('Map export — use browser Print/Screenshot for full fidelity', 20, rect.height / 2);
+    ctx.scale(dpr, dpr);
 
+    // 1) White background
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, size.x, size.y);
+
+    // 2) Draw tile images
+    const mapPane = mapEl.querySelector('.leaflet-map-pane');
+    const mapTransform = _parseTransform(mapPane);
+    const tilePane = mapEl.querySelector('.leaflet-tile-pane');
+
+    if (tilePane) {
+      const tileContainers = tilePane.querySelectorAll('.leaflet-tile-container');
+      for (const container of tileContainers) {
+        const containerTransform = _parseTransform(container);
+        const tiles = container.querySelectorAll('img.leaflet-tile');
+        for (const tile of tiles) {
+          if (!tile.complete || tile.naturalWidth === 0) continue;
+          try {
+            const tileTransform = _parseTransform(tile);
+            const x = mapTransform.x + containerTransform.x + tileTransform.x;
+            const y = mapTransform.y + containerTransform.y + tileTransform.y;
+            ctx.drawImage(tile, x, y, tile.width, tile.height);
+          } catch (_) { /* CORS tile — skip */ }
+        }
+      }
+    }
+
+    // 3) Draw all canvas layers (feature overlays rendered by Leaflet canvas renderer)
+    const canvasLayers = mapEl.querySelectorAll('.leaflet-overlay-pane canvas');
+    for (const cvs of canvasLayers) {
+      if (cvs.width === 0 || cvs.height === 0) continue;
+      try {
+        const paneTransform = _parseTransform(mapEl.querySelector('.leaflet-overlay-pane'));
+        const cvsTransform = _parseTransform(cvs);
+        const x = mapTransform.x + paneTransform.x + cvsTransform.x;
+        const y = mapTransform.y + paneTransform.y + cvsTransform.y;
+        ctx.drawImage(cvs, x, y);
+      } catch (_) { /* tainted canvas — skip */ }
+    }
+
+    // 4) Draw SVG overlay (province boundaries, tooltips) if present
+    const svgOverlays = mapEl.querySelectorAll('.leaflet-overlay-pane svg');
+    for (const svg of svgOverlays) {
+      try {
+        const svgData = new XMLSerializer().serializeToString(svg);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+        const img = await _loadImage(svgUrl);
+        URL.revokeObjectURL(svgUrl);
+        const paneTransform = _parseTransform(mapEl.querySelector('.leaflet-overlay-pane'));
+        const svgRect = svg.getBoundingClientRect();
+        const mapRect = mapEl.getBoundingClientRect();
+        const x = svgRect.left - mapRect.left;
+        const y = svgRect.top - mapRect.top;
+        ctx.drawImage(img, x, y, svgRect.width, svgRect.height);
+      } catch (_) { /* SVG render fail — skip */ }
+    }
+
+    // 5) Attribution line
+    ctx.fillStyle = 'rgba(255,255,255,0.8)';
+    ctx.fillRect(0, size.y - 22, size.x, 22);
+    ctx.fillStyle = '#555';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('Vanuatu NBSAP GIS Portal — ' + new Date().toLocaleDateString('en-GB'), 8, size.y - 7);
+
+    // 6) Export as PNG download
     canvas.toBlob(blob => {
       if (blob) {
         const url = URL.createObjectURL(blob);
@@ -124,10 +189,35 @@ export async function exportMapPNG() {
         a.click();
         URL.revokeObjectURL(url);
       }
-    });
+    }, 'image/png');
   } catch (err) {
-    alert('Map PNG export is limited in-browser. Use browser screenshot (Ctrl+Shift+S) for best results.');
+    console.error('Map PNG export failed:', err);
+    alert('Map PNG export failed. Try using browser Print/Screenshot (Ctrl+Shift+S) instead.');
   }
+}
+
+/** Parses CSS translate3d/translate transform into {x, y} offsets. */
+function _parseTransform(el) {
+  if (!el) return { x: 0, y: 0 };
+  const st = el.style?.transform || window.getComputedStyle(el).transform || '';
+  // translate3d(Xpx, Ypx, 0px) or translate(Xpx, Ypx) or matrix(...)
+  const m3d = st.match(/translate3d\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/);
+  if (m3d) return { x: parseFloat(m3d[1]), y: parseFloat(m3d[2]) };
+  const m2d = st.match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/);
+  if (m2d) return { x: parseFloat(m2d[1]), y: parseFloat(m2d[2]) };
+  const matrix = st.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/);
+  if (matrix) return { x: parseFloat(matrix[1]), y: parseFloat(matrix[2]) };
+  return { x: 0, y: 0 };
+}
+
+/** Promise-wrapper for loading an image. */
+function _loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
 }
 
 function downloadFile(content, filename, mimeType) {

@@ -68,7 +68,8 @@ export function initMap(containerId) {
   for (const [key, src] of Object.entries(ENV.tileSources)) {
     baseLayers[src.name] = L.tileLayer(src.url, {
       attribution: src.attribution,
-      maxZoom: src.maxZoom
+      maxZoom: src.maxZoom,
+      crossOrigin: 'anonymous'
     });
   }
 
