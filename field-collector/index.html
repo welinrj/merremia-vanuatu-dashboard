@@ -1436,7 +1436,7 @@
     // SECURITY: Token must be configured by user in Settings panel
     // Never hardcode tokens in client-side JavaScript!
     var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: '' };
-    var DELETE_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
+    var DELETE_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
     async function sha256(message) {
       var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
       return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
