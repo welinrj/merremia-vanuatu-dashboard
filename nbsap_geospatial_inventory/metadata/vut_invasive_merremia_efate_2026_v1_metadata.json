@@ -1,0 +1,52 @@
+{
+  "id": "550e8400-e29b-41d4-a716-446655440000",
+  "datasetName": "Merremia Peltata Distribution - Efate Island 2026",
+  "description": "Point locations of confirmed Merremia peltata (invasive vine) observations on Efate Island, collected by DEPC field officers during February 2026. Dataset includes coverage density, threat assessment, and control status for each site.",
+  "custodianAgency": "Department of Environment Protection and Conservation (DEPC)",
+  "contactPerson": "John Doe",
+  "contactEmail": "jdoe@depc.gov.vu",
+  "contactPhone": "+678 5551234",
+  "dateCreated": "2026-02-10T00:00:00.000Z",
+  "dateUpdated": "2026-02-15T00:00:00.000Z",
+  "updateFrequency": "Monthly",
+  "geographicCoverage": "Efate Island, Shefa Province, Vanuatu",
+  "boundingBox": {
+    "north": -17.6891,
+    "south": -17.7333,
+    "east": 168.3512,
+    "west": 168.2947
+  },
+  "coordinateReferenceSystem": "EPSG:4326",
+  "geometryType": "Point",
+  "dataSource": "Field surveys conducted by DEPC field officers using mobile PWA application",
+  "methodologySummary": "Ground-based field observations using GPS-enabled mobile devices. Officers recorded location, estimated coverage area, took geotagged photographs, and assessed threat level. Data collected following standardized DEPC field protocols.",
+  "dataLimitations": "Coverage may be incomplete in remote or inaccessible areas. Density estimates are visual approximations. Dataset represents observed locations only, not comprehensive island-wide mapping. GPS accuracy ±5-15m depending on canopy cover.",
+  "accessClassification": "Public",
+  "licenseType": "CC BY 4.0 - Government of Vanuatu",
+  "format": "GeoJSON",
+  "category": "05_invasive_species",
+  "fileName": "vut_invasive_merremia_efate_2026_v1.geojson",
+  "fileSize": 2048,
+  "featureCount": 3,
+  "keywords": [
+    "invasive species",
+    "Merremia peltata",
+    "biodiversity threat",
+    "Efate",
+    "Vanuatu",
+    "NBSAP",
+    "field monitoring",
+    "conservation"
+  ],
+  "language": "en",
+  "spatialAccuracy": "±5-15m",
+  "completeness": 65,
+  "thumbnail": null,
+  "relatedDatasets": [
+    "vut_ecosystems_efate_landcover_2025_v1",
+    "vut_conservation_protected_areas_2025_v1"
+  ],
+  "citations": [
+    "Department of Environment Protection and Conservation. (2026). Merremia Peltata Distribution - Efate Island 2026. Government of Vanuatu."
+  ]
+}

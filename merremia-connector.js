@@ -349,6 +349,13 @@ class MerremiaConnector {
     base.synced = r.synced !== false; // Default to true
     base.photoCount = r.photoCount || 0;
 
+    // Preserve polygon geometry data
+    base.geometryType = r.geometryType || 'point';
+    if (r.polygonCoordinates && Array.isArray(r.polygonCoordinates)) {
+      base.polygonCoordinates = r.polygonCoordinates;
+      base.polygonAreaHa = r.polygonAreaHa || 0;
+    }
+
     // Normalize merremia-specific fields (category could be missing in old data)
     if (base.category === 'merremia' || !base.category) {
       base.species = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : ['Unknown Merremia']);
@@ -551,7 +558,11 @@ class MerremiaConnector {
    */
   toGeoJSON(records) {
     const features = records
-      .filter(r => r.gps?.lat && r.gps?.lng)
+      .filter(r => {
+        // Accept polygon records or point records with valid coordinates
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) return true;
+        return r.gps?.lat && r.gps?.lng;
+      })
       .map(r => {
         const cat = r.category || 'merremia';
         const speciesArr = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
@@ -563,28 +574,41 @@ class MerremiaConnector {
         else if (cat === 'threatened') label = r.speciesName || 'Threatened Species';
         else label = 'Record';
 
+        const properties = {
+          id: r.id,
+          category: cat,
+          geometryType: r.geometryType || 'point',
+          label: label,
+          species: speciesArr,
+          speciesLabel: speciesArr.join(', '),
+          count: r.count,
+          threatLevel: r.threatLevel,
+          island: r.island,
+          siteName: r.siteName,
+          observer: r.observer,
+          timestamp: r.timestamp,
+          coverageArea: r.coverageArea,
+          polygonAreaHa: r.polygonAreaHa || 0,
+          notes: r.notes,
+          accuracy: r.gps ? r.gps.accuracy : null
+        };
+
+        // Polygon geometry
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) {
+          const coords = r.polygonCoordinates.slice();
+          const first = coords[0]; const last = coords[coords.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
+          return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties };
+        }
+
+        // Point geometry
         return {
           type: 'Feature',
           geometry: {
             type: 'Point',
             coordinates: [r.gps.lng, r.gps.lat]
           },
-          properties: {
-            id: r.id,
-            category: cat,
-            label: label,
-            species: speciesArr,
-            speciesLabel: speciesArr.join(', '),
-            count: r.count,
-            threatLevel: r.threatLevel,
-            island: r.island,
-            siteName: r.siteName,
-            observer: r.observer,
-            timestamp: r.timestamp,
-            coverageArea: r.coverageArea,
-            notes: r.notes,
-            accuracy: r.gps.accuracy
-          }
+          properties
         };
       });
 
