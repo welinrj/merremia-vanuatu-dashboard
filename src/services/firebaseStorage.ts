@@ -32,7 +32,7 @@ export async function uploadGeoJSON(
   }
 ): Promise<string> {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
 
   const customMetadata: UploadMetadata = {
     contentType: 'application/geo+json',
@@ -64,7 +64,7 @@ export async function uploadGeoJSONFile(
   }
 ): Promise<string> {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
 
   const customMetadata: UploadMetadata = {
     contentType: 'application/geo+json',
@@ -87,7 +87,7 @@ export async function uploadGeoJSONFile(
  */
 export async function downloadGeoJSON(datasetId: string): Promise<any> {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
 
   const url = await getDownloadURL(storageRef)
   const response = await fetch(url)
@@ -101,7 +101,7 @@ export async function downloadGeoJSON(datasetId: string): Promise<any> {
  */
 export async function getGeoJSONUrl(datasetId: string): Promise<string> {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
   return await getDownloadURL(storageRef)
 }
 
@@ -110,7 +110,7 @@ export async function getGeoJSONUrl(datasetId: string): Promise<string> {
  */
 export async function deleteGeoJSON(datasetId: string): Promise<void> {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
   await deleteObject(storageRef)
 }
 
@@ -119,7 +119,7 @@ export async function deleteGeoJSON(datasetId: string): Promise<void> {
  */
 export async function getFileMetadata(datasetId: string) {
   const fileName = `${datasetId}.geojson`
-  const storageRef = ref(storage, `${GEOJSON_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${GEOJSON_BUCKET}/${fileName}`)
   return await getMetadata(storageRef)
 }
 
@@ -137,7 +137,7 @@ export async function uploadFieldData(
   }
 ): Promise<string> {
   const fileName = `${observationId}.json`
-  const storageRef = ref(storage, `${FIELD_DATA_BUCKET}/${fileName}`)
+  const storageRef = ref(storage!, `${FIELD_DATA_BUCKET}/${fileName}`)
 
   const customMeta: Record<string, string> = {
     observationId,
@@ -171,7 +171,7 @@ export async function uploadFieldImage(
 ): Promise<string> {
   const fileExtension = imageFile.name.split('.').pop()
   const fileName = `${observationId}_${imageIndex}.${fileExtension}`
-  const storageRef = ref(storage, `${FIELD_DATA_BUCKET}/images/${fileName}`)
+  const storageRef = ref(storage!, `${FIELD_DATA_BUCKET}/images/${fileName}`)
 
   const metadata: UploadMetadata = {
     contentType: imageFile.type,
@@ -192,7 +192,7 @@ export async function uploadFieldImage(
  * List all datasets in storage
  */
 export async function listStoredDatasets(): Promise<string[]> {
-  const storageRef = ref(storage, GEOJSON_BUCKET)
+  const storageRef = ref(storage!, GEOJSON_BUCKET)
   const result = await listAll(storageRef)
 
   return result.items.map((item) => item.name.replace('.geojson', ''))
@@ -205,7 +205,7 @@ export async function getStorageUsage(): Promise<{
   totalBytes: number
   fileCount: number
 }> {
-  const storageRef = ref(storage, GEOJSON_BUCKET)
+  const storageRef = ref(storage!, GEOJSON_BUCKET)
   const result = await listAll(storageRef)
 
   let totalBytes = 0

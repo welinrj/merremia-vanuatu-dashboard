@@ -25,13 +25,23 @@ import { auth, db } from '../config/firebase'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import type { UserProfile } from '../types/user'
 
-const googleProvider = new GoogleAuthProvider()
+const googleProvider = auth ? new GoogleAuthProvider() : null
+
+/**
+ * Check if Firebase is configured
+ */
+function ensureFirebaseConfigured(): void {
+  if (!auth || !db) {
+    throw new Error('Firebase is not configured. Please set up Firebase credentials in your .env file.')
+  }
+}
 
 /**
  * Sign in with email and password
  */
 export async function signInWithEmail(email: string, password: string): Promise<UserProfile> {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password)
+  ensureFirebaseConfigured()
+  const userCredential = await signInWithEmailAndPassword(auth!, email, password)
   const profile = await getUserProfile(userCredential.user.uid)
   if (!profile) {
     throw new Error('User profile not found')
@@ -43,7 +53,8 @@ export async function signInWithEmail(email: string, password: string): Promise<
  * Sign in with Google
  */
 export async function signInWithGoogle(): Promise<UserProfile> {
-  const result = await signInWithPopup(auth, googleProvider)
+  ensureFirebaseConfigured()
+  const result = await signInWithPopup(auth!, googleProvider!)
   const user = result.user
 
   // Check if user profile exists, create if not
@@ -72,7 +83,8 @@ export async function createUser(
     organization: string
   }
 ): Promise<UserProfile> {
-  const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+  ensureFirebaseConfigured()
+  const userCredential = await createUserWithEmailAndPassword(auth!, email, password)
   const user = userCredential.user
 
   // Update display name
@@ -109,7 +121,7 @@ async function createUserProfile(
     lastLogin: new Date().toISOString(),
   }
 
-  await setDoc(doc(db, 'users', uid), {
+  await setDoc(doc(db!, 'users', uid), {
     ...userProfile,
     createdAt: serverTimestamp(),
     lastLogin: serverTimestamp(),
@@ -122,7 +134,7 @@ async function createUserProfile(
  * Get user profile from Firestore
  */
 export async function getUserProfile(uid: string): Promise<UserProfile | null> {
-  const docRef = doc(db, 'users', uid)
+  const docRef = doc(db!, 'users', uid)
   const docSnap = await getDoc(docRef)
 
   if (!docSnap.exists()) {
@@ -148,12 +160,13 @@ export async function updateUserProfile(
   uid: string,
   updates: Partial<Pick<UserProfile, 'name' | 'organization'>>
 ): Promise<void> {
-  const docRef = doc(db, 'users', uid)
+  ensureFirebaseConfigured()
+  const docRef = doc(db!, 'users', uid)
   await updateDoc(docRef, updates)
 
   // Update auth profile if name changed
-  if (updates.name && auth.currentUser) {
-    await updateProfile(auth.currentUser, { displayName: updates.name })
+  if (updates.name && auth!.currentUser) {
+    await updateProfile(auth!.currentUser, { displayName: updates.name })
   }
 }
 
@@ -161,7 +174,8 @@ export async function updateUserProfile(
  * Update last login timestamp
  */
 export async function updateLastLogin(uid: string): Promise<void> {
-  const docRef = doc(db, 'users', uid)
+  ensureFirebaseConfigured()
+  const docRef = doc(db!, 'users', uid)
   await updateDoc(docRef, {
     lastLogin: serverTimestamp(),
   })
@@ -171,27 +185,30 @@ export async function updateLastLogin(uid: string): Promise<void> {
  * Sign out current user
  */
 export async function signOutUser(): Promise<void> {
-  await signOut(auth)
+  ensureFirebaseConfigured()
+  await signOut(auth!)
 }
 
 /**
  * Send password reset email
  */
 export async function resetPassword(email: string): Promise<void> {
-  await sendPasswordResetEmail(auth, email)
+  ensureFirebaseConfigured()
+  await sendPasswordResetEmail(auth!, email)
 }
 
 /**
  * Update user email
  */
 export async function changeEmail(newEmail: string): Promise<void> {
-  if (!auth.currentUser) {
+  ensureFirebaseConfigured()
+  if (!auth!.currentUser) {
     throw new Error('No user signed in')
   }
-  await updateEmail(auth.currentUser, newEmail)
+  await updateEmail(auth!.currentUser, newEmail)
 
   // Update Firestore
-  await updateDoc(doc(db, 'users', auth.currentUser.uid), {
+  await updateDoc(doc(db!, 'users', auth!.currentUser.uid), {
     email: newEmail,
   })
 }
@@ -200,33 +217,37 @@ export async function changeEmail(newEmail: string): Promise<void> {
  * Update user password
  */
 export async function changePassword(newPassword: string): Promise<void> {
-  if (!auth.currentUser) {
+  ensureFirebaseConfigured()
+  if (!auth!.currentUser) {
     throw new Error('No user signed in')
   }
-  await updatePassword(auth.currentUser, newPassword)
+  await updatePassword(auth!.currentUser, newPassword)
 }
 
 /**
  * Delete user account
  */
 export async function deleteUserAccount(): Promise<void> {
-  if (!auth.currentUser) {
+  ensureFirebaseConfigured()
+  if (!auth!.currentUser) {
     throw new Error('No user signed in')
   }
   // Note: Firestore user profile deletion should be handled by Firebase Functions or Admin SDK
-  await deleteUser(auth.currentUser)
+  await deleteUser(auth!.currentUser)
 }
 
 /**
  * Listen to auth state changes
  */
 export function onAuthStateChange(callback: (user: FirebaseUser | null) => void): () => void {
-  return onAuthStateChanged(auth, callback)
+  ensureFirebaseConfigured()
+  return onAuthStateChanged(auth!, callback)
 }
 
 /**
  * Get current user
  */
 export function getCurrentUser(): FirebaseUser | null {
+  if (!auth) return null
   return auth.currentUser
 }
