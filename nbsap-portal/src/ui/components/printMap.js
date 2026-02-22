@@ -153,7 +153,7 @@ export function openPrintProvinceMaps(targetCode) {
     requestAnimationFrame(() => {
       initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinces[idx - 1], true);
       // Give the canvas time to paint before starting the next province
-      setTimeout(() => requestAnimationFrame(renderNext), 300);
+      setTimeout(() => requestAnimationFrame(renderNext), 600);
     });
   }
   renderNext();
@@ -164,7 +164,8 @@ export function openPrintProvinceMaps(targetCode) {
 
 /**
  * Pre-computes data shared across all province pages for a target.
- * Builds province→features index, caches legend HTML, caches national metrics.
+ * Builds province→features index, caches legend HTML, caches national metrics,
+ * and pre-computes per-province metrics (avoids 6× computeTargetMetrics calls).
  */
 function buildProvinceSharedContext(targetCode, layers, provinces) {
   // Build province → features index (one pass over all features)
@@ -203,9 +204,21 @@ function buildProvinceSharedContext(targetCode, layers, provinces) {
     nationalMetrics = computeTargetMetrics(layers, targetCode, allFilter);
   }
 
+  // Pre-compute per-province metrics so renderProvincePage doesn't call
+  // computeTargetMetrics 6 times (each of which iterates all features)
+  const provinceMetrics = {};
+  for (const prov of provinces) {
+    const provFilter = { targets: [targetCode], province: prov, category: 'All', realm: 'All', year: 'All' };
+    if (isT3) {
+      provinceMetrics[prov] = compute30x30Metrics(layers, provFilter);
+    } else {
+      provinceMetrics[prov] = computeTargetMetrics(layers, targetCode, provFilter);
+    }
+  }
+
   const expected = getExpectedForTarget(targetCode);
 
-  return { provinceFeatures, provinceFeaturesPerLayer, legendHtml, nationalMetrics, expected, layers };
+  return { provinceFeatures, provinceFeaturesPerLayer, legendHtml, nationalMetrics, provinceMetrics, expected, layers };
 }
 
 /**
@@ -491,14 +504,11 @@ function renderProvincePage(container, targetCode, target, provinceName, sharedC
   const baselines = ENV.nationalBaselines;
   const provinceFilter = { targets: [targetCode], province: provinceName, category: 'All', realm: 'All', year: 'All' };
 
-  // Compute metrics filtered to this province
-  let metrics;
+  // Use pre-computed province metrics if available, else compute on the fly
   const isT3 = targetCode === 'T3';
-  if (isT3) {
-    metrics = compute30x30Metrics(layers, provinceFilter);
-  } else {
-    metrics = computeTargetMetrics(layers, targetCode, provinceFilter);
-  }
+  const metrics = sharedCtx?.provinceMetrics?.[provinceName] || (
+    isT3 ? compute30x30Metrics(layers, provinceFilter) : computeTargetMetrics(layers, targetCode, provinceFilter)
+  );
 
   // Use pre-indexed province features if available, else filter on the fly
   const totalFeatures = sharedCtx?.provinceFeatures?.[provinceName]?.length ??
@@ -2151,17 +2161,17 @@ function renderDataSourcesAndActionsPage(container, targetCode, target, analysis
 
 // ═══════════════════════════════════════════════════════════════════════
 
-/** Max features to render per symbology group on a single print map page.
- *  Kept conservative because province-by-province printing creates up to 6 maps. */
-const PRINT_MAP_FEATURE_CAP = 500;
+/** Max TOTAL features to render on a single print map page (across all groups).
+ *  Kept low because province-by-province printing creates up to 6 maps sequentially. */
+const PRINT_MAP_TOTAL_CAP = 400;
 
 /**
  * Initializes a Leaflet map inside the print page for a specific target.
  * Renders dissolved (unioned) boundaries per symbology group (category, or
  * sub-type for LAND_COVER) for clean cartographic output.
  *
- * For very large datasets (T10), features are capped per group to prevent
- * canvas overload when 6 province maps are rendered simultaneously.
+ * For very large datasets (T10), dissolution is skipped and features are
+ * capped to PRINT_MAP_TOTAL_CAP total across all groups.
  */
 function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, provinceFilter, skipDissolution) {
   const el = document.getElementById(containerId);
@@ -2176,15 +2186,13 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     scrollWheelZoom: false,
     doubleClickZoom: false,
     touchZoom: false,
-    preferCanvas: true          // Canvas renderer — handles thousands of features without crashing
+    preferCanvas: true
   });
 
-  // Use CartoDB Light basemap for clean print output
   L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     maxZoom: 19
   }).addTo(printMap);
 
-  // Scale bar
   L.control.scale({ imperial: false, position: 'bottomleft', maxWidth: 150 }).addTo(printMap);
 
   // Province boundaries
@@ -2217,13 +2225,12 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }).addTo(printMap);
   }
 
-  // Collect features per symbology group for dissolution
+  // ── Collect features per symbology group ──
   const groupPolygons = {};   // groupKey → Feature[]
   const groupMeta = {};       // groupKey → { cat, typeValue }
   const refPolygons = {};     // cat → Feature[]
   const refPoints = {};       // cat → Feature[]
   const pointsByCat = {};     // cat → Feature[]
-  const featureGroup = L.featureGroup();
 
   for (const layerData of layers) {
     const meta = layerData.metadata;
@@ -2256,24 +2263,34 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }
   }
 
-  // Render reference layers first (behind data layers) — batched per category
+  // ── Count total data features to decide if we need to cap ──
+  let totalDataFeatures = 0;
+  for (const features of Object.values(groupPolygons)) totalDataFeatures += features.length;
+  for (const features of Object.values(pointsByCat)) totalDataFeatures += features.length;
+  const needsCap = totalDataFeatures > PRINT_MAP_TOTAL_CAP;
+  // Budget remaining for data features after reference layers
+  let featureBudget = PRINT_MAP_TOTAL_CAP;
+
+  const featureGroup = L.featureGroup();
+
+  // ── Reference layers first (behind data layers) — batched per category ──
   for (const [cat, features] of Object.entries(refPolygons)) {
-    const geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+    featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features }, {
       style: () => referencePolygonStyle(cat)
-    });
-    featureGroup.addLayer(geoLayer);
+    }));
   }
   for (const [cat, features] of Object.entries(refPoints)) {
     const style = referencePointStyle(cat);
-    const geoLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
+    featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features }, {
       pointToLayer: (f, latlng) => L.circleMarker(latlng, style)
-    });
-    featureGroup.addLayer(geoLayer);
+    }));
   }
 
-  // Render dissolved boundaries per symbology group (on top of reference)
-  // Falls back to raw (capped) features when dissolution is skipped
-  for (const [gk, features] of Object.entries(groupPolygons)) {
+  // ── Render polygon groups ──
+  // Sort groups by size descending so each group gets a fair share of the budget
+  const sortedGroups = Object.entries(groupPolygons).sort((a, b) => b[1].length - a[1].length);
+  for (const [gk, features] of sortedGroups) {
+    if (needsCap && featureBudget <= 0) break;
     const { cat, typeValue } = groupMeta[gk];
     const style = printDissolvedStyle(cat, typeValue);
 
@@ -2281,37 +2298,34 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     const dissolved = skipDissolution ? null : dissolveFeatures(features);
 
     if (dissolved) {
-      const geoLayer = L.geoJSON(dissolved, { style: () => style });
-      featureGroup.addLayer(geoLayer);
+      featureGroup.addLayer(L.geoJSON(dissolved, { style: () => style }));
     } else if (features.length > 0) {
-      // Render capped raw features
-      const capped = features.length > PRINT_MAP_FEATURE_CAP
-        ? features.slice(0, PRINT_MAP_FEATURE_CAP)
-        : features;
-      const geoLayer = L.geoJSON({ type: 'FeatureCollection', features: capped }, {
+      const allowed = needsCap ? Math.min(features.length, featureBudget) : features.length;
+      const slice = allowed < features.length ? features.slice(0, allowed) : features;
+      featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: slice }, {
         style: () => style
-      });
-      featureGroup.addLayer(geoLayer);
+      }));
+      if (needsCap) featureBudget -= slice.length;
     }
   }
 
-  // Render non-reference point features (on top) — batched per category
+  // ── Render point features (on top) ──
   for (const [cat, points] of Object.entries(pointsByCat)) {
+    if (needsCap && featureBudget <= 0) break;
     if (points.length > 0) {
       const style = printPointStyle(cat);
-      const capped = points.length > PRINT_MAP_FEATURE_CAP
-        ? points.slice(0, PRINT_MAP_FEATURE_CAP)
-        : points;
-      const geoLayer = L.geoJSON({ type: 'FeatureCollection', features: capped }, {
+      const allowed = needsCap ? Math.min(points.length, featureBudget) : points.length;
+      const slice = allowed < points.length ? points.slice(0, allowed) : points;
+      featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: slice }, {
         pointToLayer: (feature, latlng) => L.circleMarker(latlng, style)
-      });
-      featureGroup.addLayer(geoLayer);
+      }));
+      if (needsCap) featureBudget -= slice.length;
     }
   }
 
   featureGroup.addTo(printMap);
 
-  // Fit map bounds: zoom to province boundary if filtering by province, else fit data
+  // Fit map bounds
   if (provinceFilter && provinceBoundsLayer) {
     const provBounds = provinceBoundsLayer.getBounds();
     if (provBounds.isValid()) {
@@ -2324,6 +2338,5 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }
   }
 
-  // Invalidate size after a short delay to ensure proper rendering
   setTimeout(() => printMap.invalidateSize(), 200);
 }
