@@ -129,17 +129,38 @@ class MerremiaConnector {
   async checkForUpdates() {
     try {
       if (!this.token) {
-        // For public repos, check via API without auth (lower rate limit but works)
-        const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/data/all-records.json`, {
-          method: 'HEAD',
-          headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
-        this.updateRateLimit(response);
-        if (response.ok) {
-          const etag = response.headers.get('ETag');
-          const changed = !this._lastETag || etag !== this._lastETag;
-          if (changed) this._lastETag = etag;
-          return { changed, sha: etag };
+        // For public repos without token, try ETag check on raw URL (more reliable, no rate limits)
+        try {
+          const response = await fetch(`${this.baseURL}/data/all-records.json`, {
+            method: 'HEAD',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          if (response.ok) {
+            const etag = response.headers.get('ETag') || response.headers.get('etag');
+            const lastModified = response.headers.get('Last-Modified') || response.headers.get('last-modified');
+            const fingerprint = etag || lastModified;
+
+            if (fingerprint) {
+              const changed = !this._lastETag || fingerprint !== this._lastETag;
+              if (changed) {
+                console.log('[Connector] Update detected via raw URL - ETag changed from', this._lastETag, 'to', fingerprint);
+                this._lastETag = fingerprint;
+              }
+              return { changed, sha: fingerprint };
+            }
+          }
+        } catch (rawErr) {
+          console.warn('[Connector] Raw URL check failed:', rawErr.message);
+        }
+
+        // Fallback: if raw URL check failed and we have never fetched before, assume changed
+        // If we have fetched before (_lastETag exists), assume no change to avoid excessive fetching
+        if (!this._lastETag) {
+          console.log('[Connector] First check without token - assuming data available');
+          return { changed: true, sha: 'initial' };
+        } else {
+          console.log('[Connector] Check failed but have previous data - assuming no change to avoid excessive fetching');
+          return { changed: false, sha: this._lastETag };
         }
       } else {
         // With token, get SHA via API
