@@ -29,46 +29,6 @@ export default function GISDatabase() {
   const [showMetadataModal, setShowMetadataModal] = useState(false);
 
   // Load datasets from localStorage
-  listDatasets,
-  getDataset,
-  deleteDataset,
-  exportAllDatasets,
-  importDatasets,
-  getStorageEstimate,
-  formatBytes,
-  migrateFromLocalStorage,
-  onDatasetsChanged,
-} from '../../services/datasetStore'
-import {
-  syncDatasets,
-  getSyncSettings,
-  getSyncState,
-  deleteRemoteDataset,
-} from '../../services/githubSync'
-import DatasetUpload from './DatasetUpload'
-import MapViewer from './MapViewer'
-import './DataPortal.css'
-import './GISDatabase.css'
-
-type DbView = 'browse' | 'upload'
-
-const GISDatabase: FC = () => {
-  const [view, setView] = useState<DbView>('browse')
-  const [datasets, setDatasets] = useState<DatasetSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [storageUsed, setStorageUsed] = useState<number | null>(null)
-  const [storageQuota, setStorageQuota] = useState<number | null>(null)
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [preview, setPreview] = useState<GeoDataset | null>(null)
-  const [importStatus, setImportStatus] = useState('')
-  const backupInputRef = useRef<HTMLInputElement>(null)
-
-  // GitHub sync state
-  const [syncing, setSyncing] = useState(false)
-  const [syncStatus, setSyncStatus] = useState('')
-  const [lastSync, setLastSync] = useState<string | null>(null)
-
-  // Load sync state on mount
   useEffect(() => {
     const stored = localStorage.getItem('depc-gis-datasets');
     if (stored) {
@@ -195,54 +155,6 @@ const GISDatabase: FC = () => {
               {Object.keys(getCategoryStats()).length}
             </div>
             <div className="text-xs text-emerald-100">Categories</div>
-    if (backupInputRef.current) backupInputRef.current.value = ''
-  }
-
-  async function handleExportOne(id: string) {
-    const ds = await getDataset(id)
-    if (!ds) return
-    const json = JSON.stringify(ds.data, null, 2)
-    const blob = new Blob([json], { type: 'application/geo+json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `${ds.metadata.name.replace(/\s+/g, '_')}.geojson`
-    a.click()
-    URL.revokeObjectURL(url)
-  }
-
-  async function handleSync() {
-    const config = getSyncSettings()
-
-    setSyncing(true)
-    setSyncStatus('Syncing with GitHub...')
-
-    try {
-      const result = await syncDatasets(config)
-      await refresh()
-
-      const parts: string[] = []
-      if (result.pushed > 0) parts.push(`${result.pushed} pushed`)
-      if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
-      if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
-      if (parts.length === 0) parts.push('Already in sync')
-
-      setSyncStatus(parts.join(', '))
-      setLastSync(new Date().toISOString())
-    } catch (err) {
-      setSyncStatus(err instanceof Error ? err.message : 'Sync failed')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="data-portal">
-        <div className="portal-toolbar">
-          <div className="portal-toolbar-left">
-            <h2>GIS Database</h2>
-            <span className="dataset-count">Loading...</span>
           </div>
         </div>
       </div>
@@ -476,23 +388,6 @@ function DatasetCard({ dataset, onDownloadMetadata, onDownloadData, onDelete, on
           <div className="flex items-center gap-2 text-gray-600">
             <span className="font-medium">CRS:</span>
             <span>{metadata.coordinateReferenceSystem}</span>
-        )}
-      </div>
-
-      {/* Dataset table */}
-      {datasets.length === 0 ? (
-        <div className="portal-empty">
-          <p>No datasets in the database yet.</p>
-          <p style={{ fontSize: '0.85rem', marginTop: '0.5rem' }}>
-            Click <strong>Upload Dataset</strong> to add GIS files (GeoJSON, CSV, KML), or use <strong>Restore Backup</strong> to import a previous export.
-          </p>
-          <div style={{ display: 'flex', gap: '0.5rem', justifyContent: 'center', marginTop: '1rem' }}>
-            <button
-              className="btn btn-primary"
-              onClick={() => setView('upload')}
-            >
-              Upload Your First Dataset
-            </button>
           </div>
         </div>
 
