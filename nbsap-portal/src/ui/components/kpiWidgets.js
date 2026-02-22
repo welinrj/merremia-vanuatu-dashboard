@@ -10,6 +10,7 @@
 import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { resolveColors } from '../../config/symbology.js';
 import ENV from '../../config/env.js';
 
 /** Target display metadata */
@@ -420,19 +421,14 @@ function renderLandCoverKPIs(container, layers, filters) {
   const landUseBreakdown = m.typeBreakdown;
   const uniqueTypes = landUseBreakdown.length;
 
-  // Color palette for land use types
-  const LU_COLORS = [
-    '#4CAF50', '#8BC34A', '#CDDC39', '#FF9800', '#795548',
-    '#607D8B', '#9C27B0', '#3F51B5', '#00BCD4', '#F44336',
-    '#E91E63', '#FFC107', '#009688', '#2196F3', '#FF5722'
-  ];
-
   // Build land use breakdown table rows — cap at 25 to avoid massive DOM
+  // Use same colours as the map (symbology-resolved per type)
   const MAX_LU_ROWS = 25;
   const displayRows = landUseBreakdown.slice(0, MAX_LU_ROWS);
   const hiddenCount = landUseBreakdown.length - displayRows.length;
-  const luRows = displayRows.map((lu, i) => {
-    const color = LU_COLORS[i % LU_COLORS.length];
+  const luRows = displayRows.map((lu) => {
+    const colors = resolveColors('LAND_COVER', lu.type);
+    const color = colors.fill;
     const pct = m.grossAreaHa > 0 ? (lu.area_ha / m.grossAreaHa * 100) : 0;
     return `
       <tr>
