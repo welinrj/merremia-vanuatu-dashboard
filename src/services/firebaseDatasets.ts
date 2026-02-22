@@ -41,7 +41,7 @@ export async function saveDataset(dataset: GeoDataset, storageUrl?: string): Pro
   }
 
   // Save metadata
-  await setDoc(doc(db, METADATA_COLLECTION, dataset.id), {
+  await setDoc(doc(db!, METADATA_COLLECTION, dataset.id), {
     ...metadata,
     storageUrl,
     createdAt: serverTimestamp(),
@@ -51,7 +51,7 @@ export async function saveDataset(dataset: GeoDataset, storageUrl?: string): Pro
   // Save full dataset (for smaller datasets)
   // For larger datasets, use Cloud Storage and only save reference
   if (!storageUrl) {
-    await setDoc(doc(db, DATASETS_COLLECTION, dataset.id), {
+    await setDoc(doc(db!, DATASETS_COLLECTION, dataset.id), {
       ...dataset,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
@@ -63,7 +63,7 @@ export async function saveDataset(dataset: GeoDataset, storageUrl?: string): Pro
  * Get dataset by ID
  */
 export async function getDataset(id: string): Promise<GeoDataset | null> {
-  const docRef = doc(db, DATASETS_COLLECTION, id)
+  const docRef = doc(db!, DATASETS_COLLECTION, id)
   const docSnap = await getDoc(docRef)
 
   if (!docSnap.exists()) {
@@ -90,7 +90,7 @@ export async function getDataset(id: string): Promise<GeoDataset | null> {
  * Get dataset metadata by ID
  */
 export async function getDatasetMetadata(id: string): Promise<DatasetSummary | null> {
-  const docRef = doc(db, METADATA_COLLECTION, id)
+  const docRef = doc(db!, METADATA_COLLECTION, id)
   const docSnap = await getDoc(docRef)
 
   if (!docSnap.exists()) {
@@ -127,7 +127,7 @@ export async function listDatasets(
 
   constraints.push(orderBy('createdAt', 'desc'))
 
-  const q = query(collection(db, METADATA_COLLECTION), ...constraints)
+  const q = query(collection(db!, METADATA_COLLECTION), ...constraints)
   const querySnapshot = await getDocs(q)
 
   const datasets: DatasetSummary[] = []
@@ -153,11 +153,11 @@ export async function listDatasets(
  */
 export async function deleteDataset(id: string): Promise<void> {
   // Delete metadata
-  await deleteDoc(doc(db, METADATA_COLLECTION, id))
+  await deleteDoc(doc(db!, METADATA_COLLECTION, id))
 
   // Delete full dataset
   try {
-    await deleteDoc(doc(db, DATASETS_COLLECTION, id))
+    await deleteDoc(doc(db!, DATASETS_COLLECTION, id))
   } catch (error) {
     // Dataset might only exist as metadata if stored in Cloud Storage
     console.log('No full dataset document to delete:', id)
@@ -181,7 +181,7 @@ export function subscribeToDatasets(
 
   constraints.push(orderBy('createdAt', 'desc'))
 
-  const q = query(collection(db, METADATA_COLLECTION), ...constraints)
+  const q = query(collection(db!, METADATA_COLLECTION), ...constraints)
 
   return onSnapshot(q, (querySnapshot) => {
     const datasets: DatasetSummary[] = []
@@ -209,7 +209,7 @@ export async function updateDatasetMetadata(
   id: string,
   updates: Partial<Pick<DatasetSummary, 'metadata' | 'format'>>
 ): Promise<void> {
-  const docRef = doc(db, METADATA_COLLECTION, id)
+  const docRef = doc(db!, METADATA_COLLECTION, id)
   await setDoc(
     docRef,
     {

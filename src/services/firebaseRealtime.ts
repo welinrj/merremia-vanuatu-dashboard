@@ -41,7 +41,7 @@ export interface FieldObservation {
  * Save field observation to Realtime Database
  */
 export async function saveFieldObservation(observation: Omit<FieldObservation, 'id'>): Promise<string> {
-  const observationsRef = ref(realtimeDb, 'field_observations')
+  const observationsRef = ref(realtimeDb!, 'field_observations')
   const newObservationRef = push(observationsRef)
 
   const observationWithId: FieldObservation = {
@@ -57,7 +57,7 @@ export async function saveFieldObservation(observation: Omit<FieldObservation, '
  * Update existing field observation
  */
 export async function updateFieldObservation(id: string, updates: Partial<FieldObservation>): Promise<void> {
-  const observationRef = ref(realtimeDb, `field_observations/${id}`)
+  const observationRef = ref(realtimeDb!, `field_observations/${id}`)
   await update(observationRef, updates)
 }
 
@@ -65,7 +65,7 @@ export async function updateFieldObservation(id: string, updates: Partial<FieldO
  * Delete field observation
  */
 export async function deleteFieldObservation(id: string): Promise<void> {
-  const observationRef = ref(realtimeDb, `field_observations/${id}`)
+  const observationRef = ref(realtimeDb!, `field_observations/${id}`)
   await remove(observationRef)
 }
 
@@ -73,7 +73,7 @@ export async function deleteFieldObservation(id: string): Promise<void> {
  * Get single field observation
  */
 export async function getFieldObservation(id: string): Promise<FieldObservation | null> {
-  const observationRef = ref(realtimeDb, `field_observations/${id}`)
+  const observationRef = ref(realtimeDb!, `field_observations/${id}`)
   const snapshot = await get(observationRef)
 
   if (!snapshot.exists()) {
@@ -87,7 +87,7 @@ export async function getFieldObservation(id: string): Promise<FieldObservation 
  * Get all field observations
  */
 export async function getAllFieldObservations(): Promise<FieldObservation[]> {
-  const observationsRef = ref(realtimeDb, 'field_observations')
+  const observationsRef = ref(realtimeDb!, 'field_observations')
   const snapshot = await get(observationsRef)
 
   if (!snapshot.exists()) {
@@ -106,7 +106,7 @@ export async function getAllFieldObservations(): Promise<FieldObservation[]> {
  * Get recent field observations (last N observations)
  */
 export async function getRecentObservations(limit: number = 50): Promise<FieldObservation[]> {
-  const observationsRef = ref(realtimeDb, 'field_observations')
+  const observationsRef = ref(realtimeDb!, 'field_observations')
   const recentQuery = query(observationsRef, orderByChild('timestamp'), limitToLast(limit))
 
   const snapshot = await get(recentQuery)
@@ -130,7 +130,7 @@ export async function getRecentObservations(limit: number = 50): Promise<FieldOb
 export function subscribeToFieldObservations(
   callback: (observations: FieldObservation[]) => void
 ): () => void {
-  const observationsRef = ref(realtimeDb, 'field_observations')
+  const observationsRef = ref(realtimeDb!, 'field_observations')
 
   const handleUpdate = (snapshot: DataSnapshot) => {
     if (!snapshot.exists()) {
@@ -163,7 +163,7 @@ export function subscribeToRecentObservations(
   limit: number,
   callback: (observations: FieldObservation[]) => void
 ): () => void {
-  const observationsRef = ref(realtimeDb, 'field_observations')
+  const observationsRef = ref(realtimeDb!, 'field_observations')
   const recentQuery = query(observationsRef, orderByChild('timestamp'), limitToLast(limit))
 
   const handleUpdate = (snapshot: DataSnapshot) => {
@@ -194,7 +194,7 @@ export async function verifyObservation(
   id: string,
   verifiedBy: string
 ): Promise<void> {
-  const observationRef = ref(realtimeDb, `field_observations/${id}`)
+  const observationRef = ref(realtimeDb!, `field_observations/${id}`)
   await update(observationRef, {
     verified: true,
     verifiedBy,
@@ -210,7 +210,7 @@ export async function saveDashboardState(state: {
   mapBounds?: any
   filters?: any
 }): Promise<void> {
-  const stateRef = ref(realtimeDb, 'dashboard_state')
+  const stateRef = ref(realtimeDb!, 'dashboard_state')
   await set(stateRef, {
     ...state,
     updatedAt: new Date().toISOString(),
@@ -221,7 +221,7 @@ export async function saveDashboardState(state: {
  * Get dashboard state
  */
 export async function getDashboardState(): Promise<any> {
-  const stateRef = ref(realtimeDb, 'dashboard_state')
+  const stateRef = ref(realtimeDb!, 'dashboard_state')
   const snapshot = await get(stateRef)
 
   if (!snapshot.exists()) {
@@ -235,7 +235,7 @@ export async function getDashboardState(): Promise<any> {
  * Subscribe to dashboard state changes
  */
 export function subscribeToDashboardState(callback: (state: any) => void): () => void {
-  const stateRef = ref(realtimeDb, 'dashboard_state')
+  const stateRef = ref(realtimeDb!, 'dashboard_state')
 
   const handleUpdate = (snapshot: DataSnapshot) => {
     callback(snapshot.val())
