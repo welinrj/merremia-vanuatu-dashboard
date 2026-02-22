@@ -26,13 +26,16 @@ const firebaseConfig = {
   databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL,
 }
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig)
+// Check if Firebase is configured
+const isFirebaseConfigured = firebaseConfig.apiKey && firebaseConfig.projectId
 
-// Initialize Firebase services
-export const auth = getAuth(app)
-export const db = getFirestore(app)
-export const storage = getStorage(app)
-export const realtimeDb = getDatabase(app)
+// Initialize Firebase only if configured
+const app = isFirebaseConfigured ? initializeApp(firebaseConfig) : null
+
+// Initialize Firebase services only if app is configured
+export const auth = app ? getAuth(app) : null
+export const db = app ? getFirestore(app) : null
+export const storage = app ? getStorage(app) : null
+export const realtimeDb = app ? getDatabase(app) : null
 
 export default app
