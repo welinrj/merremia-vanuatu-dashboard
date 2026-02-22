@@ -118,7 +118,9 @@ export function openPrintMap(targetCode) {
 
 /**
  * Opens the print view for a single target with one map page per province.
- * Staggers province rendering to avoid overwhelming the browser with large datasets.
+ * Renders provinces sequentially — each province's Leaflet map must finish
+ * initializing before the next province starts, preventing browser crashes
+ * on large datasets like T10.
  */
 export function openPrintProvinceMaps(targetCode) {
   closePrintOverlay();
@@ -139,16 +141,20 @@ export function openPrintProvinceMaps(targetCode) {
   const layers = getTargetLayers(targetCode);
   const sharedCtx = buildProvinceSharedContext(targetCode, layers, provinces);
 
-  // Stagger province pages: render one at a time via requestAnimationFrame
-  // so the browser can paint between pages and not freeze/crash
+  // Sequential province rendering: build DOM + init map for province N,
+  // then wait before starting province N+1.  This ensures only ONE Leaflet
+  // map is being created at a time, preventing canvas memory overload.
   let idx = 0;
   function renderNext() {
     if (idx >= provinces.length) return;
-    renderProvincePage(pageContainer, targetCode, target, provinces[idx], sharedCtx);
+    const mapId = renderProvincePage(pageContainer, targetCode, target, provinces[idx], sharedCtx);
     idx++;
-    if (idx < provinces.length) {
-      requestAnimationFrame(() => setTimeout(renderNext, 50));
-    }
+    // Initialize Leaflet map, then schedule next province after it settles
+    requestAnimationFrame(() => {
+      initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinces[idx - 1], true);
+      // Give the canvas time to paint before starting the next province
+      setTimeout(() => requestAnimationFrame(renderNext), 300);
+    });
   }
   renderNext();
 
@@ -477,6 +483,7 @@ function renderTargetPage(container, targetCode, target) {
  * Renders one print page for a target filtered to a single province.
  * Shows detailed province-specific technical results.
  * Accepts optional sharedCtx from openPrintProvinceMaps to avoid redundant computation.
+ * Returns the map container ID so the caller can init the Leaflet map separately.
  */
 function renderProvincePage(container, targetCode, target, provinceName, sharedCtx) {
   const state = getAppState();
@@ -640,9 +647,15 @@ function renderProvincePage(container, targetCode, target, provinceName, sharedC
   const provAnalysis = generateProvinceAnalysis(targetCode, layers, metrics, expected, baselines, provinceName, sharedCtx?.nationalMetrics);
   renderProvinceAnalysisPage(container, targetCode, target, provinceName, provAnalysis);
 
-  requestAnimationFrame(() => {
-    setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinceName), 100);
-  });
+  // When called from openPrintProvinceMaps, map init is handled by the caller's
+  // sequential chain.  When called standalone, init the map here.
+  if (!sharedCtx) {
+    requestAnimationFrame(() => {
+      setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson, provinceName), 100);
+    });
+  }
+
+  return mapId;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2138,8 +2151,9 @@ function renderDataSourcesAndActionsPage(container, targetCode, target, analysis
 
 // ═══════════════════════════════════════════════════════════════════════
 
-/** Max features to render per symbology group on a single print map page */
-const PRINT_MAP_FEATURE_CAP = 2000;
+/** Max features to render per symbology group on a single print map page.
+ *  Kept conservative because province-by-province printing creates up to 6 maps. */
+const PRINT_MAP_FEATURE_CAP = 500;
 
 /**
  * Initializes a Leaflet map inside the print page for a specific target.
@@ -2149,7 +2163,7 @@ const PRINT_MAP_FEATURE_CAP = 2000;
  * For very large datasets (T10), features are capped per group to prevent
  * canvas overload when 6 province maps are rendered simultaneously.
  */
-function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, provinceFilter) {
+function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, provinceFilter, skipDissolution) {
   const el = document.getElementById(containerId);
   if (!el) return;
 
@@ -2258,18 +2272,19 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
   }
 
   // Render dissolved boundaries per symbology group (on top of reference)
-  // Falls back to raw features when dissolution is skipped (large datasets)
-  // Cap features per group to prevent canvas overload on print maps
+  // Falls back to raw (capped) features when dissolution is skipped
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
     const style = printDissolvedStyle(cat, typeValue);
-    const dissolved = dissolveFeatures(features);
+
+    // Skip expensive dissolution for province-by-province maps
+    const dissolved = skipDissolution ? null : dissolveFeatures(features);
 
     if (dissolved) {
       const geoLayer = L.geoJSON(dissolved, { style: () => style });
       featureGroup.addLayer(geoLayer);
     } else if (features.length > 0) {
-      // Dissolution skipped (too many polygons) — render capped raw features
+      // Render capped raw features
       const capped = features.length > PRINT_MAP_FEATURE_CAP
         ? features.slice(0, PRINT_MAP_FEATURE_CAP)
         : features;
