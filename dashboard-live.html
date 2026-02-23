@@ -1339,6 +1339,17 @@
     document.getElementById('admin-modal').addEventListener('click', function(e) { if (e.target === this) closeAdminModal(); });
 
     // ── GitHub Token Configuration ──
+    // Resolve GitHub token from all available sources
+    function resolveGitHubToken() {
+      // 1. Dashboard's own config
+      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      if (cfg.token) return cfg.token;
+      // 2. Field collector config (shared localStorage on same domain)
+      var fc = JSON.parse(localStorage.getItem('merremia_settings') || '{}');
+      if (fc.githubToken) return fc.githubToken;
+      return '';
+    }
+
     // Save GitHub token to localStorage
     function saveGitHubToken() {
       var token = document.getElementById('token-input').value.trim();
@@ -1354,14 +1365,14 @@
         return;
       }
 
-      // Get existing config
+      // Save to both dashboard config and field collector config for sharing
       var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
-
-      // Add token to config
       cfg.token = token;
-
-      // Save to localStorage
       localStorage.setItem('merremia_live_cfg', JSON.stringify(cfg));
+
+      var fc = JSON.parse(localStorage.getItem('merremia_settings') || '{}');
+      fc.githubToken = token;
+      localStorage.setItem('merremia_settings', JSON.stringify(fc));
 
       // Clear input field for security
       document.getElementById('token-input').value = '';
@@ -1369,18 +1380,15 @@
       // Update status indicator
       updateTokenStatus();
 
-      // Show success message
-      alert('GitHub token saved successfully!\n\nYou can now delete records from the dashboard.');
-
       console.log('[Dashboard] GitHub token configured');
     }
 
     // Update token status indicator
     function updateTokenStatus() {
-      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      var token = resolveGitHubToken();
       var statusEl = document.getElementById('token-status');
 
-      if (cfg.token && cfg.token.length > 0) {
+      if (token) {
         statusEl.textContent = '✓ Token configured - Delete enabled';
         statusEl.className = 'token-status-indicator configured';
       } else {
@@ -1437,7 +1445,7 @@
       var deleteId = pendingDeleteId;
       if (!deleteId || !isAdmin) return;
       var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
-      var token = cfg.token || '';
+      var token = resolveGitHubToken();
       if (!token) {
         document.getElementById('delete-error').textContent = 'GitHub token not configured. Click "🔒 Admin: GitHub Token Configuration" above to configure your token.';
         document.getElementById('delete-error').style.display = 'block';
