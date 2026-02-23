@@ -578,9 +578,29 @@
       </div>
       <div class="settings-field">
         <label>Sync Status</label>
-        <input id="s-token-status" value="✓ Pre-configured by IT" readonly style="background:#d1fae5;color:#065f46;font-weight:600">
+        <input id="s-token-status" value="⚠ Token not configured" readonly style="background:#fef3c7;color:#92400e;font-weight:600">
       </div>
-      <!-- Token is hidden from field officers for security -->
+
+      <!-- Admin/IT Token Configuration (collapsible) -->
+      <details style="margin-top:1rem;border:1px solid #cbd5e1;border-radius:0.375rem;padding:0.5rem">
+        <summary style="cursor:pointer;font-size:0.85rem;color:#64748b;user-select:none;font-weight:600">
+          🔒 IT/Admin: Configure GitHub Token
+        </summary>
+        <div style="margin-top:0.75rem">
+          <div class="settings-field">
+            <label style="font-size:0.75rem">GitHub Personal Access Token</label>
+            <input id="s-token-input" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:0.75rem">
+            <div style="font-size:0.7rem;color:#64748b;margin-top:0.25rem">
+              Generate at: GitHub → Settings → Developer settings → Personal access tokens<br>
+              Required scope: <code style="background:#f1f5f9;padding:0.125rem 0.25rem">repo</code> (full repository access)
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="saveGitHubToken()" style="margin-top:0.5rem;font-size:0.85rem">
+            Save Token
+          </button>
+        </div>
+      </details>
+      <!-- Hidden token field for backward compatibility -->
       <input id="s-token" type="hidden" value="">
     </div>
 
@@ -1451,8 +1471,7 @@
       var settings = getSettings();
       settings.owner = document.getElementById('s-owner').value.trim();
       settings.repo = document.getElementById('s-repo').value.trim();
-      // Token is pre-configured and hidden from field officers
-      if (!settings.token) settings.token = '';
+      // Token is configured separately via GitHub Token Configuration section
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       showToast('Settings saved!', 'info');
     }
@@ -1486,6 +1505,53 @@
       currentOfficer = profile;
       applyOfficerPresets();
       showToast('Officer profile saved!', 'info');
+    }
+
+    function saveGitHubToken() {
+      var token = document.getElementById('s-token-input').value.trim();
+      if (!token) {
+        showToast('Please enter a valid GitHub Personal Access Token', 'warn');
+        return;
+      }
+
+      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        showToast('Token should start with ghp_ or github_pat_', 'warn');
+        return;
+      }
+
+      // Store in localStorage
+      var settings = getSettings();
+      settings.githubToken = token;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+
+      // Update hidden field
+      document.getElementById('s-token').value = token;
+
+      // Update status indicator
+      updateTokenStatus();
+
+      // Clear input field for security
+      document.getElementById('s-token-input').value = '';
+
+      showToast('GitHub token saved successfully! You can now sync data.', 'info');
+    }
+
+    function updateTokenStatus() {
+      var settings = getSettings();
+      var statusField = document.getElementById('s-token-status');
+
+      if (settings.githubToken && settings.githubToken.length > 0) {
+        statusField.value = '✓ Token configured - Sync enabled';
+        statusField.style.background = '#d1fae5';
+        statusField.style.color = '#065f46';
+
+        // Also update the hidden field
+        document.getElementById('s-token').value = settings.githubToken;
+      } else {
+        statusField.value = '⚠ Token not configured';
+        statusField.style.background = '#fef3c7';
+        statusField.style.color = '#92400e';
+      }
     }
 
     function getDeviceId() {
@@ -1569,19 +1635,30 @@
 
     function loadSettings() {
       var s = getSettings();
-      if (!s.owner || !s.token) {
+
+      // Handle migration from old 'token' field to new 'githubToken' field
+      if (s.token && !s.githubToken) {
+        s.githubToken = s.token;
+        delete s.token;
+      }
+
+      if (!s.owner) {
         s.owner = s.owner || DEFAULTS.owner;
         s.repo = s.repo || DEFAULTS.repo;
-        s.token = s.token || DEFAULTS.token;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
       }
+
       document.getElementById('s-owner').value = s.owner || DEFAULTS.owner;
       document.getElementById('s-repo').value = s.repo || DEFAULTS.repo;
-      document.getElementById('s-token').value = s.token || DEFAULTS.token;
+      document.getElementById('s-token').value = s.githubToken || DEFAULTS.token;
+
       if (s.defaultObserver) {
         document.getElementById('s-observer').value = s.defaultObserver;
         document.getElementById('f-observer').value = s.defaultObserver;
       }
+
+      // Update token status indicator
+      updateTokenStatus();
     }
 
     // ── Sync to GitHub ──
@@ -1589,9 +1666,9 @@
       var s = getSettings();
       s.owner = s.owner || document.getElementById('s-owner').value.trim() || DEFAULTS.owner;
       s.repo = s.repo || document.getElementById('s-repo').value.trim() || DEFAULTS.repo;
-      s.token = s.token || document.getElementById('s-token').value.trim();
-      if (!s.token) {
-        showToast('Enter a GitHub Personal Access Token in Settings to sync', 'warn');
+      s.githubToken = s.githubToken || document.getElementById('s-token').value.trim();
+      if (!s.githubToken) {
+        showToast('Configure GitHub Personal Access Token in Settings to enable sync', 'warn');
         showView('settings');
         return;
       }
@@ -1636,7 +1713,7 @@
 
           var resp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
             method: 'PUT',
-            headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Add record: ' + getCommitLabel(r), content: recordContent })
           });
           if (!resp.ok) { showToast('Sync failed for record — will retry later.', 'warn'); continue; }
@@ -1647,7 +1724,7 @@
               var photoData = r.photos[j].split(',')[1];
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + r.id + '-' + j + '.jpg', {
                 method: 'PUT',
-                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: 'Add photo for ' + r.id, content: photoData })
               });
             }
@@ -1681,7 +1758,7 @@
         var allRecords = [];
         var existingSha = null;
         var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (getResp.ok) {
           var existing = await getResp.json();
@@ -1704,7 +1781,7 @@
 
         await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
       } catch(e) {
@@ -1856,29 +1933,29 @@
 
       if (record.synced) {
         var s = getSettings();
-        s.token = s.token || DEFAULTS.token;
+        s.githubToken = s.githubToken || DEFAULTS.token;
         try {
           var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
-            headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+            headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
           });
           if (getResp.ok) {
             var fileData = await getResp.json();
             await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
               method: 'DELETE',
-              headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+              headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
               body: JSON.stringify({ message: 'Delete record: ' + getCommitLabel(record), sha: fileData.sha })
             });
           }
 
           for (var j = 0; j < 5; j++) {
             var photoResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
-              headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+              headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
             });
             if (photoResp.ok) {
               var photoData = await photoResp.json();
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
                 method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: 'Delete photo for ' + record.id, sha: photoData.sha })
               });
             } else break;
@@ -1900,7 +1977,7 @@
     async function removeRecordFromAllRecords(s, deleteId) {
       try {
         var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (!getResp.ok) return;
         var existing = await getResp.json();
@@ -1910,7 +1987,7 @@
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
         await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
         });
       } catch(e) { console.warn('Could not update all-records.json after delete:', e); }

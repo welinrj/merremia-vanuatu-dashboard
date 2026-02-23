@@ -198,6 +198,21 @@
     </span>
   </div>
 
+  <div class="config-bar" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
+    <details>
+      <summary style="cursor:pointer;font-size:0.75rem;color:#64748b;user-select:none;font-weight:600">
+        📊 Connection Diagnostics
+      </summary>
+      <div style="margin-top:0.5rem;font-size:0.75rem;font-family:monospace;line-height:1.6">
+        <div>Repository: <strong id="diag-repo">—</strong></div>
+        <div>Last Check: <span id="diag-check">—</span></div>
+        <div>Data SHA: <code id="diag-sha" style="background:#e2e8f0;padding:0.125rem 0.25rem">—</code></div>
+        <div>Records Loaded: <strong id="diag-count" style="color:#059669">—</strong></div>
+        <div>Last Error: <span id="diag-error" style="color:#dc2626">—</span></div>
+      </div>
+    </details>
+  </div>
+
   <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Data categories">
     <button class="cat-tab t-merremia active" onclick="switchTab('merremia')" role="tab" aria-selected="true">Merremia</button>
     <button class="cat-tab t-degraded" onclick="switchTab('degraded')" role="tab" aria-selected="false">Degraded Areas</button>
@@ -429,6 +444,10 @@
           var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setStatus('Connection error — retrying... (' + now + ')', 'err', 'error');
           console.error('[Dashboard]', msg, err);
+
+          // Update error diagnostic
+          document.getElementById('diag-error').textContent = msg || (err ? err.message : 'Unknown error');
+          document.getElementById('diag-check').textContent = now;
         }
       });
 
@@ -465,6 +484,14 @@
             renderForTab();
             lastDataSha = currentSha;
             lastUpdateTime = now;
+
+            // Update diagnostics
+            document.getElementById('diag-repo').textContent = owner + '/' + repo;
+            document.getElementById('diag-check').textContent = now;
+            document.getElementById('diag-sha').textContent = currentSha.substring(0, 7) || 'none';
+            document.getElementById('diag-count').textContent = newCount;
+            document.getElementById('diag-error').textContent = '—';
+
             if (isUpdate) {
               // Show notification for new data
               var notification = document.getElementById('newDataNotification');
@@ -1401,7 +1428,13 @@
 
     document.getElementById('delete-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeDeleteConfirmModal(); });
 
-    if (document.getElementById('cfg-owner').value) { setTimeout(loadFieldData, 300); }
+    // Auto-load if owner AND repo are configured (from localStorage or defaults)
+    var owner = document.getElementById('cfg-owner').value.trim();
+    var repo = document.getElementById('cfg-repo').value.trim();
+    if (owner && repo) {
+      console.log('[Dashboard] Auto-loading data from', owner + '/' + repo);
+      setTimeout(loadFieldData, 300);
+    }
   </script>
 </body>
 </html>
