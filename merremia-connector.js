@@ -129,17 +129,38 @@ class MerremiaConnector {
   async checkForUpdates() {
     try {
       if (!this.token) {
-        // For public repos, check via API without auth (lower rate limit but works)
-        const response = await fetch(`https://api.github.com/repos/${this.owner}/${this.repo}/contents/data/all-records.json`, {
-          method: 'HEAD',
-          headers: { 'Accept': 'application/vnd.github.v3+json' }
-        });
-        this.updateRateLimit(response);
-        if (response.ok) {
-          const etag = response.headers.get('ETag');
-          const changed = !this._lastETag || etag !== this._lastETag;
-          if (changed) this._lastETag = etag;
-          return { changed, sha: etag };
+        // For public repos without token, try ETag check on raw URL (more reliable, no rate limits)
+        try {
+          const response = await fetch(`${this.baseURL}/data/all-records.json`, {
+            method: 'HEAD',
+            headers: { 'Cache-Control': 'no-cache' }
+          });
+          if (response.ok) {
+            const etag = response.headers.get('ETag') || response.headers.get('etag');
+            const lastModified = response.headers.get('Last-Modified') || response.headers.get('last-modified');
+            const fingerprint = etag || lastModified;
+
+            if (fingerprint) {
+              const changed = !this._lastETag || fingerprint !== this._lastETag;
+              if (changed) {
+                console.log('[Connector] Update detected via raw URL - ETag changed from', this._lastETag, 'to', fingerprint);
+                this._lastETag = fingerprint;
+              }
+              return { changed, sha: fingerprint };
+            }
+          }
+        } catch (rawErr) {
+          console.warn('[Connector] Raw URL check failed:', rawErr.message);
+        }
+
+        // Fallback: if raw URL check failed and we have never fetched before, assume changed
+        // If we have fetched before (_lastETag exists), assume no change to avoid excessive fetching
+        if (!this._lastETag) {
+          console.log('[Connector] First check without token - assuming data available');
+          return { changed: true, sha: 'initial' };
+        } else {
+          console.log('[Connector] Check failed but have previous data - assuming no change to avoid excessive fetching');
+          return { changed: false, sha: this._lastETag };
         }
       } else {
         // With token, get SHA via API
@@ -183,9 +204,18 @@ class MerremiaConnector {
             headers: { 'Cache-Control': 'no-cache' }
           });
           console.log('[Connector] Response status:', response.status);
+          console.log('[Connector] Response headers:', {
+            etag: response.headers.get('ETag'),
+            contentType: response.headers.get('Content-Type'),
+            contentLength: response.headers.get('Content-Length')
+          });
           if (response.ok) {
             const records = await response.json();
-            console.log('[Connector] Fetched', Array.isArray(records) ? records.length : 0, 'raw records');
+            const count = Array.isArray(records) ? records.length : 0;
+            console.log('[Connector] Fetched', count, 'raw records');
+            if (count > 0) {
+              console.log('[Connector] Sample record:', records[0]);
+            }
             if (Array.isArray(records)) {
               allRecords = records;
             } else {
@@ -348,6 +378,13 @@ class MerremiaConnector {
     base.notes = r.notes || '';
     base.synced = r.synced !== false; // Default to true
     base.photoCount = r.photoCount || 0;
+
+    // Preserve polygon geometry data
+    base.geometryType = r.geometryType || 'point';
+    if (r.polygonCoordinates && Array.isArray(r.polygonCoordinates)) {
+      base.polygonCoordinates = r.polygonCoordinates;
+      base.polygonAreaHa = r.polygonAreaHa || 0;
+    }
 
     // Normalize merremia-specific fields (category could be missing in old data)
     if (base.category === 'merremia' || !base.category) {
@@ -551,7 +588,11 @@ class MerremiaConnector {
    */
   toGeoJSON(records) {
     const features = records
-      .filter(r => r.gps?.lat && r.gps?.lng)
+      .filter(r => {
+        // Accept polygon records or point records with valid coordinates
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) return true;
+        return r.gps?.lat && r.gps?.lng;
+      })
       .map(r => {
         const cat = r.category || 'merremia';
         const speciesArr = Array.isArray(r.species) ? r.species : (r.species ? [r.species] : []);
@@ -563,28 +604,41 @@ class MerremiaConnector {
         else if (cat === 'threatened') label = r.speciesName || 'Threatened Species';
         else label = 'Record';
 
+        const properties = {
+          id: r.id,
+          category: cat,
+          geometryType: r.geometryType || 'point',
+          label: label,
+          species: speciesArr,
+          speciesLabel: speciesArr.join(', '),
+          count: r.count,
+          threatLevel: r.threatLevel,
+          island: r.island,
+          siteName: r.siteName,
+          observer: r.observer,
+          timestamp: r.timestamp,
+          coverageArea: r.coverageArea,
+          polygonAreaHa: r.polygonAreaHa || 0,
+          notes: r.notes,
+          accuracy: r.gps ? r.gps.accuracy : null
+        };
+
+        // Polygon geometry
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) {
+          const coords = r.polygonCoordinates.slice();
+          const first = coords[0]; const last = coords[coords.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
+          return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties };
+        }
+
+        // Point geometry
         return {
           type: 'Feature',
           geometry: {
             type: 'Point',
             coordinates: [r.gps.lng, r.gps.lat]
           },
-          properties: {
-            id: r.id,
-            category: cat,
-            label: label,
-            species: speciesArr,
-            speciesLabel: speciesArr.join(', '),
-            count: r.count,
-            threatLevel: r.threatLevel,
-            island: r.island,
-            siteName: r.siteName,
-            observer: r.observer,
-            timestamp: r.timestamp,
-            coverageArea: r.coverageArea,
-            notes: r.notes,
-            accuracy: r.gps.accuracy
-          }
+          properties
         };
       });
 

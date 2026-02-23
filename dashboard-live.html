@@ -66,6 +66,8 @@
     .maplibregl-popup-content strong{color:#065f46}
     .maplibregl-popup-close-button{color:#64748b;font-size:1.2rem}
     .maplibregl-popup-tip{border-top-color:#ffffff}
+    .popup-polygon-badge{display:inline-block;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.6rem;font-weight:700;background:#dbeafe;color:#1e40af;margin-left:0.3rem}
+    .popup-meta{font-size:0.72rem;color:#64748b;margin:4px 0}
     .popup-photos{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
     .popup-photos img{width:60px;height:45px;object-fit:cover;border-radius:3px;cursor:pointer;border:1px solid #e2e8f0}
     .popup-photos img:hover{border-color:#10b981}
@@ -115,6 +117,19 @@
     .modal-actions button{padding:0.5rem 1.25rem;border-radius:0.4rem;font-size:0.82rem;font-weight:600;cursor:pointer;border:none}
     .modal-cancel{background:#f1f5f9;color:#64748b}
     .modal-confirm{background:#065f46;color:#ecfdf5;border:1px solid #10b981}
+    .btn-admin{padding:0.4rem 1rem;background:#1e293b;color:#f1f5f9;border:1px solid #475569;border-radius:0.4rem;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+    .btn-admin:hover{background:#334155;box-shadow:0 2px 8px rgba(71,85,105,0.3)}
+    .btn-admin.logged-in{background:#065f46;border-color:#10b981;color:#ecfdf5}
+    .btn-admin.logged-in:hover{background:#047857}
+    .btn-row-delete{padding:0.2rem 0.6rem;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:0.3rem;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.15s}
+    .btn-row-delete:hover{background:#fecaca;border-color:#ef4444;box-shadow:0 1px 4px rgba(239,68,68,0.2)}
+    .modal-box.delete-confirm h3{color:#dc2626}
+    .delete-record-summary{text-align:left;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.4rem;padding:0.75rem;font-size:0.78rem;color:#475569;margin-bottom:0.75rem;line-height:1.6}
+    .delete-record-summary strong{color:#1e293b}
+    .modal-confirm.danger{background:#dc2626;color:#fff;border:1px solid #ef4444}
+    .modal-confirm.danger:hover{background:#b91c1c}
+    .delete-status{font-size:0.75rem;color:#64748b;margin-top:0.5rem;display:none}
+    .delete-status.active{display:block}
     .analysis-section{padding:0 2rem 1.5rem}
     .analysis-panel{background:#ffffff;border-radius:0.75rem;padding:1.25rem;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06)}
     .analysis-panel h2{font-size:0.9rem;font-weight:700;color:#475569;margin-bottom:1rem;padding-bottom:0.75rem;border-bottom:1px solid #e2e8f0;text-transform:uppercase;letter-spacing:0.04em}
@@ -131,6 +146,10 @@
       #live-map{height:300px}
       .chart-grid{grid-template-columns:1fr}
     }
+    .token-status-indicator.configured{background:#d1fae5;color:#065f46}
+    .token-status-indicator.not-configured{background:#fef3c7;color:#92400e}
+    #token-input:focus{outline:none;border-color:#10b981}
+    button[onclick="saveGitHubToken()"]:hover{background:#047857}
     footer{background:#f8fafc;padding:2.5rem 2rem 1.5rem;color:#64748b;font-size:0.78rem;border-top:1px solid #e2e8f0;text-align:center}
     .footer-inner{max-width:720px;margin:0 auto}
     .footer-coa{margin-bottom:0.75rem}
@@ -148,7 +167,7 @@
     @media print{
       body{background:#fff;color:#000;font-size:11pt}
       header{background:#065f46!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-      .config-bar,.basemap-toggle,.download-section,.photo-overlay,.live-alert-banner .alert-dismiss{display:none!important}
+      .config-bar,.basemap-toggle,.download-section,.photo-overlay,.live-alert-banner .alert-dismiss,.btn-admin,.btn-row-delete{display:none!important}
       .grid{display:grid;grid-template-columns:repeat(5,1fr)}
       .card,.map-panel,.analysis-panel,.records-panel{break-inside:avoid;border:1px solid #ccc;box-shadow:none;margin-bottom:8px}
       #live-map{max-height:400px;overflow:hidden}
@@ -166,7 +185,7 @@
         <span class="logo-dept-name">DEPARTMENT OF ENVIRONMENTAL PROTECTION AND CONSERVATION</span>
       </div>
       <div>
-        <h1>DEPC Environmental Dashboard</h1>
+        <h1>Merremia Live Monitoring Hub</h1>
         <p>Real-time field data monitoring</p>
       </div>
     </div>
@@ -175,15 +194,55 @@
   <div class="config-bar">
     <input id="cfg-owner" type="hidden" value="welinrj">
     <input id="cfg-repo" type="hidden" value="merremia-field-data">
-    <label style="display:flex;align-items:center;gap:0.5rem;font-size:0.8rem;color:#475569">
-      <span style="font-weight:600">GitHub Token (optional):</span>
-      <input id="cfg-token" type="password" value="" placeholder="ghp_xxxxxxxxxxxx" style="padding:0.4rem 0.75rem;border:1px solid #cbd5e1;border-radius:0.4rem;font-size:0.78rem;width:200px">
-    </label>
     <button onclick="loadFieldData()">Load Data</button>
+    <button class="btn-admin" id="btn-admin" onclick="toggleAdmin()">Admin Login</button>
     <span class="status-msg" id="status-msg">
       <span class="status-indicator" id="status-indicator"></span>
       <span id="status-text"></span>
     </span>
+  </div>
+
+  <div class="config-bar" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
+    <details>
+      <summary style="cursor:pointer;font-size:0.75rem;color:#64748b;user-select:none;font-weight:600">
+        📊 Connection Diagnostics
+      </summary>
+      <div style="margin-top:0.5rem;font-size:0.75rem;font-family:monospace;line-height:1.6">
+        <div>Repository: <strong id="diag-repo">—</strong></div>
+        <div>Last Check: <span id="diag-check">—</span></div>
+        <div>Data SHA: <code id="diag-sha" style="background:#e2e8f0;padding:0.125rem 0.25rem">—</code></div>
+        <div>Records Loaded: <strong id="diag-count" style="color:#059669">—</strong></div>
+        <div>Last Error: <span id="diag-error" style="color:#dc2626">—</span></div>
+      </div>
+    </details>
+  </div>
+
+  <div class="config-bar" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
+    <details id="token-config-details">
+      <summary style="cursor:pointer;font-size:0.75rem;color:#64748b;user-select:none;font-weight:600">
+        🔒 Admin: GitHub Token Configuration
+      </summary>
+      <div style="margin-top:0.75rem;padding:0.5rem;background:#ffffff;border-radius:0.35rem">
+        <!-- Token Status -->
+        <div style="display:flex;align-items:center;margin-bottom:0.75rem;gap:0.5rem">
+          <label style="font-size:0.75rem;color:#64748b;font-weight:600;flex-shrink:0">Token Status:</label>
+          <span id="token-status" class="token-status-indicator" style="padding:0.25rem 0.5rem;border-radius:0.25rem;font-weight:600;font-size:0.7rem">⚠ Not configured</span>
+        </div>
+
+        <!-- Token Input -->
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.75rem">
+          <label style="font-size:0.75rem;color:#64748b;font-weight:600;flex-shrink:0">Personal Access Token:</label>
+          <input id="token-input" type="password" placeholder="ghp_... or github_pat_..." style="flex:1;padding:0.4rem 0.6rem;background:#ffffff;border:1px solid #cbd5e1;border-radius:0.35rem;font-family:monospace;font-size:0.75rem">
+          <button onclick="saveGitHubToken()" style="padding:0.4rem 1rem;background:#065f46;color:#ecfdf5;border:1px solid rgba(16,185,129,0.4);border-radius:0.4rem;font-size:0.75rem;font-weight:600;cursor:pointer">Save Token</button>
+        </div>
+
+        <!-- Instructions -->
+        <div style="font-size:0.7rem;color:#64748b;line-height:1.6">
+          Generate at: GitHub → Settings → Developer settings → Personal access tokens<br>
+          Required scope: <code style="background:#f1f5f9;padding:0.125rem 0.25rem;font-family:monospace">repo</code> (full repository access)
+        </div>
+      </div>
+    </details>
   </div>
 
   <div class="cat-tabs" id="cat-tabs" role="tablist" aria-label="Data categories">
@@ -280,6 +339,34 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="admin-modal">
+    <div class="modal-box">
+      <img src="assets/vanuatu-coat-of-arms.svg" alt="Republic of Vanuatu Coat of Arms" style="width:90px;height:auto;margin-bottom:12px">
+      <h3>Admin Login</h3>
+      <p>Enter admin password to enable record management.</p>
+      <input type="password" id="admin-password" placeholder="Admin password" onkeydown="if(event.key==='Enter')confirmAdminLogin()">
+      <div class="modal-err" id="admin-error">Incorrect password. Try again.</div>
+      <div class="modal-actions">
+        <button class="modal-cancel" onclick="closeAdminModal()">Cancel</button>
+        <button class="modal-confirm" onclick="confirmAdminLogin()">Login</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="delete-confirm-modal">
+    <div class="modal-box delete-confirm">
+      <h3>Delete Record</h3>
+      <p>This will permanently delete this record from GitHub.</p>
+      <div class="delete-record-summary" id="delete-record-summary"></div>
+      <div class="modal-err" id="delete-error"></div>
+      <div class="delete-status" id="delete-status">Deleting...</div>
+      <div class="modal-actions" id="delete-actions">
+        <button class="modal-cancel" onclick="closeDeleteConfirmModal()">Cancel</button>
+        <button class="modal-confirm danger" id="btn-confirm-delete" onclick="executeDeleteRecord()">Delete Permanently</button>
+      </div>
+    </div>
+  </div>
+
   <footer>
     <div class="footer-inner">
       <div class="footer-coa">
@@ -338,13 +425,15 @@
     var TABLE_PAGE_SIZE = 50;
     var lastUpdateTime = null;
     var checkCount = 0;
+    var isAdmin = false;
+    var ADMIN_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
+    var pendingDeleteId = null;
 
     // Load saved config
     try {
       var saved = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
       if (saved.owner) document.getElementById('cfg-owner').value = saved.owner;
       if (saved.repo) document.getElementById('cfg-repo').value = saved.repo;
-      if (saved.token) document.getElementById('cfg-token').value = saved.token;
     } catch(e) {}
 
     // ── Tab Switching ──
@@ -372,10 +461,9 @@
     async function loadFieldData() {
       var owner = document.getElementById('cfg-owner').value.trim();
       var repo = document.getElementById('cfg-repo').value.trim();
-      var token = document.getElementById('cfg-token').value.trim();
       if (!owner) { setStatus('Error: Owner required', 'err', 'error'); return; }
       if (!repo) { setStatus('Error: Repo required', 'err', 'error'); return; }
-      localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo, token: token }));
+      localStorage.setItem('merremia_live_cfg', JSON.stringify({ owner: owner, repo: repo }));
       setStatus('Connecting to ' + owner + '/' + repo + '...', '', 'checking');
       if (liveConnector) liveConnector.stopAutoRefresh();
       lastDataSha = null;
@@ -383,12 +471,15 @@
       liveConnector = new MerremiaConnector({
         owner: owner,
         repo: repo,
-        token: token,
         cacheTTL: 0, // Disable cache for real-time updates
         onError: function(msg, err) {
           var now = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           setStatus('Connection error — retrying... (' + now + ')', 'err', 'error');
           console.error('[Dashboard]', msg, err);
+
+          // Update error diagnostic
+          document.getElementById('diag-error').textContent = msg || (err ? err.message : 'Unknown error');
+          document.getElementById('diag-check').textContent = now;
         }
       });
 
@@ -425,6 +516,14 @@
             renderForTab();
             lastDataSha = currentSha;
             lastUpdateTime = now;
+
+            // Update diagnostics
+            document.getElementById('diag-repo').textContent = owner + '/' + repo;
+            document.getElementById('diag-check').textContent = now;
+            document.getElementById('diag-sha').textContent = currentSha.substring(0, 7) || 'none';
+            document.getElementById('diag-count').textContent = newCount;
+            document.getElementById('diag-error').textContent = '—';
+
             if (isUpdate) {
               // Show notification for new data
               var notification = document.getElementById('newDataNotification');
@@ -563,7 +662,20 @@
     }
 
     // ── Map rendering ──
-    function clearMarkers() { mapMarkers.forEach(function(m) { m.remove(); }); mapMarkers = []; }
+    function clearMarkers() {
+      mapMarkers.forEach(function(m) { m.remove(); });
+      mapMarkers = [];
+      // Remove polygon layers and sources
+      ['polygon-fills', 'polygon-outlines', 'polygon-labels'].forEach(function(id) {
+        if (liveMap.getLayer(id)) liveMap.removeLayer(id);
+      });
+      if (liveMap.getSource('field-polygons')) liveMap.removeSource('field-polygons');
+      // Remove polygon popups
+      if (window._polyPopups) {
+        window._polyPopups.forEach(function(p) { p.remove(); });
+      }
+      window._polyPopups = [];
+    }
 
     function getMarkerColor(r) {
       var cat = r.category || 'merremia';
@@ -572,6 +684,13 @@
       if (cat === 'restoration') { var st = (r.restorationStage||'').toLowerCase(); return st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? '#10b981' : st.indexOf('mid') >= 0 ? '#3b82f6' : '#818cf8'; }
       if (cat === 'threatened') { var i = (r.iucnStatus||'').toLowerCase(); return i.indexOf('critical') >= 0 ? '#ef4444' : i.indexOf('endangered') >= 0 ? '#f59e0b' : i.indexOf('vulnerable') >= 0 ? '#a855f7' : '#818cf8'; }
       return '#94a3b8';
+    }
+
+    function hexToRgba(hex, alpha) {
+      var r = parseInt(hex.slice(1,3), 16);
+      var g = parseInt(hex.slice(3,5), 16);
+      var b = parseInt(hex.slice(5,7), 16);
+      return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
     }
 
     function getPhotoHTML(recordId, photoCount) {
@@ -599,7 +718,20 @@
     }
 
     function getPopupHTML(r) {
-      return getPhotoHTML(r.id, r.photoCount);
+      var cat = r.category || 'merremia';
+      var title = '';
+      if (cat === 'merremia') title = r.species || 'Merremia';
+      else if (cat === 'degraded') title = r.degradationType || 'Degraded Area';
+      else if (cat === 'restoration') title = r.restorationType || 'Restoration';
+      else if (cat === 'threatened') title = r.speciesName || 'Threatened Species';
+      var html = '<strong>' + title + '</strong>';
+      if (r.geometryType === 'polygon') {
+        html += '<span class="popup-polygon-badge">Polygon</span>';
+        if (r.polygonAreaHa) html += '<div class="popup-meta">Area: ~' + Number(r.polygonAreaHa).toFixed(2) + ' ha</div>';
+      }
+      html += '<div class="popup-meta">' + (r.island || '') + (r.siteName ? ' — ' + r.siteName : '') + '</div>';
+      html += getPhotoHTML(r.id, r.photoCount);
+      return html;
     }
 
     function renderMap(records) {
@@ -608,7 +740,20 @@
       document.getElementById('map-title').textContent = mapTitles[activeTab] || 'Field Observation Map';
       var bounds = new maplibregl.LngLatBounds();
       var hasBounds = false;
+
+      // Separate point and polygon records
+      var pointRecords = [];
+      var polygonRecords = [];
       records.forEach(function(r) {
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) {
+          polygonRecords.push(r);
+        } else {
+          pointRecords.push(r);
+        }
+      });
+
+      // Render point markers
+      pointRecords.forEach(function(r) {
         var lat = r.gps ? r.gps.lat : r.latitude;
         var lng = r.gps ? r.gps.lng : r.longitude;
         if (!lat || !lng) return;
@@ -621,6 +766,79 @@
         bounds.extend([lng, lat]);
         hasBounds = true;
       });
+
+      // Render polygon boundaries
+      if (polygonRecords.length > 0) {
+        var polyFeatures = polygonRecords.map(function(r) {
+          var coords = r.polygonCoordinates.slice();
+          // Ensure ring is closed
+          var first = coords[0];
+          var last = coords[coords.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) {
+            coords.push(first);
+          }
+          var color = getMarkerColor(r);
+          // Extend bounds with polygon vertices
+          r.polygonCoordinates.forEach(function(v) {
+            bounds.extend(v);
+            hasBounds = true;
+          });
+          return {
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [coords] },
+            properties: {
+              id: r.id,
+              color: color,
+              fillColor: hexToRgba(color, 0.3),
+              title: getPopupHTML(r)
+            }
+          };
+        });
+
+        liveMap.addSource('field-polygons', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: polyFeatures }
+        });
+
+        // Polygon fills
+        liveMap.addLayer({
+          id: 'polygon-fills',
+          type: 'fill',
+          source: 'field-polygons',
+          paint: {
+            'fill-color': ['get', 'color'],
+            'fill-opacity': 0.25
+          }
+        });
+
+        // Polygon outlines
+        liveMap.addLayer({
+          id: 'polygon-outlines',
+          type: 'line',
+          source: 'field-polygons',
+          paint: {
+            'line-color': ['get', 'color'],
+            'line-width': 2.5,
+            'line-opacity': 0.9
+          }
+        });
+
+        // Click handler for polygon popups
+        liveMap.on('click', 'polygon-fills', function(e) {
+          if (!e.features || !e.features.length) return;
+          var feature = e.features[0];
+          var popup = new maplibregl.Popup({ maxWidth: '320px' })
+            .setLngLat(e.lngLat)
+            .setHTML(feature.properties.title)
+            .addTo(liveMap);
+          window._polyPopups.push(popup);
+        });
+
+        // Cursor change on hover
+        liveMap.on('mouseenter', 'polygon-fills', function() { liveMap.getCanvas().style.cursor = 'pointer'; });
+        liveMap.on('mouseleave', 'polygon-fills', function() { liveMap.getCanvas().style.cursor = ''; });
+      }
+
       if (hasBounds) {
         liveMap.fitBounds(bounds, { padding: 50, maxZoom: 14 });
         mapMarkers.forEach(function(m) { m.togglePopup(); });
@@ -728,35 +946,37 @@
     function changeTablePage(delta) { tablePage += delta; renderTable(getTabRecords()); }
 
     function buildHeaders() {
-      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>';
-      if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>';
-      if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>';
-      if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>';
+      var del = isAdmin ? '<th style="width:70px">Delete</th>' : '';
+      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>' + del;
+      if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>' + del;
+      if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>' + del;
+      if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>' + del;
       return '';
     }
 
     function buildRow(r) {
       var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+      var del = isAdmin ? '<td><button class="btn-row-delete" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button></td>' : '';
       if (activeTab === 'merremia') {
         var t = (r.threatLevel||'low').toLowerCase();
         var bc = t === 'high' ? 'badge-high' : t === 'moderate' ? 'badge-moderate' : 'badge-low';
         var sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'degraded') {
         var sv = (r.severity||'').toLowerCase();
         var bc = sv === 'severe' ? 'badge-severe' : sv === 'moderate' ? 'badge-moderate' : 'badge-mild';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.degradationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.severity||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.landUseType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.degradationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.severity||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.landUseType||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'restoration') {
         var st = (r.restorationStage||'').toLowerCase();
         var bc = st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? 'badge-established' : st.indexOf('mid') >= 0 ? 'badge-mid' : 'badge-planning';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.restorationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.restorationStage||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.projectName||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td>' + (r.restorationType||'-') + '</td><td><span class="badge ' + bc + '">' + (r.restorationStage||'-') + '</span></td><td>' + (r.estimatedArea||'-') + '</td><td>' + (r.projectName||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'threatened') {
         var iu = (r.iucnStatus||'').toLowerCase();
         var bc = iu.indexOf('critical') >= 0 ? 'badge-cr' : iu.indexOf('endangered') >= 0 ? 'badge-en' : iu.indexOf('vulnerable') >= 0 ? 'badge-vu' : iu.indexOf('near') >= 0 ? 'badge-nt' : 'badge-dd';
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + (r.speciesName||'-') + '</em></td><td><span class="badge ' + bc + '">' + (r.iucnStatus||'-') + '</span></td><td>' + (r.populationEstimate||'-') + '</td><td>' + (r.habitatType||'-') + '</td><td>' + (r.observer||'-') + '</td></tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + (r.speciesName||'-') + '</em></td><td><span class="badge ' + bc + '">' + (r.iucnStatus||'-') + '</span></td><td>' + (r.populationEstimate||'-') + '</td><td>' + (r.habitatType||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       return '';
     }
@@ -993,13 +1213,25 @@
 
     function buildGeoJSON(records) {
       return { type: 'FeatureCollection', features: records.filter(function(r) {
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) return true;
         var lat = r.latitude || (r.gps && r.gps.lat);
         var lng = r.longitude || (r.gps && r.gps.lng);
         return lat && lng;
       }).map(function(r) {
+        // Build properties without polygonCoordinates to avoid bloating
+        var props = {};
+        Object.keys(r).forEach(function(k) { if (k !== 'polygonCoordinates') props[k] = r[k]; });
+        // Polygon geometry
+        if (r.geometryType === 'polygon' && r.polygonCoordinates && r.polygonCoordinates.length >= 3) {
+          var coords = r.polygonCoordinates.slice();
+          var first = coords[0]; var last = coords[coords.length - 1];
+          if (first[0] !== last[0] || first[1] !== last[1]) coords.push(first);
+          return { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: props };
+        }
+        // Point geometry
         var lat = r.latitude || (r.gps && r.gps.lat);
         var lng = r.longitude || (r.gps && r.gps.lng);
-        return { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: r };
+        return { type: 'Feature', geometry: { type: 'Point', coordinates: [lng, lat] }, properties: props };
       })};
     }
 
@@ -1044,7 +1276,7 @@
     }
 
     function recordsToCSV(records) {
-      var headers = ['id','timestamp','category','island','siteName','observer','latitude','longitude','accuracy','notes','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved'];
+      var headers = ['id','timestamp','category','geometryType','island','siteName','observer','latitude','longitude','accuracy','notes','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved','polygonAreaHa','polygonCoordinates'];
       var rows = records.map(function(r) {
         return headers.map(function(h) {
           var v = r[h] != null ? String(r[h]) : '';
@@ -1052,6 +1284,9 @@
           if (h === 'longitude') v = r.gps ? String(r.gps.lng||'') : v;
           if (h === 'accuracy') v = r.gps ? String(r.gps.accuracy||'') : v;
           if (h === 'species' && Array.isArray(r.species)) v = r.species.join('; ');
+          if (h === 'polygonCoordinates' && Array.isArray(r.polygonCoordinates)) {
+            v = r.polygonCoordinates.map(function(c) { return c[0].toFixed(6) + ' ' + c[1].toFixed(6); }).join('; ');
+          }
           return '"' + v.replace(/"/g, '""') + '"';
         }).join(',');
       });
@@ -1060,7 +1295,245 @@
 
     document.getElementById('dl-modal').addEventListener('click', function(e) { if (e.target === this) closeDlModal(); });
 
-    if (document.getElementById('cfg-owner').value) { setTimeout(loadFieldData, 300); }
+    // ── Admin Login ──
+    function toggleAdmin() {
+      if (isAdmin) {
+        isAdmin = false;
+        document.getElementById('btn-admin').textContent = 'Admin Login';
+        document.getElementById('btn-admin').classList.remove('logged-in');
+        renderForTab();
+        return;
+      }
+      document.getElementById('admin-password').value = '';
+      document.getElementById('admin-error').style.display = 'none';
+      document.getElementById('admin-modal').classList.add('active');
+      document.getElementById('admin-password').focus();
+    }
+
+    function closeAdminModal() {
+      document.getElementById('admin-modal').classList.remove('active');
+    }
+
+    async function confirmAdminLogin() {
+      var pw = document.getElementById('admin-password').value;
+      if (!pw) {
+        document.getElementById('admin-error').textContent = 'Password is required.';
+        document.getElementById('admin-error').style.display = 'block';
+        return;
+      }
+      var hash = await sha256(pw);
+      if (hash !== ADMIN_HASH) {
+        document.getElementById('admin-error').textContent = 'Incorrect password. Try again.';
+        document.getElementById('admin-error').style.display = 'block';
+        document.getElementById('admin-password').value = '';
+        document.getElementById('admin-password').focus();
+        return;
+      }
+      isAdmin = true;
+      closeAdminModal();
+      document.getElementById('btn-admin').textContent = 'Admin (Logout)';
+      document.getElementById('btn-admin').classList.add('logged-in');
+      renderForTab();
+    }
+
+    document.getElementById('admin-modal').addEventListener('click', function(e) { if (e.target === this) closeAdminModal(); });
+
+    // ── GitHub Token Configuration ──
+    // Resolve GitHub token from all available sources
+    function resolveGitHubToken() {
+      // 1. Dashboard's own config
+      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      if (cfg.token) return cfg.token;
+      // 2. Field collector config (shared localStorage on same domain)
+      var fc = JSON.parse(localStorage.getItem('merremia_settings') || '{}');
+      if (fc.githubToken) return fc.githubToken;
+      return '';
+    }
+
+    // Save GitHub token to localStorage
+    function saveGitHubToken() {
+      var token = document.getElementById('token-input').value.trim();
+
+      // Validation
+      if (!token) {
+        alert('Please enter a valid GitHub Personal Access Token');
+        return;
+      }
+
+      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        alert('Token should start with ghp_ or github_pat_\n\nPlease ensure you are using a valid GitHub Personal Access Token.');
+        return;
+      }
+
+      // Save to both dashboard config and field collector config for sharing
+      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      cfg.token = token;
+      localStorage.setItem('merremia_live_cfg', JSON.stringify(cfg));
+
+      var fc = JSON.parse(localStorage.getItem('merremia_settings') || '{}');
+      fc.githubToken = token;
+      localStorage.setItem('merremia_settings', JSON.stringify(fc));
+
+      // Clear input field for security
+      document.getElementById('token-input').value = '';
+
+      // Update status indicator
+      updateTokenStatus();
+
+      console.log('[Dashboard] GitHub token configured');
+    }
+
+    // Update token status indicator
+    function updateTokenStatus() {
+      var token = resolveGitHubToken();
+      var statusEl = document.getElementById('token-status');
+
+      if (token) {
+        statusEl.textContent = '✓ Token configured - Delete enabled';
+        statusEl.className = 'token-status-indicator configured';
+      } else {
+        statusEl.textContent = '⚠ Not configured';
+        statusEl.className = 'token-status-indicator not-configured';
+      }
+    }
+
+    // Load token configuration on page load
+    function loadTokenConfig() {
+      updateTokenStatus();
+    }
+
+    // ── Record Deletion ──
+    function getDeleteLabel(r) {
+      var cat = r.category || 'merremia';
+      if (cat === 'merremia') return ((Array.isArray(r.species) ? r.species.join(', ') : r.species) || 'Merremia') + ' at ' + (r.island || 'Unknown');
+      if (cat === 'degraded') return 'Degraded area at ' + (r.island || 'Unknown');
+      if (cat === 'restoration') return 'Restoration site at ' + (r.island || 'Unknown');
+      if (cat === 'threatened') return (r.speciesName || 'Threatened species') + ' at ' + (r.island || 'Unknown');
+      return 'Record at ' + (r.island || 'Unknown');
+    }
+
+    function promptDeleteRecord(id) {
+      pendingDeleteId = id;
+      var record = allRecordsData.find(function(r) { return r.id === id; });
+      if (!record) return;
+      var cat = record.category || 'merremia';
+      var label = '';
+      if (cat === 'merremia') label = (Array.isArray(record.species) ? record.species.join(', ') : (record.species || 'Merremia'));
+      else if (cat === 'degraded') label = record.degradationType || 'Degraded Area';
+      else if (cat === 'restoration') label = record.restorationType || 'Restoration';
+      else if (cat === 'threatened') label = record.speciesName || 'Threatened Species';
+      var summary = '<strong>ID:</strong> ' + record.id + '<br>' +
+        '<strong>Category:</strong> ' + cat + '<br>' +
+        '<strong>Type:</strong> ' + label + '<br>' +
+        '<strong>Island:</strong> ' + (record.island || '-') + '<br>' +
+        '<strong>Site:</strong> ' + (record.siteName || '-') + '<br>' +
+        '<strong>Date:</strong> ' + new Date(record.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) + '<br>' +
+        '<strong>Observer:</strong> ' + (record.observer || '-');
+      document.getElementById('delete-record-summary').innerHTML = summary;
+      document.getElementById('delete-error').style.display = 'none';
+      document.getElementById('delete-status').classList.remove('active');
+      document.getElementById('btn-confirm-delete').disabled = false;
+      document.getElementById('delete-confirm-modal').classList.add('active');
+    }
+
+    function closeDeleteConfirmModal() {
+      pendingDeleteId = null;
+      document.getElementById('delete-confirm-modal').classList.remove('active');
+    }
+
+    async function executeDeleteRecord() {
+      var deleteId = pendingDeleteId;
+      if (!deleteId || !isAdmin) return;
+      var cfg = JSON.parse(localStorage.getItem('merremia_live_cfg') || '{}');
+      var token = resolveGitHubToken();
+      if (!token) {
+        document.getElementById('delete-error').textContent = 'GitHub token not configured. Click "🔒 Admin: GitHub Token Configuration" above to configure your token.';
+        document.getElementById('delete-error').style.display = 'block';
+        return;
+      }
+      var record = allRecordsData.find(function(r) { return r.id === deleteId; });
+      if (!record) {
+        document.getElementById('delete-error').textContent = 'Record not found.';
+        document.getElementById('delete-error').style.display = 'block';
+        return;
+      }
+      var owner = document.getElementById('cfg-owner').value.trim();
+      var repo = document.getElementById('cfg-repo').value.trim();
+      var statusEl = document.getElementById('delete-status');
+      var btnEl = document.getElementById('btn-confirm-delete');
+      btnEl.disabled = true;
+      statusEl.textContent = 'Deleting record file...';
+      statusEl.classList.add('active');
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (getResp.ok) {
+          var fileData = await getResp.json();
+          await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/records/' + deleteId + '.json', {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: 'Delete record: ' + getDeleteLabel(record), sha: fileData.sha })
+          });
+        }
+        statusEl.textContent = 'Deleting photos...';
+        for (var j = 0; j < 5; j++) {
+          var photoResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
+            headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+          });
+          if (photoResp.ok) {
+            var photoData = await photoResp.json();
+            await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/photos/' + deleteId + '-' + j + '.jpg', {
+              method: 'DELETE',
+              headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+              body: JSON.stringify({ message: 'Delete photo for ' + deleteId, sha: photoData.sha })
+            });
+          } else { break; }
+        }
+        statusEl.textContent = 'Updating all-records.json...';
+        await removeRecordFromAllRecords(owner, repo, deleteId);
+        allRecordsData = allRecordsData.filter(function(r) { return r.id !== deleteId; });
+        closeDeleteConfirmModal();
+        renderForTab();
+      } catch(e) {
+        document.getElementById('delete-error').textContent = 'Error: ' + (e.message || 'Deletion failed. Check token permissions.');
+        document.getElementById('delete-error').style.display = 'block';
+        btnEl.disabled = false;
+        statusEl.classList.remove('active');
+      }
+    }
+
+    async function removeRecordFromAllRecords(owner, repo, deleteId) {
+      try {
+        var getResp = await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
+          headers: { 'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (!getResp.ok) return;
+        var existing = await getResp.json();
+        var allRecords = JSON.parse(decodeURIComponent(escape(atob(existing.content.replace(/\n/g, '')))));
+        var filtered = allRecords.filter(function(r) { return r.id !== deleteId; });
+        if (filtered.length === allRecords.length) return;
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
+        await fetch('https://api.github.com/repos/' + owner + '/' + repo + '/contents/data/all-records.json', {
+          method: 'PUT',
+          headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
+        });
+      } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
+    }
+
+    document.getElementById('delete-confirm-modal').addEventListener('click', function(e) { if (e.target === this) closeDeleteConfirmModal(); });
+
+    // Load token configuration status
+    loadTokenConfig();
+
+    // Auto-load if owner AND repo are configured (from localStorage or defaults)
+    var owner = document.getElementById('cfg-owner').value.trim();
+    var repo = document.getElementById('cfg-repo').value.trim();
+    if (owner && repo) {
+      console.log('[Dashboard] Auto-loading data from', owner + '/' + repo);
+      setTimeout(loadFieldData, 300);
+    }
   </script>
 </body>
 </html>

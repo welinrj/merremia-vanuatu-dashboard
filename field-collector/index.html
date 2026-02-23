@@ -12,6 +12,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <style>
     *{margin:0;padding:0;box-sizing:border-box}
     body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#ffffff;color:#1e293b;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;-webkit-font-smoothing:antialiased}
@@ -116,6 +117,23 @@
     .footer-ministry{color:#64748b;font-size:0.64rem;line-height:1.5;margin-bottom:1rem}
     .footer-bottom{padding-top:0.75rem;border-top:1px solid #e2e8f0;color:#94a3b8;font-size:0.58rem;max-width:320px;margin:0 auto}
     .footer-bottom strong{color:#64748b}
+    .geom-toggle{display:flex;gap:0;border-radius:0.5rem;overflow:hidden;border:1px solid #cbd5e1}
+    .geom-toggle button{flex:1;padding:0.55rem 0.5rem;background:#f8fafc;border:none;color:#64748b;font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s;font-family:inherit}
+    .geom-toggle button.active{background:#065f46;color:#ecfdf5}
+    .polygon-draw-section{display:none;flex-direction:column;gap:0.6rem}
+    .polygon-draw-section.active{display:flex}
+    #polygon-map{height:300px;border-radius:0.5rem;border:1px solid #e2e8f0}
+    .polygon-controls{display:flex;gap:0.5rem;flex-wrap:wrap}
+    .polygon-controls button{flex:1;min-width:80px;padding:0.5rem;border-radius:0.4rem;border:1px solid #cbd5e1;background:#f8fafc;color:#334155;font-size:0.78rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.2s}
+    .polygon-controls button:active{transform:scale(0.97)}
+    .polygon-controls .btn-close-poly{background:#065f46;color:#ecfdf5;border-color:#10b981}
+    .polygon-controls .btn-close-poly:disabled{opacity:0.4;cursor:not-allowed}
+    .polygon-controls .btn-undo-poly{background:#dbeafe;color:#1e40af;border-color:#3b82f6}
+    .polygon-controls .btn-clear-poly{background:#fee2e2;color:#991b1b;border-color:#ef4444}
+    .polygon-info{font-size:0.75rem;color:#64748b;text-align:center;padding:0.3rem}
+    .polygon-info .vertex-count{color:#065f46;font-weight:700}
+    .polygon-info .area-est{color:#1e40af;font-weight:600}
+    .polygon-badge{display:inline-block;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.6rem;font-weight:700;background:#dbeafe;color:#1e40af;margin-left:0.3rem}
     @media print{
       header,nav,.header-btns,.offline-banner,.gps-manual-toggle,.gps-manual-inputs,.photo-preview,.btn,.btn-save,.sync-status,#storage-warning,#sync-progress{display:none!important}
       body{background:#fff;color:#000;font-size:11pt}
@@ -162,6 +180,23 @@
       <div class="gps-manual-inputs" id="gps-manual">
         <input type="number" id="manual-lat" placeholder="Latitude (e.g. -17.7)" step="any">
         <input type="number" id="manual-lng" placeholder="Longitude (e.g. 168.3)" step="any">
+      </div>
+    </div>
+
+    <div class="field-group">
+      <label>Geometry Type</label>
+      <div class="geom-toggle" id="geom-toggle">
+        <button class="active" onclick="setGeometryType('point')" id="geom-btn-point">Point</button>
+        <button onclick="setGeometryType('polygon')" id="geom-btn-polygon">Polygon Boundary</button>
+      </div>
+      <div class="polygon-draw-section" id="polygon-draw-section">
+        <div id="polygon-map"></div>
+        <div class="polygon-info" id="polygon-info">Tap the map to place vertices. Minimum 3 points to close.</div>
+        <div class="polygon-controls">
+          <button class="btn-close-poly" id="btn-close-poly" onclick="closePolygon()" disabled>Close Polygon</button>
+          <button class="btn-undo-poly" onclick="undoPolygonVertex()">Undo</button>
+          <button class="btn-clear-poly" onclick="clearPolygon()">Clear</button>
+        </div>
       </div>
     </div>
 
@@ -543,9 +578,29 @@
       </div>
       <div class="settings-field">
         <label>Sync Status</label>
-        <input id="s-token-status" value="✓ Pre-configured by IT" readonly style="background:#d1fae5;color:#065f46;font-weight:600">
+        <input id="s-token-status" value="⚠ Token not configured" readonly style="background:#fef3c7;color:#92400e;font-weight:600">
       </div>
-      <!-- Token is hidden from field officers for security -->
+
+      <!-- Admin/IT Token Configuration (collapsible) -->
+      <details style="margin-top:1rem;border:1px solid #cbd5e1;border-radius:0.375rem;padding:0.5rem">
+        <summary style="cursor:pointer;font-size:0.85rem;color:#64748b;user-select:none;font-weight:600">
+          🔒 IT/Admin: Configure GitHub Token
+        </summary>
+        <div style="margin-top:0.75rem">
+          <div class="settings-field">
+            <label style="font-size:0.75rem">GitHub Personal Access Token</label>
+            <input id="s-token-input" type="password" placeholder="ghp_..." style="font-family:monospace;font-size:0.75rem">
+            <div style="font-size:0.7rem;color:#64748b;margin-top:0.25rem">
+              Generate at: GitHub → Settings → Developer settings → Personal access tokens<br>
+              Required scope: <code style="background:#f1f5f9;padding:0.125rem 0.25rem">repo</code> (full repository access)
+            </div>
+          </div>
+          <button class="btn btn-secondary" onclick="saveGitHubToken()" style="margin-top:0.5rem;font-size:0.85rem">
+            Save Token
+          </button>
+        </div>
+      </details>
+      <!-- Hidden token field for backward compatibility -->
       <input id="s-token" type="hidden" value="">
     </div>
 
@@ -587,6 +642,7 @@
     </div>
   </div>
 
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
   <script>
     // ── State ──
     var DB_KEY = 'merremia_records';
@@ -596,6 +652,11 @@
     var currentLat = null, currentLng = null, currentAcc = null;
     var editingRecordId = null;
     var currentOfficer = null;
+    var currentGeometryType = 'point'; // 'point' or 'polygon'
+    var polygonVertices = []; // Array of [lng, lat] pairs
+    var polygonClosed = false;
+    var polyMap = null; // MapLibre GL map instance for polygon drawing
+    var polyMapInitialized = false;
 
     // ── Category labels ──
     var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
@@ -661,17 +722,22 @@
           accEl.textContent = '\u00b1' + currentAcc + 'm';
           var btn = document.getElementById('btn-save');
           var hint = document.getElementById('gps-hint');
+          updateGPSMarkerOnPolyMap();
           if (currentAcc <= GPS_ACC_THRESHOLD) {
             accEl.className = 'accuracy gps-accuracy-good';
-            btn.disabled = false;
-            hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
-            hint.className = 'gps-hint ready';
+            if (currentGeometryType === 'point') {
+              btn.disabled = false;
+              hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
+              hint.className = 'gps-hint ready';
+            }
             stopGPS(); // Stop polling to save battery once locked
           } else {
             accEl.className = 'accuracy gps-accuracy-bad';
-            btn.disabled = true;
-            hint.textContent = 'Seeking satellites... ' + currentAcc + 'm accuracy (need < ' + GPS_ACC_THRESHOLD + 'm)';
-            hint.className = 'gps-hint';
+            if (currentGeometryType === 'point') {
+              btn.disabled = true;
+              hint.textContent = 'Seeking satellites... ' + currentAcc + 'm accuracy (need < ' + GPS_ACC_THRESHOLD + 'm)';
+              hint.className = 'gps-hint';
+            }
           }
         },
         function(err) {
@@ -742,6 +808,266 @@
       }
     }
 
+    // ── Geometry Type & Polygon Drawing ──
+    function setGeometryType(type) {
+      currentGeometryType = type;
+      document.getElementById('geom-btn-point').classList.toggle('active', type === 'point');
+      document.getElementById('geom-btn-polygon').classList.toggle('active', type === 'polygon');
+      var polySection = document.getElementById('polygon-draw-section');
+      if (type === 'polygon') {
+        polySection.classList.add('active');
+        initPolygonMap();
+      } else {
+        polySection.classList.remove('active');
+      }
+      // For polygon mode, GPS is still needed for map centering but save button logic adjusts
+      updateSaveButtonState();
+    }
+
+    function initPolygonMap() {
+      if (polyMapInitialized) {
+        // If already initialized, just recenter if we have GPS
+        if (currentLat && currentLng) {
+          polyMap.flyTo({ center: [currentLng, currentLat], zoom: 16 });
+        }
+        return;
+      }
+      var center = (currentLat && currentLng) ? [currentLng, currentLat] : [168.32, -17.73]; // Default: Port Vila
+      polyMap = new maplibregl.Map({
+        container: 'polygon-map',
+        style: {
+          version: 8,
+          sources: {
+            'esri-satellite': { type: 'raster', tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, attribution: 'Esri' },
+            'carto-streets': { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png'], tileSize: 256, attribution: 'CARTO' }
+          },
+          layers: [
+            { id: 'satellite', type: 'raster', source: 'esri-satellite' }
+          ]
+        },
+        center: center,
+        zoom: 16
+      });
+      polyMap.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+      polyMap.on('load', function() {
+        // Add GeoJSON source for polygon drawing
+        polyMap.addSource('polygon-draw', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        // Polygon fill
+        polyMap.addLayer({
+          id: 'polygon-fill',
+          type: 'fill',
+          source: 'polygon-draw',
+          filter: ['==', '$type', 'Polygon'],
+          paint: { 'fill-color': '#10b981', 'fill-opacity': 0.25 }
+        });
+        // Polygon outline
+        polyMap.addLayer({
+          id: 'polygon-outline',
+          type: 'line',
+          source: 'polygon-draw',
+          filter: ['==', '$type', 'Polygon'],
+          paint: { 'line-color': '#065f46', 'line-width': 3 }
+        });
+        // Line for unclosed polygon
+        polyMap.addLayer({
+          id: 'polygon-line',
+          type: 'line',
+          source: 'polygon-draw',
+          filter: ['==', '$type', 'LineString'],
+          paint: { 'line-color': '#10b981', 'line-width': 2, 'line-dasharray': [3, 2] }
+        });
+        // Vertices
+        polyMap.addSource('polygon-vertices', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        polyMap.addLayer({
+          id: 'polygon-vertices',
+          type: 'circle',
+          source: 'polygon-vertices',
+          paint: { 'circle-radius': 6, 'circle-color': '#ecfdf5', 'circle-stroke-color': '#065f46', 'circle-stroke-width': 2 }
+        });
+        // GPS position marker
+        polyMap.addSource('gps-position', {
+          type: 'geojson',
+          data: { type: 'FeatureCollection', features: [] }
+        });
+        polyMap.addLayer({
+          id: 'gps-position',
+          type: 'circle',
+          source: 'gps-position',
+          paint: { 'circle-radius': 8, 'circle-color': '#3b82f6', 'circle-stroke-color': '#ffffff', 'circle-stroke-width': 3, 'circle-opacity': 0.8 }
+        });
+        updateGPSMarkerOnPolyMap();
+      });
+
+      // Click to add vertex
+      polyMap.on('click', function(e) {
+        if (polygonClosed) return;
+        var lngLat = [e.lngLat.lng, e.lngLat.lat];
+        polygonVertices.push(lngLat);
+        updatePolygonDraw();
+        updatePolygonInfo();
+        updateSaveButtonState();
+      });
+
+      polyMapInitialized = true;
+    }
+
+    function updateGPSMarkerOnPolyMap() {
+      if (!polyMap || !polyMapInitialized) return;
+      var src = polyMap.getSource('gps-position');
+      if (!src) return;
+      if (currentLat && currentLng) {
+        src.setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', geometry: { type: 'Point', coordinates: [currentLng, currentLat] }, properties: {} }]
+        });
+      }
+    }
+
+    function updatePolygonDraw() {
+      if (!polyMap || !polyMapInitialized) return;
+      var src = polyMap.getSource('polygon-draw');
+      var vertSrc = polyMap.getSource('polygon-vertices');
+      if (!src || !vertSrc) return;
+
+      var features = [];
+      if (polygonVertices.length >= 2) {
+        if (polygonClosed && polygonVertices.length >= 3) {
+          var coords = polygonVertices.slice();
+          coords.push(coords[0]); // Close the ring
+          features.push({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [coords] }, properties: {} });
+        } else {
+          features.push({ type: 'Feature', geometry: { type: 'LineString', coordinates: polygonVertices }, properties: {} });
+        }
+      }
+      src.setData({ type: 'FeatureCollection', features: features });
+
+      // Update vertex markers
+      var vertexFeatures = polygonVertices.map(function(v, i) {
+        return { type: 'Feature', geometry: { type: 'Point', coordinates: v }, properties: { index: i } };
+      });
+      vertSrc.setData({ type: 'FeatureCollection', features: vertexFeatures });
+    }
+
+    function updatePolygonInfo() {
+      var info = document.getElementById('polygon-info');
+      var closeBtn = document.getElementById('btn-close-poly');
+      var n = polygonVertices.length;
+      if (polygonClosed) {
+        var area = calcPolygonAreaHa(polygonVertices);
+        info.innerHTML = 'Polygon closed: <span class="vertex-count">' + n + ' vertices</span> | <span class="area-est">~' + area.toFixed(2) + ' ha</span>';
+        closeBtn.disabled = true;
+        closeBtn.textContent = 'Polygon Closed';
+      } else if (n === 0) {
+        info.textContent = 'Tap the map to place vertices. Minimum 3 points to close.';
+        closeBtn.disabled = true;
+        closeBtn.textContent = 'Close Polygon';
+      } else if (n < 3) {
+        info.innerHTML = '<span class="vertex-count">' + n + ' point' + (n > 1 ? 's' : '') + '</span> placed. Need ' + (3 - n) + ' more to close.';
+        closeBtn.disabled = true;
+        closeBtn.textContent = 'Close Polygon';
+      } else {
+        var area = calcPolygonAreaHa(polygonVertices);
+        info.innerHTML = '<span class="vertex-count">' + n + ' points</span> | <span class="area-est">~' + area.toFixed(2) + ' ha</span> — tap more or close';
+        closeBtn.disabled = false;
+        closeBtn.textContent = 'Close Polygon';
+      }
+    }
+
+    function closePolygon() {
+      if (polygonVertices.length < 3) return;
+      polygonClosed = true;
+      updatePolygonDraw();
+      updatePolygonInfo();
+      updateSaveButtonState();
+      // Set the GPS point to centroid for compatibility
+      var centroid = calcCentroid(polygonVertices);
+      currentLat = centroid[1];
+      currentLng = centroid[0];
+      currentAcc = 0;
+    }
+
+    function undoPolygonVertex() {
+      if (polygonVertices.length === 0) return;
+      if (polygonClosed) {
+        polygonClosed = false;
+      }
+      polygonVertices.pop();
+      updatePolygonDraw();
+      updatePolygonInfo();
+      updateSaveButtonState();
+    }
+
+    function clearPolygon() {
+      polygonVertices = [];
+      polygonClosed = false;
+      updatePolygonDraw();
+      updatePolygonInfo();
+      updateSaveButtonState();
+    }
+
+    function calcCentroid(vertices) {
+      var sumLng = 0, sumLat = 0;
+      vertices.forEach(function(v) { sumLng += v[0]; sumLat += v[1]; });
+      return [sumLng / vertices.length, sumLat / vertices.length];
+    }
+
+    function calcPolygonAreaHa(vertices) {
+      // Shoelace formula in approximate meters then convert to hectares
+      if (vertices.length < 3) return 0;
+      var n = vertices.length;
+      var area = 0;
+      for (var i = 0; i < n; i++) {
+        var j = (i + 1) % n;
+        // Convert to approximate meters using latitude
+        var avgLat = (vertices[i][1] + vertices[j][1]) / 2;
+        var lngScale = Math.cos(avgLat * Math.PI / 180) * 111320;
+        var latScale = 110540;
+        var x1 = vertices[i][0] * lngScale, y1 = vertices[i][1] * latScale;
+        var x2 = vertices[j][0] * lngScale, y2 = vertices[j][1] * latScale;
+        area += x1 * y2 - x2 * y1;
+      }
+      area = Math.abs(area) / 2;
+      return area / 10000; // sq meters to hectares
+    }
+
+    function updateSaveButtonState() {
+      var btn = document.getElementById('btn-save');
+      var hint = document.getElementById('gps-hint');
+      if (currentGeometryType === 'polygon') {
+        if (polygonClosed && polygonVertices.length >= 3) {
+          btn.disabled = false;
+          hint.textContent = 'Polygon ready — ' + polygonVertices.length + ' vertices';
+          hint.className = 'gps-hint ready';
+        } else {
+          btn.disabled = true;
+          hint.textContent = 'Draw and close a polygon on the map to save';
+          hint.className = 'gps-hint';
+        }
+      } else {
+        // Original point mode behavior
+        if (currentLat !== null && currentAcc !== null && currentAcc <= GPS_ACC_THRESHOLD) {
+          btn.disabled = false;
+          hint.textContent = 'GPS locked (' + currentAcc + 'm) — ready to save';
+          hint.className = 'gps-hint ready';
+        } else if (manualGPSMode && currentLat !== null) {
+          btn.disabled = false;
+          hint.textContent = 'Manual coordinates set — ready to save';
+          hint.className = 'gps-hint ready';
+        } else {
+          btn.disabled = true;
+          hint.textContent = 'Seeking satellites... need < ' + GPS_ACC_THRESHOLD + 'm accuracy to save';
+          hint.className = 'gps-hint';
+        }
+      }
+    }
+
     // ── Photos ──
     function handlePhotos(e) {
       var files = Array.from(e.target.files);
@@ -798,6 +1124,26 @@
       document.getElementById('f-site').value = r.siteName || '';
       document.getElementById('f-observer').value = r.observer || '';
       document.getElementById('f-notes').value = r.notes || '';
+      // Restore geometry type
+      if (r.geometryType === 'polygon' && r.polygonCoordinates) {
+        setGeometryType('polygon');
+        // Wait for map to init then restore polygon
+        setTimeout(function() {
+          polygonVertices = r.polygonCoordinates.slice();
+          polygonClosed = true;
+          updatePolygonDraw();
+          updatePolygonInfo();
+          updateSaveButtonState();
+          // Fit map to polygon
+          if (polyMap && polygonVertices.length > 0) {
+            var bounds = new maplibregl.LngLatBounds();
+            polygonVertices.forEach(function(v) { bounds.extend(v); });
+            polyMap.fitBounds(bounds, { padding: 40 });
+          }
+        }, 500);
+      } else {
+        setGeometryType('point');
+      }
       // Set GPS manually
       if (r.latitude && r.longitude) {
         var manPanel = document.getElementById('gps-manual');
@@ -869,28 +1215,49 @@
       var island = document.getElementById('f-island').value;
 
       if (!island) { showToast('Please select an island.', 'warn'); return; }
-      if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
-      // Validate GPS within Vanuatu bounds (-25 to -10 lat, 165 to 172 lng)
-      if (currentLat < -25 || currentLat > -10 || currentLng < 165 || currentLng > 172) {
-        showToast('GPS coordinates outside Vanuatu range. Check your location.', 'warn');
-        return;
+
+      // Validation depends on geometry type
+      if (currentGeometryType === 'polygon') {
+        if (!polygonClosed || polygonVertices.length < 3) {
+          showToast('Please draw and close a polygon boundary on the map.', 'warn');
+          return;
+        }
+      } else {
+        if (currentLat === null) { showToast('Waiting for GPS fix. Try again in a moment.', 'warn'); return; }
+        // Validate GPS within Vanuatu bounds (-25 to -10 lat, 165 to 172 lng)
+        if (currentLat < -25 || currentLat > -10 || currentLng < 165 || currentLng > 172) {
+          showToast('GPS coordinates outside Vanuatu range. Check your location.', 'warn');
+          return;
+        }
       }
 
       var isEditing = !!editingRecordId;
       var officer = getOfficerProfile();
       var officerId = officer.officerId ? officer.officerId.replace(/[^a-zA-Z0-9]/g, '') : 'UNKNOWN';
 
+      // For polygon, use centroid as the point coordinate
+      var recLat = currentLat;
+      var recLng = currentLng;
+      var recAcc = currentAcc;
+      if (currentGeometryType === 'polygon') {
+        var centroid = calcCentroid(polygonVertices);
+        recLat = centroid[1];
+        recLng = centroid[0];
+        recAcc = 0;
+      }
+
       var record = {
         id: isEditing ? editingRecordId : Date.now().toString(36) + '-' + officerId + '-' + Math.random().toString(36).substr(2, 5),
         timestamp: isEditing ? getRecords().find(function(r) { return r.id === editingRecordId; }).timestamp : new Date().toISOString(),
         category: category, // Always set category
-        latitude: currentLat,
-        longitude: currentLng,
-        accuracy: currentAcc,
+        geometryType: currentGeometryType, // 'point' or 'polygon'
+        latitude: recLat,
+        longitude: recLng,
+        accuracy: recAcc,
         gps: {  // Also include gps object for compatibility
-          lat: currentLat,
-          lng: currentLng,
-          accuracy: currentAcc
+          lat: recLat,
+          lng: recLng,
+          accuracy: recAcc
         },
         island: island,
         siteName: document.getElementById('f-site').value || '',
@@ -900,6 +1267,12 @@
         photos: currentPhotos,
         synced: false
       };
+
+      // Add polygon coordinates if polygon type
+      if (currentGeometryType === 'polygon' && polygonClosed) {
+        record.polygonCoordinates = polygonVertices.slice(); // Array of [lng, lat]
+        record.polygonAreaHa = calcPolygonAreaHa(polygonVertices);
+      }
 
       // Category-specific fields and validation
       if (category === 'merremia') {
@@ -972,6 +1345,9 @@
       document.getElementById('f-area').value = '';
       document.querySelectorAll('.cat-fields select').forEach(function(s) { s.selectedIndex = 0; });
       document.querySelectorAll('.cat-fields input').forEach(function(i) { if (i.type !== 'file') i.value = ''; });
+      // Reset polygon state
+      clearPolygon();
+      setGeometryType('point');
       updateRecordCount();
 
       showToast(isEditing ? 'Record updated' : 'Data saved', 'info');
@@ -1064,8 +1440,9 @@
           }).join('') + '</div>';
         }
         var officerBadge = r.officerId ? '<span style="background:#e0e7ff;color:#3730a3;padding:0.1rem 0.4rem;border-radius:9999px;font-size:0.6rem;font-weight:700;margin-left:0.3rem">ID: ' + r.officerId + '</span>' : '';
+        var polyBadge = r.geometryType === 'polygon' ? '<span class="polygon-badge">' + (r.polygonCoordinates ? r.polygonCoordinates.length + '-pt ' : '') + 'Polygon' + (r.polygonAreaHa ? ' ~' + r.polygonAreaHa.toFixed(1) + 'ha' : '') + '</span>' : '';
         return '<div class="record-card">' +
-          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + officerBadge + '</h4>' +
+          '<h4>' + getRecordTitle(r) + ' ' + syncBadge + catBadge + polyBadge + officerBadge + '</h4>' +
           '<p>' + r.island + (r.siteName ? ' \u2014 ' + r.siteName : '') + '</p>' +
           '<div class="meta"><span>' + date + '</span><span>' + getRecordMeta(r) + '</span>' + (r.observer ? '<span>👤 ' + r.observer + '</span>' : '') + (r.photos && r.photos.length ? '<span>' + r.photos.length + ' photo(s)</span>' : '') + '</div>' +
           photoHtml +
@@ -1079,7 +1456,7 @@
     // SECURITY: Token must be configured by user in Settings panel
     // Never hardcode tokens in client-side JavaScript!
     var DEFAULTS = { owner: 'welinrj', repo: 'merremia-field-data', token: '' };
-    var DELETE_HASH = '35f832aa41e0a879fc978584d5292f41b0a146f98efe60498194541e63ea5fe0';
+    var DELETE_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
     async function sha256(message) {
       var buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(message));
       return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join('');
@@ -1094,8 +1471,7 @@
       var settings = getSettings();
       settings.owner = document.getElementById('s-owner').value.trim();
       settings.repo = document.getElementById('s-repo').value.trim();
-      // Token is pre-configured and hidden from field officers
-      if (!settings.token) settings.token = '';
+      // Token is configured separately via GitHub Token Configuration section
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
       showToast('Settings saved!', 'info');
     }
@@ -1129,6 +1505,53 @@
       currentOfficer = profile;
       applyOfficerPresets();
       showToast('Officer profile saved!', 'info');
+    }
+
+    function saveGitHubToken() {
+      var token = document.getElementById('s-token-input').value.trim();
+      if (!token) {
+        showToast('Please enter a valid GitHub Personal Access Token', 'warn');
+        return;
+      }
+
+      if (!token.startsWith('ghp_') && !token.startsWith('github_pat_')) {
+        showToast('Token should start with ghp_ or github_pat_', 'warn');
+        return;
+      }
+
+      // Store in localStorage
+      var settings = getSettings();
+      settings.githubToken = token;
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+
+      // Update hidden field
+      document.getElementById('s-token').value = token;
+
+      // Update status indicator
+      updateTokenStatus();
+
+      // Clear input field for security
+      document.getElementById('s-token-input').value = '';
+
+      showToast('GitHub token saved successfully! You can now sync data.', 'info');
+    }
+
+    function updateTokenStatus() {
+      var settings = getSettings();
+      var statusField = document.getElementById('s-token-status');
+
+      if (settings.githubToken && settings.githubToken.length > 0) {
+        statusField.value = '✓ Token configured - Sync enabled';
+        statusField.style.background = '#d1fae5';
+        statusField.style.color = '#065f46';
+
+        // Also update the hidden field
+        document.getElementById('s-token').value = settings.githubToken;
+      } else {
+        statusField.value = '⚠ Token not configured';
+        statusField.style.background = '#fef3c7';
+        statusField.style.color = '#92400e';
+      }
     }
 
     function getDeviceId() {
@@ -1212,19 +1635,30 @@
 
     function loadSettings() {
       var s = getSettings();
-      if (!s.owner || !s.token) {
+
+      // Handle migration from old 'token' field to new 'githubToken' field
+      if (s.token && !s.githubToken) {
+        s.githubToken = s.token;
+        delete s.token;
+      }
+
+      if (!s.owner) {
         s.owner = s.owner || DEFAULTS.owner;
         s.repo = s.repo || DEFAULTS.repo;
-        s.token = s.token || DEFAULTS.token;
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
       }
+
       document.getElementById('s-owner').value = s.owner || DEFAULTS.owner;
       document.getElementById('s-repo').value = s.repo || DEFAULTS.repo;
-      document.getElementById('s-token').value = s.token || DEFAULTS.token;
+      document.getElementById('s-token').value = s.githubToken || DEFAULTS.token;
+
       if (s.defaultObserver) {
         document.getElementById('s-observer').value = s.defaultObserver;
         document.getElementById('f-observer').value = s.defaultObserver;
       }
+
+      // Update token status indicator
+      updateTokenStatus();
     }
 
     // ── Sync to GitHub ──
@@ -1232,9 +1666,9 @@
       var s = getSettings();
       s.owner = s.owner || document.getElementById('s-owner').value.trim() || DEFAULTS.owner;
       s.repo = s.repo || document.getElementById('s-repo').value.trim() || DEFAULTS.repo;
-      s.token = s.token || document.getElementById('s-token').value.trim();
-      if (!s.token) {
-        showToast('Enter a GitHub Personal Access Token in Settings to sync', 'warn');
+      s.githubToken = s.githubToken || document.getElementById('s-token').value.trim();
+      if (!s.githubToken) {
+        showToast('Configure GitHub Personal Access Token in Settings to enable sync', 'warn');
         showView('settings');
         return;
       }
@@ -1279,7 +1713,7 @@
 
           var resp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + r.id + '.json', {
             method: 'PUT',
-            headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+            headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: 'Add record: ' + getCommitLabel(r), content: recordContent })
           });
           if (!resp.ok) { showToast('Sync failed for record — will retry later.', 'warn'); continue; }
@@ -1290,7 +1724,7 @@
               var photoData = r.photos[j].split(',')[1];
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + r.id + '-' + j + '.jpg', {
                 method: 'PUT',
-                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: 'Add photo for ' + r.id, content: photoData })
               });
             }
@@ -1324,7 +1758,7 @@
         var allRecords = [];
         var existingSha = null;
         var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (getResp.ok) {
           var existing = await getResp.json();
@@ -1347,7 +1781,7 @@
 
         await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
           body: JSON.stringify(body)
         });
       } catch(e) {
@@ -1376,10 +1810,13 @@
     function downloadCSV() {
       var records = getRecords();
       if (records.length === 0) { showToast('No records to download', 'warn'); return; }
-      var headers = ['id','timestamp','category','latitude','longitude','accuracy','island','siteName','observer','notes','synced','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','speciesPlanted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved'];
+      var headers = ['id','timestamp','category','geometryType','latitude','longitude','accuracy','island','siteName','observer','notes','synced','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','speciesPlanted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved','polygonAreaHa','polygonCoordinates'];
       var rows = records.map(function(r) {
         return headers.map(function(h) {
           var v = r[h] != null ? String(r[h]) : '';
+          if (h === 'polygonCoordinates' && Array.isArray(r.polygonCoordinates)) {
+            v = r.polygonCoordinates.map(function(c) { return c[0].toFixed(6) + ' ' + c[1].toFixed(6); }).join('; ');
+          }
           return '"' + v.replace(/"/g, '""').replace(/\n/g, ' ').replace(/\r/g, '') + '"';
         }).join(',');
       });
@@ -1433,6 +1870,7 @@
         '<h3 style="text-align:center;margin-bottom:0.75rem">DEPC Field Collector Help</h3>' +
         '<div style="font-size:0.78rem;color:#64748b;line-height:1.7">' +
         '<p><strong style="color:#065f46">GPS Location:</strong> The app uses your device GPS. Wait for accuracy below 8m (green indicator) before saving. Use "Enter coordinates manually" if GPS is unavailable.</p>' +
+        '<p style="margin-top:0.5rem"><strong style="color:#065f46">Polygon Boundaries:</strong> Switch to "Polygon Boundary" mode to draw area boundaries on a satellite map. Tap to place vertices, then close the polygon. Great for mapping invasive species spread, degraded areas, or restoration zones.</p>' +
         '<p style="margin-top:0.5rem"><strong style="color:#065f46">Survey Categories:</strong></p>' +
         '<ul style="padding-left:1.25rem;margin:0.25rem 0">' +
         '<li><strong>Merremia</strong> \u2014 Invasive vine monitoring (species, count, threat level, area)</li>' +
@@ -1495,29 +1933,29 @@
 
       if (record.synced) {
         var s = getSettings();
-        s.token = s.token || DEFAULTS.token;
+        s.githubToken = s.githubToken || DEFAULTS.token;
         try {
           var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
-            headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+            headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
           });
           if (getResp.ok) {
             var fileData = await getResp.json();
             await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/records/' + record.id + '.json', {
               method: 'DELETE',
-              headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+              headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
               body: JSON.stringify({ message: 'Delete record: ' + getCommitLabel(record), sha: fileData.sha })
             });
           }
 
           for (var j = 0; j < 5; j++) {
             var photoResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
-              headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+              headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
             });
             if (photoResp.ok) {
               var photoData = await photoResp.json();
               await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/photos/' + record.id + '-' + j + '.jpg', {
                 method: 'DELETE',
-                headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+                headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: 'Delete photo for ' + record.id, sha: photoData.sha })
               });
             } else break;
@@ -1539,7 +1977,7 @@
     async function removeRecordFromAllRecords(s, deleteId) {
       try {
         var getResp = await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Accept': 'application/vnd.github.v3+json' }
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Accept': 'application/vnd.github.v3+json' }
         });
         if (!getResp.ok) return;
         var existing = await getResp.json();
@@ -1549,7 +1987,7 @@
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(filtered, null, 2))));
         await fetch('https://api.github.com/repos/' + s.owner + '/' + s.repo + '/contents/data/all-records.json', {
           method: 'PUT',
-          headers: { 'Authorization': 'Bearer ' + s.token, 'Content-Type': 'application/json' },
+          headers: { 'Authorization': 'Bearer ' + s.githubToken, 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: 'Delete record ' + deleteId + ' (' + filtered.length + ' remaining)', content: content, sha: existing.sha })
         });
       } catch(e) { console.warn('Could not update all-records.json after delete:', e); }
@@ -1593,7 +2031,7 @@
             newSW.addEventListener('statechange', function() {
               if (newSW.state === 'activated' && 'caches' in window) {
                 caches.keys().then(function(names) {
-                  names.forEach(function(n) { if (n !== 'merremia-collector-v10-multi-officer') caches.delete(n); });
+                  names.forEach(function(n) { if (n !== 'merremia-collector-v11-polygon') caches.delete(n); });
                 });
               }
             });

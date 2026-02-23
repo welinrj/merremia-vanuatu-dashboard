@@ -22,9 +22,13 @@ import MapViewer from './MapViewer'
 import './DataPortal.css'
 import './GISDatabase.css'
 
+interface GISDatabaseProps {
+  onNavigate?: (section: string) => void
+}
+
 type DbView = 'browse' | 'upload'
 
-const GISDatabase: FC = () => {
+const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
   const [view, setView] = useState<DbView>('browse')
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [loading, setLoading] = useState(true)
@@ -201,6 +205,7 @@ const GISDatabase: FC = () => {
       if (result.pulled > 0) parts.push(`${result.pulled} pulled`)
       if (result.errors.length > 0) parts.push(`${result.errors.length} error${result.errors.length !== 1 ? 's' : ''}: ${result.errors.join('; ')}`)
       if (parts.length === 0) parts.push('Already in sync')
+      if (!config.token) parts.push('(pull-only — no token)')
 
       setSyncStatus(parts.join(', '))
       setLastSync(new Date().toISOString())
@@ -369,6 +374,14 @@ const GISDatabase: FC = () => {
             >
               Upload Your First Dataset
             </button>
+            {onNavigate && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => onNavigate('data-portal')}
+              >
+                Go to Data Portal
+              </button>
+            )}
           </div>
         </div>
       ) : (
