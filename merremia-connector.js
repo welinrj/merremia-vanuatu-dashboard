@@ -204,9 +204,18 @@ class MerremiaConnector {
             headers: { 'Cache-Control': 'no-cache' }
           });
           console.log('[Connector] Response status:', response.status);
+          console.log('[Connector] Response headers:', {
+            etag: response.headers.get('ETag'),
+            contentType: response.headers.get('Content-Type'),
+            contentLength: response.headers.get('Content-Length')
+          });
           if (response.ok) {
             const records = await response.json();
-            console.log('[Connector] Fetched', Array.isArray(records) ? records.length : 0, 'raw records');
+            const count = Array.isArray(records) ? records.length : 0;
+            console.log('[Connector] Fetched', count, 'raw records');
+            if (count > 0) {
+              console.log('[Connector] Sample record:', records[0]);
+            }
             if (Array.isArray(records)) {
               allRecords = records;
             } else {
