@@ -1,6 +1,6 @@
 {
   "name": "vanuatu-nbsap-portal",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Vanuatu NBSAP GIS Data Portal & Dashboard for 30x30 monitoring",
   "type": "module",
   "scripts": {
