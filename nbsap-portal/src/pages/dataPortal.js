@@ -177,15 +177,12 @@ function renderPortalTable() {
     return;
   }
 
-  // Build a lookup of target code → target info
+  // Build ordered target list
   const allTargets = TARGETS_CONFIG.targets || [];
-  const targetMap = {};
-  for (const t of allTargets) targetMap[t.code] = t;
 
   // Group layers by target code
   const groups = {};        // targetCode → [layer, ...]
   const unassigned = [];    // layers with no targets
-  const seen = new Set();   // track layer IDs already placed
 
   for (const l of layers) {
     const targets = l.metadata?.targets || [];
