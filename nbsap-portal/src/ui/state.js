@@ -91,13 +91,68 @@ export function removeLayer(layerId) {
 
 /**
  * Sets all layers (e.g., on initial load from storage).
+ * Deduplicates layers with the same originalFilename + category,
+ * keeping only the most recently uploaded version.
  * @param {Array} layers
  */
 export function setLayers(layers) {
-  appState.layers = layers;
+  appState.layers = deduplicateLayers(layers);
   _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
+}
+
+/**
+ * Deduplicates layers: when multiple layers share the same
+ * originalFilename + category, keep only the most recently uploaded.
+ * Layers without originalFilename are never considered duplicates.
+ * @param {Array} layers
+ * @returns {Array} Deduplicated layers
+ */
+function deduplicateLayers(layers) {
+  const grouped = {};
+  const unique = [];
+
+  for (const l of layers) {
+    const fname = l.metadata?.originalFilename;
+    const cat = l.metadata?.category;
+    if (!fname) { unique.push(l); continue; }
+
+    const key = `${fname}::${cat}`;
+    if (!grouped[key]) grouped[key] = [];
+    grouped[key].push(l);
+  }
+
+  for (const dupes of Object.values(grouped)) {
+    if (dupes.length === 1) {
+      unique.push(dupes[0]);
+    } else {
+      // Keep the most recently uploaded
+      dupes.sort((a, b) =>
+        new Date(b.metadata.uploadTimestamp) - new Date(a.metadata.uploadTimestamp)
+      );
+      unique.push(dupes[0]);
+      console.warn(
+        `Dedup: kept latest "${dupes[0].metadata.originalFilename}" (${dupes[0].metadata.category}), ` +
+        `removed ${dupes.length - 1} older duplicate(s)`
+      );
+    }
+  }
+  return unique;
+}
+
+/**
+ * Finds an existing layer with the same originalFilename + category.
+ * Returns the layer record or null.
+ * @param {string} filename
+ * @param {string} category
+ * @returns {object|null}
+ */
+export function findDuplicateLayer(filename, category) {
+  if (!filename) return null;
+  return appState.layers.find(l =>
+    l.metadata?.originalFilename === filename && l.metadata?.category === category
+  ) || null;
 }
 
 /**

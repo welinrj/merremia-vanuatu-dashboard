@@ -7,8 +7,8 @@
 import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
-import { saveLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
-import { getAppState, addLayer, trackLayer } from '../state.js';
+import { saveLayer, deleteLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
+import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer } from '../state.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
 let wizardOpen = false;
@@ -590,6 +590,21 @@ function renderStep3(body) {
       addLog(`ERROR: ${e}`, 'log-error');
     }
 
+    // Check for duplicate (same filename + category) and replace if found
+    const existing = findDuplicateLayer(
+      result.metadata.originalFilename,
+      result.metadata.category
+    );
+    if (existing) {
+      addLog(`Replacing existing layer "${existing.metadata.name}" (same file + category)`, 'log-warn');
+      try {
+        await deleteLayer(existing.id);
+        removeLayer(existing.id);
+      } catch (err) {
+        addLog(`Warning: could not remove old layer: ${err.message}`, 'log-warn');
+      }
+    }
+
     // Save to storage
     const layerRecord = {
       id: result.metadata.id,
@@ -602,8 +617,9 @@ function renderStep3(body) {
 
     // Add audit entry
     await addAuditEntry({
-      action: 'upload',
+      action: existing ? 'replace' : 'upload',
       layer_id: result.metadata.id,
+      replaced_layer_id: existing?.id || null,
       filename: result.metadata.originalFilename,
       targets: result.metadata.targets,
       category: result.metadata.category,
