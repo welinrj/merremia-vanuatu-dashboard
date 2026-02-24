@@ -80,5 +80,47 @@ service cloud.firestore {
       allow create: if isAuthenticated();
       allow update, delete: if false; // Logs are immutable
     }
+
+    // ─── NBSAP GIS Portal collections ────────────────────────
+    // The portal uses passphrase-based auth (not Firebase Auth),
+    // so these collections allow open read/write access.
+    // Data integrity is enforced at the application level.
+
+    // NBSAP layers — layer metadata docs + GeoJSON chunk subcollections
+    match /nbsap_layers/{layerId} {
+      allow read, write: if true;
+
+      // GeoJSON chunks subcollection (800KB per chunk)
+      match /chunks/{chunkId} {
+        allow read, write: if true;
+      }
+    }
+
+    // NBSAP metrics snapshots
+    match /nbsap_metrics/{metricId} {
+      allow read, write: if true;
+    }
+
+    // NBSAP audit log
+    match /nbsap_audit/{auditId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if false; // Audit entries are immutable
+    }
+
+    // NBSAP portal settings
+    match /nbsap_settings/{settingId} {
+      allow read, write: if true;
+    }
+
+    // NBSAP admin datasets — stored without target assignment
+    // for reference data, baselines, or cross-target datasets
+    match /nbsap_admin_datasets/{datasetId} {
+      allow read, write: if true;
+
+      match /chunks/{chunkId} {
+        allow read, write: if true;
+      }
+    }
   }
 }
