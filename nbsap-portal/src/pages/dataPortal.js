@@ -1,8 +1,9 @@
 /**
  * Data Portal page.
- * Lists all layers, supports search/filter, upload, and layer management.
+ * Lists all layers grouped by target, supports search/filter, upload, and layer management.
  */
 import { CATEGORIES } from '../config/categories.js';
+import TARGETS_CONFIG from '../config/targets.js';
 import ENV from '../config/env.js';
 import { getAppState, removeLayer } from '../ui/state.js';
 import { deleteLayer, addAuditEntry } from '../services/storage/index.js';
@@ -56,17 +57,15 @@ export function initDataPortal() {
     </div>
   `;
 
-  // Populate target filter
-  import('../config/targets.js').then(mod => {
-    const sel = document.getElementById('portal-filter-target');
-    const targets = (mod.default || mod)?.targets || [];
-    for (const t of targets) {
-      const opt = document.createElement('option');
-      opt.value = t.code;
-      opt.textContent = t.code;
-      sel.appendChild(opt);
-    }
-  }).catch(err => console.warn('Failed to load targets config:', err));
+  // Populate target filter from static import
+  const sel = document.getElementById('portal-filter-target');
+  const allTargets = TARGETS_CONFIG.targets || [];
+  for (const t of allTargets) {
+    const opt = document.createElement('option');
+    opt.value = t.code;
+    opt.textContent = t.code;
+    sel.appendChild(opt);
+  }
 
   // Bind events
   document.getElementById('portal-search').addEventListener('input', (e) => {
@@ -93,7 +92,54 @@ export function initDataPortal() {
 }
 
 /**
- * Renders the layer table.
+ * Builds a table row for a single layer.
+ */
+function buildLayerRow(l) {
+  const m = l.metadata;
+  const catConfig = CATEGORIES[m.category] || {};
+  const isRef = m.isReference === true;
+  const admin = isAdmin();
+
+  let coverageCell;
+  if (isRef) {
+    const baselines = ENV.nationalBaselines;
+    const baseline = m.realm === 'marine' ? baselines.marine_ha : baselines.terrestrial_ha;
+    const pct = baseline > 0 ? ((m.totalAreaHa || 0) / baseline * 100) : 0;
+    coverageCell = `<span style="font-weight:600">${pct.toFixed(1)}%</span>`;
+  } else {
+    coverageCell = `${m.featureCount}`;
+  }
+
+  const showDownload = !isRef || admin;
+  const showRemove = admin && (!isRef || admin);
+
+  return `
+    <tr data-layer-id="${l.id}" class="${selectedLayerId === l.id ? 'selected' : ''}" style="cursor:pointer">
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
+          <div>
+            <strong>${m.name}</strong>
+            ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
+          </div>
+        </div>
+      </td>
+      <td><span style="font-size:12px;color:var(--text-secondary)">${CATEGORIES[m.category]?.label || m.category}</span></td>
+      <td style="text-transform:capitalize">${m.realm}</td>
+      <td>${coverageCell}</td>
+      <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
+      <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
+      <td class="actions">
+        <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
+        ${showDownload ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
+        ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
+      </td>
+    </tr>
+  `;
+}
+
+/**
+ * Renders layers grouped by target category.
  */
 function renderPortalTable() {
   const state = getAppState();
@@ -106,10 +152,10 @@ function renderPortalTable() {
   layers = layers.filter(l => {
     const meta = l.metadata;
     if (portalSearch) {
-      const searchStr = `${meta.name} ${meta.category} ${meta.targets.join(' ')} ${meta.originalFilename}`.toLowerCase();
+      const searchStr = `${meta.name} ${meta.category} ${(meta.targets || []).join(' ')} ${meta.originalFilename}`.toLowerCase();
       if (!searchStr.includes(portalSearch)) return false;
     }
-    if (portalFilterTarget !== 'All' && !meta.targets.includes(portalFilterTarget)) return false;
+    if (portalFilterTarget !== 'All' && !(meta.targets || []).includes(portalFilterTarget)) return false;
     if (portalFilterCategory !== 'All' && meta.category !== portalFilterCategory) return false;
     if (portalFilterStatus !== 'All' && meta.status !== portalFilterStatus) return false;
     return true;
@@ -131,72 +177,87 @@ function renderPortalTable() {
     return;
   }
 
-  container.innerHTML = `
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>Layer Name</th>
-          <th>Category</th>
-          <th>Targets</th>
-          <th>Realm</th>
-          <th>Records</th>
-          <th>Status</th>
-          <th>Last Updated</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${layers.map(l => {
-          const m = l.metadata;
-          const catConfig = CATEGORIES[m.category] || {};
-          const isRef = m.isReference === true;
-          const admin = isAdmin();
+  // Build a lookup of target code → target info
+  const allTargets = TARGETS_CONFIG.targets || [];
+  const targetMap = {};
+  for (const t of allTargets) targetMap[t.code] = t;
 
-          // For reference layers show coverage %; for regular layers show feature count
-          let coverageCell;
-          if (isRef) {
-            const baselines = ENV.nationalBaselines;
-            const baseline = m.realm === 'marine' ? baselines.marine_ha : baselines.terrestrial_ha;
-            const pct = baseline > 0 ? ((m.totalAreaHa || 0) / baseline * 100) : 0;
-            coverageCell = `<span style="font-weight:600">${pct.toFixed(1)}%</span>`;
-          } else {
-            coverageCell = `${m.featureCount}`;
-          }
+  // Group layers by target code
+  const groups = {};        // targetCode → [layer, ...]
+  const unassigned = [];    // layers with no targets
+  const seen = new Set();   // track layer IDs already placed
 
-          // Reference layers: only admin can download/remove
-          const showDownload = !isRef || admin;
-          const showRemove = admin && (!isRef || admin);
+  for (const l of layers) {
+    const targets = l.metadata?.targets || [];
+    if (targets.length === 0) {
+      unassigned.push(l);
+    } else {
+      for (const tc of targets) {
+        if (!groups[tc]) groups[tc] = [];
+        groups[tc].push(l);
+      }
+    }
+  }
 
-          return `
-            <tr data-layer-id="${l.id}" class="${selectedLayerId === l.id ? 'selected' : ''}" style="cursor:pointer">
-              <td>
-                <div style="display:flex;align-items:center;gap:8px">
-                  <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
-                  <div>
-                    <strong>${m.name}</strong>
-                    ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
-                  </div>
-                </div>
-              </td>
-              <td><span style="font-size:12px;color:var(--text-secondary)">${CATEGORIES[m.category]?.label || m.category}</span></td>
-              <td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td>
-              <td style="text-transform:capitalize">${m.realm}</td>
-              <td>${coverageCell}</td>
-              <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
-              <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
-              <td class="actions">
-                <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
-                ${showDownload ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
-                ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
-              </td>
-            </tr>
-          `;
-        }).join('')}
-      </tbody>
-    </table>
-  `;
+  // Render grouped sections in target order
+  const tableHeader = `
+    <thead>
+      <tr>
+        <th>Layer Name</th>
+        <th>Category</th>
+        <th>Realm</th>
+        <th>Records</th>
+        <th>Status</th>
+        <th>Last Updated</th>
+        <th>Actions</th>
+      </tr>
+    </thead>`;
 
-  // Event delegation — one handler on the table instead of per-row/per-button
+  let html = '';
+
+  for (const t of allTargets) {
+    const groupLayers = groups[t.code];
+    if (!groupLayers || groupLayers.length === 0) continue;
+
+    html += `
+      <div class="portal-target-group">
+        <div class="portal-group-header" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray-50,#f8f9fa);border:1px solid var(--border-color,#e0e0e0);border-radius:8px 8px 0 0;margin-top:16px">
+          <span class="badge badge-info" style="font-size:13px;font-weight:700;padding:3px 10px">${t.code}</span>
+          <span style="font-weight:600;font-size:14px;color:var(--text-primary)">${t.name}</span>
+          <span style="font-size:12px;color:var(--text-secondary);margin-left:auto">${groupLayers.length} dataset${groupLayers.length !== 1 ? 's' : ''}</span>
+        </div>
+        <table class="data-table" style="border-top:none;border-radius:0 0 8px 8px;margin-bottom:0">
+          ${tableHeader}
+          <tbody>
+            ${groupLayers.map(l => buildLayerRow(l)).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  // Unassigned / Admin datasets
+  if (unassigned.length > 0) {
+    html += `
+      <div class="portal-target-group">
+        <div class="portal-group-header" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray-50,#f8f9fa);border:1px solid var(--border-color,#e0e0e0);border-radius:8px 8px 0 0;margin-top:16px">
+          <span class="badge" style="font-size:13px;font-weight:700;padding:3px 10px;background:#e0e0e0;color:#555">Admin</span>
+          <span style="font-weight:600;font-size:14px;color:var(--text-primary)">Admin / Unassigned Datasets</span>
+          <span style="font-size:12px;color:var(--text-secondary);margin-left:auto">${unassigned.length} dataset${unassigned.length !== 1 ? 's' : ''}</span>
+        </div>
+        <table class="data-table" style="border-top:none;border-radius:0 0 8px 8px;margin-bottom:0">
+          ${tableHeader}
+          <tbody>
+            ${unassigned.map(l => buildLayerRow(l)).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  }
+
+  container.innerHTML = html;
+
+  // Event delegation on the container
   container.addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (btn) {
