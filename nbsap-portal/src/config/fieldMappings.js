@@ -7,7 +7,8 @@ export default {
     "year": ["year", "YEAR", "Year", "est_year", "EST_YEAR", "date", "DATE", "year_est", "YEAR_EST", "established"],
     "status": ["status", "STATUS", "Status", "condition", "CONDITION", "state", "mgmt_status"],
     "source": ["source", "SOURCE", "Source", "data_src", "DATA_SRC", "origin", "ORIGIN", "provider"],
-    "notes": ["notes", "NOTES", "Notes", "comments", "COMMENTS", "description", "DESCRIPTION", "desc", "DESC", "remarks", "REMARKS"]
+    "notes": ["notes", "NOTES", "Notes", "comments", "COMMENTS", "description", "DESCRIPTION", "desc", "DESC", "remarks", "REMARKS"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL"]
   },
   "CCA": {
     "name": ["cca_name", "CCA_NAME", "community_area", "COMMUNITY_AREA", "tabu_name"],
@@ -51,27 +52,33 @@ export default {
   },
   "MEGAPODE": {
     "name": ["site_name", "SITE_NAME", "nesting_site", "location", "name"],
-    "type": ["obs_type", "record_type", "method", "status"]
+    "type": ["obs_type", "record_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "STARLING": {
     "name": ["site_name", "SITE_NAME", "location", "name"],
-    "type": ["obs_type", "record_type", "method", "status"]
+    "type": ["obs_type", "record_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "FANTAIL": {
     "name": ["site_name", "SITE_NAME", "location", "name"],
-    "type": ["obs_type", "record_type", "method", "status"]
+    "type": ["obs_type", "record_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "KINGFISHER": {
     "name": ["site_name", "SITE_NAME", "location", "name"],
-    "type": ["obs_type", "record_type", "method", "status"]
+    "type": ["obs_type", "record_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "FLYING_FOX": {
     "name": ["site_name", "SITE_NAME", "roost_name", "colony", "location", "name"],
-    "type": ["obs_type", "record_type", "colony_type", "method", "status"]
+    "type": ["obs_type", "record_type", "colony_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "PLERANDRA": {
     "name": ["site_name", "SITE_NAME", "population", "location", "name"],
-    "type": ["obs_type", "record_type", "habitat_type", "method", "status"]
+    "type": ["obs_type", "record_type", "habitat_type", "method", "status"],
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL", "origin", "ORIGIN"]
   },
   "INVASIVE": {
     "name": ["species_name", "SPECIES", "invasive_name", "ias_name"],

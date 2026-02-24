@@ -73,8 +73,9 @@ export function mapFeatureProperties(rawProps, layerDefaults) {
   const status = normalizeText(findMappedValue(rawProps, 'status', category)) || 'Unknown';
   const source = normalizeText(findMappedValue(rawProps, 'source', category)) || '';
   const notes = normalizeText(findMappedValue(rawProps, 'notes', category)) || '';
+  const presence = normalizeText(findMappedValue(rawProps, 'presence', category)) || '';
 
-  return {
+  const result = {
     name,
     type,
     realm,
@@ -89,6 +90,8 @@ export function mapFeatureProperties(rawProps, layerDefaults) {
     original_filename: layerDefaults.originalFilename || '',
     uploaded_by: layerDefaults.uploadedBy || 'admin'
   };
+  if (presence) result.presence = presence;
+  return result;
 }
 
 /**
