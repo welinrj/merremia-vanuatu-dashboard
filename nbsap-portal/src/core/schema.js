@@ -82,7 +82,7 @@ export function generateLayerId() {
 export function validateFeatureSchema(feature) {
   const props = feature.properties || {};
   const missing = STANDARD_FIELDS.filter(f => {
-    if (f === 'targets') return !Array.isArray(props.targets) || props.targets.length === 0;
+    if (f === 'targets') return !Array.isArray(props.targets); // targets can be empty (admin datasets)
     if (f === 'year') return false; // year is optional
     return !props[f] && props[f] !== 0;
   });
@@ -99,9 +99,8 @@ export function validateTORCompliance(layerMeta, geojson) {
   const issues = [];
   const features = geojson.features || [];
 
-  if (!layerMeta.targets || layerMeta.targets.length === 0) {
-    issues.push('Layer has no targets assigned');
-  }
+  // Targets are optional — admin datasets may not be assigned to any target
+  // Only warn if targets array is missing entirely (not just empty)
 
   if (!layerMeta.category) {
     issues.push('Layer has no category assigned');

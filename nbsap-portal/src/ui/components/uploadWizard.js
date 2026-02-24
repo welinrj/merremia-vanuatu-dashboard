@@ -467,7 +467,7 @@ function renderStep2(body) {
     </div>
 
     <div class="form-group">
-      <label>Targets (select at least one)</label>
+      <label>Targets</label>
       <div id="wizard-targets" class="target-checkboxes">
         ${targetsConfig.targets.map(t => {
           const preselected = defaultTarget === t.code;
@@ -478,6 +478,7 @@ function renderStep2(body) {
           </label>
         `;}).join('')}
       </div>
+      <div class="form-hint">Leave unchecked to store as an admin dataset (not assigned to any target)</div>
     </div>
 
     <div class="form-group">
@@ -536,12 +537,8 @@ function renderStep2(body) {
   });
 
   body.querySelector('#wizard-next-2').addEventListener('click', () => {
-    // Gather values
+    // Gather values — targets are optional (admin datasets have none)
     const selectedTargets = [...body.querySelectorAll('#wizard-targets input:checked')].map(i => i.value);
-    if (selectedTargets.length === 0) {
-      alert('Please select at least one target');
-      return;
-    }
 
     wizardState.opts.name = body.querySelector('#wizard-name').value || 'Untitled';
     wizardState.opts.category = categorySelect.value;
