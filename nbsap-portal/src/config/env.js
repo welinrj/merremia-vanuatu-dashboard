@@ -41,7 +41,7 @@ const ENV = {
   },
 
   /** Upload limits */
-  maxUploadSizeMB: 50,
+  maxUploadSizeMB: 1024,
   maxFeaturesPerLayer: 50000,
 
   /** Geometry cleaning defaults */
