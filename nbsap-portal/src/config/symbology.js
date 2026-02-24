@@ -318,6 +318,48 @@ export function printPointStyle(category) {
   };
 }
 
+// ── Presence-based helpers (Resident / Extinct for species) ──────────
+
+/** Extinct fill colour — desaturated red-grey */
+const EXTINCT_FILL = '#B0BEC5';
+const EXTINCT_STROKE = '#78909C';
+
+/**
+ * Checks if a feature's presence value indicates extinction.
+ */
+export function isExtinctPresence(feature) {
+  const p = (feature.properties?.presence || feature.properties?.type || '').toLowerCase();
+  return p.includes('extinct') || p.includes('possibly extinct') || p === 'ex';
+}
+
+/**
+ * Returns Leaflet polygon style for extinct species areas on print maps.
+ * Uses desaturated grey with hatched outline to distinguish from resident.
+ */
+export function printExtinctPolygonStyle(category) {
+  return {
+    fillColor: EXTINCT_FILL,
+    color: EXTINCT_STROKE,
+    weight: 2,
+    fillOpacity: 0.25,
+    dashArray: '6 4'
+  };
+}
+
+/**
+ * Returns Leaflet circleMarker style for extinct species points on print maps.
+ */
+export function printExtinctPointStyle(category) {
+  return {
+    radius: 6,
+    fillColor: EXTINCT_FILL,
+    color: EXTINCT_STROKE,
+    weight: 1.5,
+    fillOpacity: 0.5,
+    dashArray: '4 3'
+  };
+}
+
 // ── Legend helpers ────────────────────────────────────────────────────
 
 /**

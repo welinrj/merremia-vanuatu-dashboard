@@ -31,7 +31,10 @@ import {
   printPointStyle,
   referencePolygonStyle,
   referencePointStyle,
-  collectLegendEntries
+  collectLegendEntries,
+  isExtinctPresence,
+  printExtinctPolygonStyle,
+  printExtinctPointStyle
 } from '../../config/symbology.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
@@ -160,6 +163,370 @@ export function openPrintProvinceMaps(targetCode) {
 
   overlay.querySelector('#print-close-btn').addEventListener('click', closePrintOverlay);
   overlay.querySelector('#print-print-btn').addEventListener('click', () => window.print());
+}
+
+/** Species definitions for T4 print maps */
+const T4_SPECIES = [
+  { key: 'MEGAPODE', name: 'Vanuatu Megapode', scientific: 'Megapodius layardi', taxa: 'Bird' },
+  { key: 'STARLING', name: 'Vanuatu Mountain Starling', scientific: 'Aplonis santovestris', taxa: 'Bird' },
+  { key: 'FANTAIL', name: 'Vanuatu Streaked Fantail', scientific: 'Rhipidura spilodera', taxa: 'Bird' },
+  { key: 'KINGFISHER', name: 'Vanuatu Kingfisher', scientific: 'Todiramphus farquhari', taxa: 'Bird' },
+  { key: 'FLYING_FOX', name: 'Vanuatu Flying Fox', scientific: 'Pteropus anetianus', taxa: 'Mammal' },
+  { key: 'PLERANDRA', name: 'Plerandra vanuatuensis', scientific: 'Plerandra vanuatuensis', taxa: 'Plant' }
+];
+
+/**
+ * Opens the print view for T4 with one map page per species.
+ * Each page shows the species distribution across all provinces,
+ * with resident vs extinct/possibly extinct areas differentiated.
+ */
+export function openPrintSpeciesMaps(targetCode) {
+  closePrintOverlay();
+  const target = getTargetConfig(targetCode || 'T4');
+  if (!target) return;
+
+  const state = getAppState();
+  const layers = getTargetLayers(targetCode || 'T4');
+
+  // Collect species that have data
+  const speciesWithData = [];
+  for (const sp of T4_SPECIES) {
+    const features = [];
+    for (const l of layers) {
+      if (l.metadata?.isReference) continue;
+      if (l.metadata?.category !== sp.key) continue;
+      for (const f of (l.geojson?.features || [])) {
+        features.push(f);
+      }
+    }
+    if (features.length > 0) {
+      speciesWithData.push({ ...sp, features });
+    }
+  }
+
+  // Also add KBA and SPECIES_DIST if they have data
+  const otherCats = ['KBA', 'SPECIES_DIST'];
+  for (const cat of otherCats) {
+    const features = [];
+    for (const l of layers) {
+      if (l.metadata?.isReference) continue;
+      if (l.metadata?.category !== cat) continue;
+      for (const f of (l.geojson?.features || [])) features.push(f);
+    }
+    if (features.length > 0) {
+      const label = CATEGORIES[cat]?.label || cat;
+      speciesWithData.push({ key: cat, name: label, scientific: '', taxa: '', features });
+    }
+  }
+
+  if (speciesWithData.length === 0) return;
+
+  const overlay = buildOverlay([targetCode || 'T4'], `T4 — By Species (${speciesWithData.length})`);
+  document.body.appendChild(overlay);
+  document.body.classList.add('print-mode');
+
+  const pageContainer = overlay.querySelector('#print-pages');
+
+  // Sequential rendering — one species map at a time
+  let idx = 0;
+  function renderNext() {
+    if (idx >= speciesWithData.length) return;
+    const sp = speciesWithData[idx];
+    const mapId = renderSpeciesPage(pageContainer, targetCode || 'T4', target, sp, layers, state);
+    idx++;
+    requestAnimationFrame(() => {
+      initPrintSpeciesMap(mapId, sp, state.provincesGeojson);
+      setTimeout(() => requestAnimationFrame(renderNext), 600);
+    });
+  }
+  renderNext();
+
+  overlay.querySelector('#print-close-btn').addEventListener('click', closePrintOverlay);
+  overlay.querySelector('#print-print-btn').addEventListener('click', () => window.print());
+}
+
+/**
+ * Renders one print page for a single species.
+ * Shows distribution across provinces with resident/extinct differentiation.
+ */
+function renderSpeciesPage(container, targetCode, target, species, layers, state) {
+  const baselines = ENV.nationalBaselines;
+  const features = species.features;
+
+  // Split by presence
+  const residentFeatures = features.filter(f => !isExtinctPresence(f));
+  const extinctFeatures = features.filter(f => isExtinctPresence(f));
+  const hasPresenceData = extinctFeatures.length > 0;
+
+  // Compute areas
+  let totalAreaHa = 0;
+  let residentAreaHa = 0;
+  let extinctAreaHa = 0;
+  for (const f of residentFeatures) residentAreaHa += f.properties?.area_ha || 0;
+  for (const f of extinctFeatures) extinctAreaHa += f.properties?.area_ha || 0;
+  totalAreaHa = residentAreaHa + extinctAreaHa;
+
+  // Province breakdown
+  const provData = {};
+  for (const f of features) {
+    const prov = f.properties?.province || 'Unassigned';
+    if (!provData[prov]) provData[prov] = { resident: 0, extinct: 0, features: 0, area_ha: 0 };
+    provData[prov].features++;
+    const areaHa = f.properties?.area_ha || 0;
+    provData[prov].area_ha += areaHa;
+    if (isExtinctPresence(f)) provData[prov].extinct++;
+    else provData[prov].resident++;
+  }
+
+  const page = document.createElement('div');
+  page.className = 'print-page';
+  const mapId = `print-map-species-${species.key}`;
+
+  const speciesColors = resolveColors(species.key);
+
+  // Metrics row
+  const metricsHtml = `
+    <div class="print-metrics-row">
+      <div class="print-metric"><span class="print-metric-value">${fmtHa(totalAreaHa)}</span><span class="print-metric-label">Total Area (ha)</span></div>
+      <div class="print-metric"><span class="print-metric-value">${features.length}</span><span class="print-metric-label">Records</span></div>
+      ${hasPresenceData ? `
+        <div class="print-metric"><span class="print-metric-value">${residentFeatures.length}</span><span class="print-metric-label">Resident Records</span></div>
+        <div class="print-metric"><span class="print-metric-value">${extinctFeatures.length}</span><span class="print-metric-label">Extinct Records</span></div>
+      ` : `
+        <div class="print-metric"><span class="print-metric-value">${Object.keys(provData).length}</span><span class="print-metric-label">Provinces</span></div>
+        <div class="print-metric"><span class="print-metric-value">${fmtHa(residentAreaHa)}</span><span class="print-metric-label">Distribution (ha)</span></div>
+      `}
+      <div class="print-metric"><span class="print-metric-value">${fmtPct(baselines.terrestrial_ha > 0 ? totalAreaHa / baselines.terrestrial_ha * 100 : 0)}</span><span class="print-metric-label">% National Land</span></div>
+      <div class="print-metric"><span class="print-metric-value"><span class="cat-dot" style="background:${speciesColors.fill};border-color:${speciesColors.stroke}"></span></span><span class="print-metric-label">${CATEGORIES[species.key]?.label || species.name}</span></div>
+    </div>
+  `;
+
+  // Legend
+  let legendHtml = `<div class="print-legend-item">
+    <span class="print-legend-swatch" style="background:${speciesColors.fill};border-color:${speciesColors.stroke}"></span>
+    <span>${species.name}${hasPresenceData ? ' (Resident)' : ''}</span>
+  </div>`;
+  if (hasPresenceData) {
+    legendHtml += `<div class="print-legend-item">
+      <span class="print-legend-swatch" style="background:#B0BEC5;border-color:#78909C;border-style:dashed"></span>
+      <span>${species.name} (Extinct)</span>
+    </div>`;
+  }
+  legendHtml += '<div class="print-legend-item"><span class="print-legend-swatch print-legend-swatch-province"></span><span>Province Boundary</span></div>';
+
+  // Province table
+  const provEntries = Object.entries(provData).sort((a, b) => b[1].area_ha - a[1].area_ha);
+  let provTableHtml = '';
+  if (provEntries.length > 0) {
+    const provRows = provEntries.map(([prov, d]) => {
+      const presenceCols = hasPresenceData
+        ? `<td class="r">${d.resident}</td><td class="r">${d.extinct}</td>`
+        : '';
+      return `<tr><td>${prov}</td><td class="r">${fmtHaFull(d.area_ha)}</td><td class="r">${d.features}</td>${presenceCols}</tr>`;
+    }).join('');
+    const totalFeats = provEntries.reduce((s, [, d]) => s + d.features, 0);
+    const totalArea = provEntries.reduce((s, [, d]) => s + d.area_ha, 0);
+    const presenceHeaders = hasPresenceData ? '<th class="r">Resident</th><th class="r">Extinct</th>' : '';
+    const presenceTotals = hasPresenceData
+      ? `<td class="r"><b>${residentFeatures.length}</b></td><td class="r"><b>${extinctFeatures.length}</b></td>`
+      : '';
+    provTableHtml = `
+      <div class="print-detail-table">
+        <div class="print-section-title">Province Distribution</div>
+        <table>
+          <thead><tr><th>Province</th><th class="r">Area (ha)</th><th class="r">Records</th>${presenceHeaders}</tr></thead>
+          <tbody>${provRows}</tbody>
+          <tfoot><tr class="total-row"><td><b>TOTAL</b></td><td class="r"><b>${fmtHaFull(totalArea)}</b></td><td class="r"><b>${totalFeats}</b></td>${presenceTotals}</tr></tfoot>
+        </table>
+      </div>
+    `;
+  }
+
+  const scientificLine = species.scientific ? `<i>${species.scientific}</i>` : '';
+  const taxaLine = species.taxa ? ` (${species.taxa})` : '';
+
+  page.innerHTML = `
+    <div class="print-title-block">
+      <div class="print-title-left">
+        <div class="print-title-brand">
+          ${FLAG_SVG}
+          <div>
+            <div class="print-title-main">Vanuatu NBSAP GIS Portal</div>
+            <div class="print-title-sub">National Biodiversity Strategies and Action Plan</div>
+          </div>
+        </div>
+      </div>
+      <div class="print-title-right">
+        <div class="print-title-date">${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+        <div class="print-title-crs">CRS: EPSG:4326 (WGS 84)</div>
+      </div>
+    </div>
+
+    <div class="print-target-bar">
+      <div class="print-target-code" style="background:${speciesColors.fill}">${species.key}</div>
+      <div class="print-target-info">
+        <div class="print-target-name">${species.name}${taxaLine}</div>
+        <div class="print-target-desc">${scientificLine} &mdash; T4: Species &amp; Biodiversity Distribution</div>
+      </div>
+    </div>
+
+    ${metricsHtml}
+
+    <div class="print-map-area">
+      <div class="print-map-container" id="${mapId}"></div>
+      <div class="print-map-furniture">
+        <div class="print-legend-box">
+          <div class="print-legend-title">Legend</div>
+          ${legendHtml}
+        </div>
+        <div class="print-north-arrow">
+          <svg width="36" height="48" viewBox="0 0 36 48">
+            <polygon points="18,2 24,22 18,18 12,22" fill="#333" stroke="#333" stroke-width="0.5"/>
+            <polygon points="18,2 12,22 18,18 24,22" fill="#fff" stroke="#333" stroke-width="0.5" opacity="0.4"/>
+            <text x="18" y="38" text-anchor="middle" font-size="12" font-weight="bold" fill="#333">N</text>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="print-summary-line">${species.name}: ${fmtHaFull(totalAreaHa)} ha across ${Object.keys(provData).length} province${Object.keys(provData).length !== 1 ? 's' : ''} | ${features.length} records</div>
+
+    <div class="print-bottom-section">
+      ${provTableHtml}
+    </div>
+
+    <div class="print-footer">
+      <div class="print-footer-left">
+        <strong>Prepared by:</strong> NBSAP &mdash; Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu
+      </div>
+      <div class="print-footer-right">
+        Printed: ${new Date().toLocaleString('en-GB')}
+      </div>
+    </div>
+  `;
+
+  container.appendChild(page);
+  return mapId;
+}
+
+/**
+ * Initializes a Leaflet map for a species print page.
+ * Renders resident and extinct features with different symbology.
+ */
+function initPrintSpeciesMap(containerId, species, provincesGeojson) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+
+  const printMap = L.map(containerId, {
+    center: ENV.mapCenter,
+    zoom: ENV.mapZoom,
+    zoomControl: false,
+    attributionControl: false,
+    dragging: false,
+    scrollWheelZoom: false,
+    doubleClickZoom: false,
+    touchZoom: false,
+    preferCanvas: true
+  });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19
+  }).addTo(printMap);
+
+  L.control.scale({ imperial: false, position: 'bottomleft', maxWidth: 150 }).addTo(printMap);
+
+  // Province boundaries
+  if (provincesGeojson) {
+    L.geoJSON(provincesGeojson, {
+      style: () => ({
+        color: '#777',
+        weight: 1.2,
+        fillOpacity: 0.02,
+        dashArray: '4 4'
+      }),
+      onEachFeature: (feature, layer) => {
+        const name = feature.properties.name || feature.properties.province || '';
+        if (name) {
+          layer.bindTooltip(name, {
+            permanent: true,
+            direction: 'center',
+            className: 'print-province-label'
+          });
+        }
+      }
+    }).addTo(printMap);
+  }
+
+  const featureGroup = L.featureGroup();
+  const features = species.features;
+
+  // Split by presence
+  const residentFeatures = features.filter(f => !isExtinctPresence(f));
+  const extinctFeatures = features.filter(f => isExtinctPresence(f));
+
+  const cat = species.key;
+  const normalStyle = printDissolvedStyle(cat);
+  const extinctPolyStyle = printExtinctPolygonStyle(cat);
+  const normalPointStyle = printPointStyle(cat);
+  const extinctPtStyle = printExtinctPointStyle(cat);
+
+  // Render extinct features first (behind resident)
+  const extinctPolys = extinctFeatures.filter(f => {
+    const t = f.geometry?.type;
+    return t === 'Polygon' || t === 'MultiPolygon';
+  });
+  const extinctPts = extinctFeatures.filter(f => {
+    const t = f.geometry?.type;
+    return t === 'Point' || t === 'MultiPoint';
+  });
+  if (extinctPolys.length > 0) {
+    const dissolved = dissolveFeatures(extinctPolys);
+    if (dissolved) {
+      featureGroup.addLayer(L.geoJSON(dissolved, { style: () => extinctPolyStyle }));
+    } else {
+      featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: extinctPolys }, { style: () => extinctPolyStyle }));
+    }
+  }
+  if (extinctPts.length > 0) {
+    featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: extinctPts }, {
+      pointToLayer: (f, latlng) => L.circleMarker(latlng, extinctPtStyle)
+    }));
+  }
+
+  // Render resident features on top
+  const residentPolys = residentFeatures.filter(f => {
+    const t = f.geometry?.type;
+    return t === 'Polygon' || t === 'MultiPolygon';
+  });
+  const residentPts = residentFeatures.filter(f => {
+    const t = f.geometry?.type;
+    return t === 'Point' || t === 'MultiPoint';
+  });
+  if (residentPolys.length > 0) {
+    const dissolved = dissolveFeatures(residentPolys);
+    if (dissolved) {
+      featureGroup.addLayer(L.geoJSON(dissolved, { style: () => normalStyle }));
+    } else {
+      featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: residentPolys }, { style: () => normalStyle }));
+    }
+  }
+  if (residentPts.length > 0) {
+    featureGroup.addLayer(L.geoJSON({ type: 'FeatureCollection', features: residentPts }, {
+      pointToLayer: (f, latlng) => L.circleMarker(latlng, normalPointStyle)
+    }));
+  }
+
+  featureGroup.addTo(printMap);
+
+  // Fit bounds
+  if (featureGroup.getLayers().length > 0) {
+    const bounds = featureGroup.getBounds();
+    if (bounds.isValid()) {
+      printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+    }
+  }
+
+  setTimeout(() => printMap.invalidateSize(), 200);
 }
 
 /**

@@ -8,7 +8,7 @@ import { renderKPIWidgets } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
-import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps } from '../ui/components/printMap.js';
+import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpeciesMaps } from '../ui/components/printMap.js';
 import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
@@ -60,6 +60,10 @@ export function initDashboard() {
           <button class="btn btn-sm btn-outline" id="btn-print-province" title="Print target maps by province (select a target first)" disabled>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             By Province
+          </button>
+          <button class="btn btn-sm btn-outline" id="btn-print-species" title="Print T4 species maps (select T4 first)" disabled style="display:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+            By Species
           </button>
           <button class="btn btn-sm btn-primary" id="btn-print-all" title="Print maps for all 9 NBSAP targets">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
@@ -120,6 +124,12 @@ export function initDashboard() {
       openPrintProvinceMaps(state.filters.targets[0]);
     }
   });
+  document.getElementById('btn-print-species').addEventListener('click', () => {
+    const state = getAppState();
+    if (state.filters.targets.length === 1 && state.filters.targets[0] === 'T4') {
+      openPrintSpeciesMaps('T4');
+    }
+  });
 }
 
 /**
@@ -149,6 +159,7 @@ export function refreshDashboard() {
   const headerContainer = document.getElementById('target-header-container');
   const printTargetBtn = document.getElementById('btn-print-target');
   const printProvinceBtn = document.getElementById('btn-print-province');
+  const printSpeciesBtn = document.getElementById('btn-print-species');
   if (headerContainer) {
     if (activeTargets.length === 1) {
       const t = activeTargets[0];
@@ -176,6 +187,17 @@ export function refreshDashboard() {
         printProvinceBtn.disabled = false;
         printProvinceBtn.title = `Print ${t} maps by province`;
       }
+      // Show/enable "By Species" button only for T4
+      if (printSpeciesBtn) {
+        if (t === 'T4') {
+          printSpeciesBtn.style.display = '';
+          printSpeciesBtn.disabled = false;
+          printSpeciesBtn.title = 'Print species distribution maps';
+        } else {
+          printSpeciesBtn.style.display = 'none';
+          printSpeciesBtn.disabled = true;
+        }
+      }
     } else {
       headerContainer.innerHTML = '';
       if (printTargetBtn) {
@@ -185,6 +207,10 @@ export function refreshDashboard() {
       if (printProvinceBtn) {
         printProvinceBtn.disabled = true;
         printProvinceBtn.title = 'Select a single target first';
+      }
+      if (printSpeciesBtn) {
+        printSpeciesBtn.style.display = 'none';
+        printSpeciesBtn.disabled = true;
       }
     }
   }
