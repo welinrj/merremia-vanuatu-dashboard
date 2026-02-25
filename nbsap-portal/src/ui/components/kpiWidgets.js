@@ -68,7 +68,7 @@ export function renderKPIWidgets(container) {
  * Renders Target 1 (Biodiversity Spatial Planning) KPIs.
  *
  * Marine coverage = EEZ area minus Admin0 (land) area.
- *   Derived from reference layers, not feature data. MPA excluded.
+ *   Derived from EEZ and Admin0 category layers. MPA excluded.
  *
  * Terrestrial coverage = dissolved T1 feature area / national terrestrial baseline.
  */
@@ -94,12 +94,12 @@ function renderTarget1KPIs(container, layers, filters) {
     </span>`;
   }).join('');
 
-  // Marine reference data notice
+  // Marine data notice
   const marineNote = (!m.hasEEZ || !m.hasAdmin0)
     ? `<div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:12px;color:#856404;margin-bottom:6px">
-        Marine calculation requires <strong>EEZ</strong> and <strong>National Boundary (Admin0)</strong> reference layers.
+        Marine calculation requires <strong>EEZ</strong> and <strong>National Boundary (Admin0)</strong> datasets.
         ${!m.hasEEZ ? ' Missing: EEZ.' : ''}${!m.hasAdmin0 ? ' Missing: Admin0.' : ''}
-        Upload them as reference layers with the corresponding category.
+        Upload them with the EEZ / Admin Boundary category.
       </div>`
     : '';
 

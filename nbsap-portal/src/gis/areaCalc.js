@@ -299,8 +299,8 @@ export function compute30x30Metrics(layers, filters = {}) {
 
 // ─── TARGET 1 METRICS (Biodiversity Spatial Planning) ────────────────────────
 
-/** Categories excluded from T1 calculations (MPA belongs to T3 only) */
-const T1_EXCLUDED_CATEGORIES = new Set(['MPA']);
+/** Categories excluded from T1 terrestrial feature calculations */
+const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'EEZ', 'ADMIN_BOUNDARY']);
 
 /**
  * Computes Target 1 metrics with special marine calculation.
@@ -323,14 +323,14 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
   const baselines = ENV.nationalBaselines;
 
-  // ── Find reference layers for marine calculation ───────────────────
+  // ── Find EEZ and Admin0 layers for marine calculation ──────────────
+  // Search by category regardless of isReference flag, so datasets
+  // uploaded as regular layers are still found.
   let eezAreaHa = 0;
   let admin0AreaHa = 0;
 
   for (const layer of layers) {
     const meta = layer.metadata;
-    if (!meta.isReference) continue;
-
     if (meta.category === 'EEZ') {
       eezAreaHa = meta.totalAreaHa || 0;
     } else if (meta.category === 'ADMIN_BOUNDARY') {
