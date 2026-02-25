@@ -10,20 +10,21 @@
 import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics, computeTarget1Metrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { categoryIcon, targetIcon } from '../../config/icons.js';
 import { resolveColors } from '../../config/symbology.js';
 import ENV from '../../config/env.js';
 
-/** Target display metadata */
+/** Target display metadata — labels, colours, and units */
 const TARGET_META = {
-  T1: { icon: '\u{1F5FA}', label: 'Biodiversity Spatial Planning', unit: 'ha planned' },
-  T2: { icon: '\u{1F33F}', label: 'Degraded Areas & Restoration', unit: 'ha mapped' },
-  T3: { icon: '\u{1F30F}', label: '30x30 Conservation', unit: 'ha conserved' },
-  T4: { icon: '\u{1F98E}', label: 'Species & Biodiversity', unit: 'species records' },
-  T6: { icon: '\u{1FAB2}', label: 'Invasive Alien Species', unit: 'ha detected' },
-  T7: { icon: '\u{2697}', label: 'Pesticide & Herbicide', unit: 'ha mapped' },
-  T8: { icon: '\u{1F30A}', label: 'Coastal Eutrophication', unit: 'ha impacted' },
-  T10: { icon: '\u{1F33E}', label: 'Land Cover Change', unit: 'ha mapped' },
-  T12: { icon: '\u{1F333}', label: 'Blue & Green Spaces', unit: 'ha mapped' }
+  T1:  { label: 'Biodiversity Spatial Planning', color: '#1565C0', unit: 'ha planned' },
+  T2:  { label: 'Degraded Areas & Restoration',  color: '#D84315', unit: 'ha mapped' },
+  T3:  { label: '30x30 Conservation',            color: '#2E7D32', unit: 'ha conserved' },
+  T4:  { label: 'Species & Biodiversity',        color: '#7E57C2', unit: 'species records' },
+  T6:  { label: 'Invasive Alien Species',        color: '#C62828', unit: 'ha detected' },
+  T7:  { label: 'Pesticide & Herbicide',         color: '#8E24AA', unit: 'ha mapped' },
+  T8:  { label: 'Coastal Eutrophication',        color: '#00838F', unit: 'ha impacted' },
+  T10: { label: 'Land Cover Change',             color: '#795548', unit: 'ha mapped' },
+  T12: { label: 'Blue & Green Spaces',           color: '#388E3C', unit: 'ha mapped' }
 };
 
 /**
@@ -90,7 +91,7 @@ function renderTarget1KPIs(container, layers, filters) {
   const catBadges = m.categoryBreakdown.map(c => {
     const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
     return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
-      ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
+      ${categoryIcon(c.category, 13)} ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
     </span>`;
   }).join('');
 
@@ -372,7 +373,7 @@ function renderSpeciesKPIs(container, layers, filters) {
     ${otherDist && otherDist.features > 0 ? `
       <div class="kpi-cat-badges" style="margin-top:8px">
         <span class="cat-badge" style="background:${CATEGORIES.SPECIES_DIST.color}20;color:${CATEGORIES.SPECIES_DIST.color};border:1px solid ${CATEGORIES.SPECIES_DIST.color}40">
-          Other Species: ${formatNumber(otherDist.area_ha)} ha (${otherDist.features})
+          ${categoryIcon('SPECIES_DIST', 13)} Other Species: ${formatNumber(otherDist.area_ha)} ha (${otherDist.features})
         </span>
       </div>
     ` : ''}
@@ -511,7 +512,7 @@ function renderTargetKPIs(container, layers, filters, targetCode) {
   const catBadges = m.categoryBreakdown.map(c => {
     const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
     return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
-      ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
+      ${categoryIcon(c.category, 13)} ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
     </span>`;
   }).join('');
 

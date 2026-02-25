@@ -5,6 +5,7 @@
  */
 import targetsConfig from '../../config/targets.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { targetIcon } from '../../config/icons.js';
 import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
 
 /**
@@ -25,14 +26,17 @@ export function renderFilterPanel(container) {
       <div class="filter-group">
         <label>NBSAP Target</label>
         <div class="target-checkboxes" id="target-filter-checkboxes">
-          ${targetsConfig.targets.map(t => `
-            <label class="target-checkbox ${state.filters.targets.includes(t.code) ? 'selected' : ''}"
-                   data-code="${t.code}" title="${t.description}">
-              <input type="radio" name="nbsap-target" value="${t.code}"
-                     ${state.filters.targets.includes(t.code) ? 'checked' : ''}>
-              ${t.code}
-            </label>
-          `).join('')}
+          ${targetsConfig.targets.map(t => {
+            const sel = state.filters.targets.includes(t.code);
+            const selStyle = sel ? `background:${t.color};border-color:${t.color};color:#fff` : '';
+            return `
+            <label class="target-checkbox ${sel ? 'selected' : ''}"
+                   data-code="${t.code}" title="${t.description}"
+                   style="${selStyle}">
+              <input type="radio" name="nbsap-target" value="${t.code}" ${sel ? 'checked' : ''}>
+              <span class="target-pill-icon">${targetIcon(t.code, 14)}</span>${t.code}
+            </label>`;
+          }).join('')}
         </div>
       </div>
 

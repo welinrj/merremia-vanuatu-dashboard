@@ -12,40 +12,43 @@
 // ── Category colour palette ──────────────────────────────────────────
 // Stroke colours are a darker shade of the fill for professional contrast.
 export const SYMBOLOGY = {
+  // Boundary / Reference
+  EEZ:            { fill: '#0277BD', stroke: '#01579B' },
+  ADMIN_BOUNDARY: { fill: '#546E7A', stroke: '#37474F' },
   // Conservation — green spectrum
-  CCA:            { fill: '#2ecc71', stroke: '#1a9c4e' },
-  PA:             { fill: '#27ae60', stroke: '#1e8449' },
-  OECM:           { fill: '#8e44ad', stroke: '#6c3483' },
-  KBA:            { fill: '#e67e22', stroke: '#ba6618' },
+  CCA:            { fill: '#43A047', stroke: '#2E7D32' },
+  PA:             { fill: '#1B5E20', stroke: '#0D3311' },
+  OECM:           { fill: '#7E57C2', stroke: '#5E35B1' },
+  KBA:            { fill: '#F57C00', stroke: '#E65100' },
   // Marine — blue spectrum
-  MPA:            { fill: '#2980b9', stroke: '#1a5276' },
-  LMMA:           { fill: '#1abc9c', stroke: '#148f77' },
+  MPA:            { fill: '#1565C0', stroke: '#0D47A1' },
+  LMMA:           { fill: '#00897B', stroke: '#00695C' },
   // Planning
-  SPATIAL_PLAN:   { fill: '#34495e', stroke: '#1c2833' },
+  SPATIAL_PLAN:   { fill: '#455A64', stroke: '#263238' },
   // Degradation & restoration
-  DEGRADED:       { fill: '#d35400', stroke: '#a04000' },
-  RESTORATION:    { fill: '#f39c12', stroke: '#d4ac0d' },
+  DEGRADED:       { fill: '#D84315', stroke: '#BF360C' },
+  RESTORATION:    { fill: '#F9A825', stroke: '#F57F17' },
   // Species — distinctive per-taxon colours
-  SPECIES_DIST:   { fill: '#16a085', stroke: '#0e6655' },
+  SPECIES_DIST:   { fill: '#26A69A', stroke: '#00897B' },
   MEGAPODE:       { fill: '#E65100', stroke: '#BF360C' },
   STARLING:       { fill: '#5C6BC0', stroke: '#3949AB' },
   FANTAIL:        { fill: '#FFB300', stroke: '#FF8F00' },
   KINGFISHER:     { fill: '#00ACC1', stroke: '#00838F' },
   FLYING_FOX:     { fill: '#6D4C41', stroke: '#4E342E' },
-  PLERANDRA:      { fill: '#43A047', stroke: '#2E7D32' },
+  PLERANDRA:      { fill: '#66BB6A', stroke: '#43A047' },
   // Threats — warm/red spectrum (IAS per species)
-  INVASIVE:       { fill: '#e74c3c', stroke: '#c0392b' },
-  MERREMIA:       { fill: '#c0392b', stroke: '#922b21' },
+  INVASIVE:       { fill: '#C62828', stroke: '#B71C1C' },
+  MERREMIA:       { fill: '#BF360C', stroke: '#8D2409' },
   CROWN_OF_THORNS:{ fill: '#FF6F00', stroke: '#E65100' },
   MILE_A_MINUTE:  { fill: '#AD1457', stroke: '#880E4F' },
   SOLANUM_TORVUM: { fill: '#6A1B9A', stroke: '#4A148C' },
-  PESTICIDE:      { fill: '#9C27B0', stroke: '#7B1FA2' },
-  EUTROPHICATION: { fill: '#e91e63', stroke: '#c2185b' },
+  PESTICIDE:      { fill: '#8E24AA', stroke: '#6A1B9A' },
+  EUTROPHICATION: { fill: '#D81B60', stroke: '#AD1457' },
   // Land use & green space
   LAND_COVER:     { fill: '#795548', stroke: '#5D4037' },
-  GREEN_SPACE:    { fill: '#4caf50', stroke: '#388E3C' },
+  GREEN_SPACE:    { fill: '#388E3C', stroke: '#2E7D32' },
   // Fallback
-  OTHER:          { fill: '#95a5a6', stroke: '#7f8c8d' }
+  OTHER:          { fill: '#78909C', stroke: '#546E7A' }
 };
 
 // ── LAND_COVER sub-type colours (international cartographic standards) ──
