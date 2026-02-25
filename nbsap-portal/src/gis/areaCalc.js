@@ -297,6 +297,177 @@ export function compute30x30Metrics(layers, filters = {}) {
   return result;
 }
 
+// ─── TARGET 1 METRICS (Biodiversity Spatial Planning) ────────────────────────
+
+/** Categories excluded from T1 calculations (MPA belongs to T3 only) */
+const T1_EXCLUDED_CATEGORIES = new Set(['MPA']);
+
+/**
+ * Computes Target 1 metrics with special marine calculation.
+ *
+ * Marine: EEZ reference layer area minus Admin0 (land) reference layer area.
+ *   This represents the marine area covered by spatial plans (EEZ minus land).
+ *   MPA layers are excluded from T1.
+ *
+ * Terrestrial: dissolved area of all T1 terrestrial feature layers
+ *   (excluding reference layers and MPA) divided by national terrestrial baseline.
+ *
+ * @param {Array<{ metadata: object, geojson: object }>} layers
+ * @param {object} filters
+ * @returns {object} T1 metrics
+ */
+export function computeTarget1Metrics(layers, filters = {}) {
+  const key = _cacheKey('t1', null, filters);
+  const cached = _metricsCache.get(key);
+  if (cached) return cached;
+
+  const baselines = ENV.nationalBaselines;
+
+  // ── Find reference layers for marine calculation ───────────────────
+  let eezAreaHa = 0;
+  let admin0AreaHa = 0;
+
+  for (const layer of layers) {
+    const meta = layer.metadata;
+    if (!meta.isReference) continue;
+
+    if (meta.category === 'EEZ') {
+      eezAreaHa = meta.totalAreaHa || 0;
+    } else if (meta.category === 'ADMIN_BOUNDARY') {
+      admin0AreaHa = meta.totalAreaHa || 0;
+    }
+  }
+
+  // Marine T1 = EEZ area minus land (admin0) area
+  const marineNetHa = Math.max(0, eezAreaHa - admin0AreaHa);
+
+  // ── Terrestrial: dissolve all T1 terrestrial features ──────────────
+  const terrestrialFeatures = [];
+  let grossTerrestrial = 0;
+  let totalFeatures = 0;
+  let layerCount = 0;
+  const provinceGross = {};
+  const provinceFeatures = {};
+  const categoryGross = {};
+  const categoryFeatures = {};
+
+  for (const layer of layers) {
+    const meta = layer.metadata;
+    if (meta.isReference) continue;
+    if (!meta.targets || !meta.targets.includes('T1')) continue;
+    if (T1_EXCLUDED_CATEGORIES.has(meta.category)) continue;
+
+    if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
+    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+
+    layerCount++;
+    const cat = meta.category || 'OTHER';
+
+    const features = (layer.geojson?.features || []).filter(f => {
+      if (filters.province && filters.province !== 'All') {
+        if (f.properties.province !== filters.province) return false;
+      }
+      return true;
+    });
+
+    for (const f of features) {
+      const areaHa = f.properties.area_ha || 0;
+      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      totalFeatures++;
+
+      if (realm === 'terrestrial') {
+        terrestrialFeatures.push(f);
+        grossTerrestrial += areaHa;
+      }
+      // Marine features from non-reference layers are also counted as spatial plan data
+      // but marine total comes from EEZ - admin0
+
+      const prov = f.properties.province || 'Unassigned';
+      if (!provinceGross[prov]) provinceGross[prov] = { terrestrial: 0, tCount: 0 };
+      provinceGross[prov].terrestrial += areaHa;
+      provinceGross[prov].tCount++;
+      if (!provinceFeatures[prov]) provinceFeatures[prov] = [];
+      provinceFeatures[prov].push(f);
+
+      if (!categoryGross[cat]) categoryGross[cat] = { area: 0, count: 0 };
+      categoryGross[cat].area += areaHa;
+      categoryGross[cat].count++;
+      if (!categoryFeatures[cat]) categoryFeatures[cat] = [];
+      categoryFeatures[cat].push(f);
+    }
+  }
+
+  // Dissolve terrestrial features for net area
+  const tooLarge = terrestrialFeatures.length > DISSOLVE_MAX_POLYGONS;
+  const dissolvedTerrestrial = tooLarge ? null : dissolveFeatures(terrestrialFeatures);
+  const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
+
+  const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  const mPct = baselines.marine_ha > 0 ? (marineNetHa / baselines.marine_ha) * 100 : 0;
+
+  // Province breakdown (terrestrial only)
+  const provinceBreakdown = Object.entries(provinceGross)
+    .filter(([name]) => VALID_PROVINCES.has(name))
+    .map(([name, data]) => {
+      let tNet;
+      if (tooLarge) {
+        tNet = data.terrestrial;
+      } else {
+        const pf = provinceFeatures[name];
+        const dissolved = pf ? dissolveFeatures(pf) : null;
+        tNet = dissolved ? computeAreaHa(dissolved) : data.terrestrial;
+      }
+      return {
+        province: name,
+        terrestrial_ha: round2(tNet),
+        total_ha: round2(tNet),
+        features: data.tCount
+      };
+    }).sort((a, b) => b.total_ha - a.total_ha);
+
+  // Category breakdown
+  const categoryBreakdown = Object.entries(categoryGross).map(([cat, gross]) => {
+    let dissolved = null;
+    let netCatArea;
+    if (tooLarge) {
+      netCatArea = gross.area;
+    } else {
+      dissolved = dissolveFeatures(categoryFeatures[cat] || []);
+      netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
+    }
+    return {
+      category: cat,
+      area_ha: round2(netCatArea),
+      gross_area_ha: round2(gross.area),
+      features: gross.count
+    };
+  }).sort((a, b) => b.area_ha - a.area_ha);
+
+  const result = {
+    targetCode: 'T1',
+    // Marine: derived from EEZ - admin0
+    marine_ha: round2(marineNetHa),
+    marine_pct: round3(mPct),
+    eez_ha: round2(eezAreaHa),
+    admin0_ha: round2(admin0AreaHa),
+    hasEEZ: eezAreaHa > 0,
+    hasAdmin0: admin0AreaHa > 0,
+    // Terrestrial: dissolved feature area
+    terrestrial_ha: round2(netTerrestrial),
+    terrestrial_pct: round3(tPct),
+    gross_terrestrial_ha: round2(grossTerrestrial),
+    // General
+    totalFeatures,
+    layerCount,
+    provinceBreakdown,
+    categoryBreakdown,
+    baselines,
+    dissolvedTerrestrial
+  };
+  _metricsCache.set(key, result);
+  return result;
+}
+
 // ─── GENERAL METRICS ─────────────────────────────────────────────────────────
 
 /**
