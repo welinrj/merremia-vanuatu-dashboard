@@ -411,26 +411,22 @@ export function computeTarget1Metrics(layers, filters = {}) {
     }
   }
 
-  // Dissolve terrestrial features for net area
-  const tooLarge = terrestrialFeatures.length > DISSOLVE_MAX_POLYGONS;
-  const dissolvedTerrestrial = tooLarge ? null : dissolveFeatures(terrestrialFeatures);
+  // Dissolve terrestrial features for net area (removes overlaps between
+  // CCA, KBA, SPATIAL_PLAN, and any other T1 layers).
+  // dissolveFeatures() internally filters to polygons and handles size limits.
+  const dissolvedTerrestrial = dissolveFeatures(terrestrialFeatures);
   const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
 
   const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
   const mPct = baselines.marine_ha > 0 ? (marineNetHa / baselines.marine_ha) * 100 : 0;
 
-  // Province breakdown (terrestrial only)
+  // Province breakdown (terrestrial only) — dissolve per-province for net area
   const provinceBreakdown = Object.entries(provinceGross)
     .filter(([name]) => VALID_PROVINCES.has(name))
     .map(([name, data]) => {
-      let tNet;
-      if (tooLarge) {
-        tNet = data.terrestrial;
-      } else {
-        const pf = provinceFeatures[name];
-        const dissolved = pf ? dissolveFeatures(pf) : null;
-        tNet = dissolved ? computeAreaHa(dissolved) : data.terrestrial;
-      }
+      const pf = provinceFeatures[name];
+      const dissolved = pf ? dissolveFeatures(pf) : null;
+      const tNet = dissolved ? computeAreaHa(dissolved) : data.terrestrial;
       return {
         province: name,
         terrestrial_ha: round2(tNet),
@@ -439,16 +435,10 @@ export function computeTarget1Metrics(layers, filters = {}) {
       };
     }).sort((a, b) => b.total_ha - a.total_ha);
 
-  // Category breakdown
+  // Category breakdown — dissolve per-category for net area
   const categoryBreakdown = Object.entries(categoryGross).map(([cat, gross]) => {
-    let dissolved = null;
-    let netCatArea;
-    if (tooLarge) {
-      netCatArea = gross.area;
-    } else {
-      dissolved = dissolveFeatures(categoryFeatures[cat] || []);
-      netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
-    }
+    const dissolved = dissolveFeatures(categoryFeatures[cat] || []);
+    const netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
     return {
       category: cat,
       area_ha: round2(netCatArea),
