@@ -31,6 +31,7 @@ import { dissolveFeatures } from '../../gis/areaCalc.js';
 
 let map = null;
 let baseLayers = {};
+let referenceGroup = null;  // Reference layers — rendered behind everything
 let overlayGroup = null;
 let provincesLayer = null;
 let legendControl = null;
@@ -78,6 +79,10 @@ export function initMap(containerId) {
   const defaultBase = Object.values(baseLayers)[0];
   if (defaultBase) defaultBase.addTo(map);
 
+  // Reference layers sit behind everything (including province outlines)
+  referenceGroup = L.featureGroup();
+  referenceGroup.addTo(map);
+
   // featureGroup (not layerGroup) so getBounds() is available for fitBounds
   overlayGroup = L.featureGroup();
   overlayGroup.addTo(map);
@@ -98,6 +103,7 @@ export function initMap(containerId) {
 export function updateMapLayers() {
   if (!map) return;
 
+  if (referenceGroup) referenceGroup.clearLayers();
   overlayGroup.clearLayers();
   if (provincesLayer) {
     provincesLayer.remove();
@@ -154,7 +160,8 @@ export function updateMapLayers() {
     const isRef = meta.isReference === true;
 
     if (features.length === 0) continue;
-    visibleLayers.push(layerData);
+    // Reference layers are excluded from legend (visibleLayers)
+    if (!isRef) visibleLayers.push(layerData);
 
     const polyFeatures = [];
     const pointFeats = [];
@@ -198,7 +205,7 @@ export function updateMapLayers() {
     }
   }
 
-  // ── Pass 2: Reference polygon layers (rendered first = behind data) ──
+  // ── Pass 2: Reference polygon layers (behind everything incl. provinces) ──
   if (refPolygonFeatures.length > 0) {
     const refByCat = {};
     for (const { feature, meta, cat } of refPolygonFeatures) {
@@ -212,7 +219,7 @@ export function updateMapLayers() {
           buildPopup(f, layer, group.meta, true);
         }
       });
-      overlayGroup.addLayer(refLayer);
+      referenceGroup.addLayer(refLayer);
     }
   }
 
@@ -232,7 +239,7 @@ export function updateMapLayers() {
           buildPopup(f, layer, group.meta, true);
         }
       });
-      overlayGroup.addLayer(pointLayer);
+      referenceGroup.addLayer(pointLayer);
     }
   }
 
