@@ -23,17 +23,23 @@ import {
   featureOutlineStyle,
   referencePolygonStyle,
   referencePointStyle,
-  pointMarkerStyle,
-  collectLegendEntries
+  pointMarkerStyle
 } from '../../config/symbology.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { dissolveFeatures } from '../../gis/areaCalc.js';
 
 let map = null;
 let baseLayers = {};
+let referenceGroup = null;  // Reference layers — rendered behind everything
 let overlayGroup = null;
 let provincesLayer = null;
 let legendControl = null;
+
+/** Tracks which layer IDs the user has hidden via the layer toggle panel */
+const hiddenLayers = new Set();
+
+/** Flag to suppress fitBounds during toggle-only rerenders */
+let _suppressFitBounds = false;
 
 /**
  * Canvas renderer — much faster than SVG for large feature sets.
@@ -78,6 +84,10 @@ export function initMap(containerId) {
   const defaultBase = Object.values(baseLayers)[0];
   if (defaultBase) defaultBase.addTo(map);
 
+  // Reference layers sit behind everything (including province outlines)
+  referenceGroup = L.featureGroup();
+  referenceGroup.addTo(map);
+
   // featureGroup (not layerGroup) so getBounds() is available for fitBounds
   overlayGroup = L.featureGroup();
   overlayGroup.addTo(map);
@@ -98,6 +108,7 @@ export function initMap(containerId) {
 export function updateMapLayers() {
   if (!map) return;
 
+  if (referenceGroup) referenceGroup.clearLayers();
   overlayGroup.clearLayers();
   if (provincesLayer) {
     provincesLayer.remove();
@@ -135,6 +146,9 @@ export function updateMapLayers() {
   const refPointFeatures = [];
   const visibleLayers = [];            // for legend
 
+  // Collect all matching layers (for the toggle panel) + filtered visible ones
+  const matchingLayers = [];  // All layers that pass target/category filters (for toggle UI)
+
   for (const layerData of layers) {
     const meta = layerData.metadata;
     if (!layerData.geojson) continue;
@@ -154,7 +168,15 @@ export function updateMapLayers() {
     const isRef = meta.isReference === true;
 
     if (features.length === 0) continue;
-    visibleLayers.push(layerData);
+
+    // Track all matching non-reference layers for the toggle panel
+    if (!isRef) matchingLayers.push(layerData);
+
+    // Skip hidden layers from rendering (but still show in toggle panel)
+    if (hiddenLayers.has(layerData.id)) continue;
+
+    // Reference layers are excluded from legend (visibleLayers)
+    if (!isRef) visibleLayers.push(layerData);
 
     const polyFeatures = [];
     const pointFeats = [];
@@ -198,7 +220,7 @@ export function updateMapLayers() {
     }
   }
 
-  // ── Pass 2: Reference polygon layers (rendered first = behind data) ──
+  // ── Pass 2: Reference polygon layers (behind everything incl. provinces) ──
   if (refPolygonFeatures.length > 0) {
     const refByCat = {};
     for (const { feature, meta, cat } of refPolygonFeatures) {
@@ -212,7 +234,7 @@ export function updateMapLayers() {
           buildPopup(f, layer, group.meta, true);
         }
       });
-      overlayGroup.addLayer(refLayer);
+      referenceGroup.addLayer(refLayer);
     }
   }
 
@@ -232,7 +254,7 @@ export function updateMapLayers() {
           buildPopup(f, layer, group.meta, true);
         }
       });
-      overlayGroup.addLayer(pointLayer);
+      referenceGroup.addLayer(pointLayer);
     }
   }
 
@@ -309,46 +331,74 @@ export function updateMapLayers() {
     overlayGroup.addLayer(pointLayer);
   }
 
-  // ── Legend ─────────────────────────────────────────────────────────
-  updateLegend(visibleLayers);
+  // ── Layer toggle panel (replaces static legend) ───────────────────
+  updateLayerPanel(matchingLayers, visibleLayers);
 
-  // Fit bounds to visible features
-  if (overlayGroup.getLayers().length > 0) {
+  // Fit bounds to visible features (skip during toggle-only rerenders)
+  if (!_suppressFitBounds && overlayGroup.getLayers().length > 0) {
     const bounds = overlayGroup.getBounds();
     if (bounds.isValid()) {
       map.fitBounds(bounds, { padding: [30, 30], maxZoom: 12 });
     }
   }
+  _suppressFitBounds = false;
 }
 
-// ── Legend control ────────────────────────────────────────────────────
+// ── Layer toggle panel ────────────────────────────────────────────────
 
-function updateLegend(visibleLayers) {
+/**
+ * Builds an interactive layer panel with checkboxes per dataset.
+ * @param {Array} matchingLayers - All layers matching filters (for toggle UI)
+ * @param {Array} visibleLayers - Layers actually rendered (not hidden)
+ */
+function updateLayerPanel(matchingLayers, visibleLayers) {
   if (legendControl) {
     legendControl.remove();
     legendControl = null;
   }
-  if (!map || visibleLayers.length === 0) return;
-
-  const entries = collectLegendEntries(visibleLayers);
-  if (entries.length === 0) return;
+  if (!map || matchingLayers.length === 0) return;
 
   legendControl = L.control({ position: 'bottomright' });
   legendControl.onAdd = function () {
     const div = L.DomUtil.create('div', 'map-legend');
-    let html = '<div class="map-legend-title">Legend</div>';
-    for (const e of entries) {
-      const catDef = CATEGORIES[e.key];
-      const label = e.label || catDef?.label || e.key;
-      const iconSvg = catDef ? categoryIcon(e.key, 12) : '';
-      html += `<div class="map-legend-row">
-        <span class="map-legend-swatch" style="background:${e.fill};border-color:${e.stroke}"></span>
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+
+    let html = '<div class="map-legend-title">Layers</div>';
+
+    for (const ld of matchingLayers) {
+      const meta = ld.metadata;
+      const cat = meta.category || 'OTHER';
+      const catDef = CATEGORIES[cat];
+      const colors = resolveColors(cat);
+      const label = meta.name || catDef?.label || cat;
+      const iconSvg = catDef ? categoryIcon(cat, 12) : '';
+      const checked = !hiddenLayers.has(ld.id);
+
+      html += `<label class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" title="${label}">
+        <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
+        <span class="map-legend-swatch" style="background:${colors.fill};border-color:${colors.stroke}"></span>
         ${iconSvg ? `<span class="map-legend-icon" style="color:${catDef?.color || '#78909C'}">${iconSvg}</span>` : ''}
         <span class="map-legend-label">${label}</span>
-      </div>`;
+      </label>`;
     }
+
     div.innerHTML = html;
-    L.DomEvent.disableClickPropagation(div);
+
+    // Bind toggle events
+    div.querySelectorAll('.map-layer-cb').forEach(cb => {
+      cb.addEventListener('change', () => {
+        const layerId = cb.dataset.layerId;
+        if (cb.checked) {
+          hiddenLayers.delete(layerId);
+        } else {
+          hiddenLayers.add(layerId);
+        }
+        _suppressFitBounds = true;
+        updateMapLayers();
+      });
+    });
+
     return div;
   };
   legendControl.addTo(map);
