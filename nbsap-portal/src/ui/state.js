@@ -381,6 +381,12 @@ function _recomputeProvinces() {
 const _loadingIds = new Set();
 
 /**
+ * Categories that auto-include for T1 (spatial planning) regardless of target tag.
+ * CCA/KBA/SPATIAL_PLAN layers count toward T1 even when only tagged T3.
+ */
+const T1_AUTO_CATEGORIES = new Set(['SPATIAL_PLAN', 'KBA', 'CCA']);
+
+/**
  * Ensures GeoJSON is loaded for all layers matching the given targets.
  * Loads from Firestore on demand for layers that have geojson: null.
  * Returns true if any new data was loaded (caller should refresh).
@@ -391,12 +397,18 @@ const _loadingIds = new Set();
 export async function ensureGeoJSONForTargets(targets) {
   if (!targets || targets.length === 0) return false;
 
+  // When T1 is selected, also load layers from T1 auto-include categories
+  // (CCA, KBA, SPATIAL_PLAN) even if they're only tagged with other targets.
+  const includeT1Auto = targets.includes('T1');
+
   const needsLoad = appState.layers.filter(l => {
     if (l.geojson !== null) return false; // already loaded
     if (_loadingIds.has(l.id)) return false; // already in progress
     const meta = l.metadata;
-    if (!meta || !meta.targets) return false;
-    return meta.targets.some(t => targets.includes(t));
+    if (!meta) return false;
+    if (meta.targets && meta.targets.some(t => targets.includes(t))) return true;
+    if (includeT1Auto && T1_AUTO_CATEGORIES.has(meta.category)) return true;
+    return false;
   });
 
   if (needsLoad.length === 0) return false;
@@ -437,11 +449,14 @@ export async function ensureGeoJSONForTargets(targets) {
  */
 export function hasUnloadedTargets(targets) {
   if (!targets || targets.length === 0) return false;
+  const includeT1Auto = targets.includes('T1');
   return appState.layers.some(l => {
     if (l.geojson !== null) return false;
     const meta = l.metadata;
-    if (!meta || !meta.targets) return false;
-    return meta.targets.some(t => targets.includes(t));
+    if (!meta) return false;
+    if (meta.targets && meta.targets.some(t => targets.includes(t))) return true;
+    if (includeT1Auto && T1_AUTO_CATEGORIES.has(meta.category)) return true;
+    return false;
   });
 }
 
