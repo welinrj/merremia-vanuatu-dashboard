@@ -5,6 +5,7 @@
  */
 import targetsConfig from '../../config/targets.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { targetIcon } from '../../config/icons.js';
 import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
 
 /**
@@ -33,7 +34,7 @@ export function renderFilterPanel(container) {
                    data-code="${t.code}" title="${t.description}"
                    style="${selStyle}">
               <input type="radio" name="nbsap-target" value="${t.code}" ${sel ? 'checked' : ''}>
-              <span class="target-pill-icon">${t.icon || ''}</span>${t.code}
+              <span class="target-pill-icon">${targetIcon(t.code, 14)}</span>${t.code}
             </label>`;
           }).join('')}
         </div>
@@ -54,7 +55,7 @@ export function renderFilterPanel(container) {
         <select id="filter-category">
           <option value="All">All Categories</option>
           ${Object.entries(CATEGORIES).map(([key, val]) => `
-            <option value="${key}" ${state.filters.category === key ? 'selected' : ''}>${val.icon || ''} ${val.label}</option>
+            <option value="${key}" ${state.filters.category === key ? 'selected' : ''}>${val.label}</option>
           `).join('')}
         </select>
       </div>

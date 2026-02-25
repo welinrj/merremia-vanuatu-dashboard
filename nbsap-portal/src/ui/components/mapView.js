@@ -15,6 +15,7 @@
 import L from 'leaflet';
 import ENV from '../../config/env.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { categoryIcon } from '../../config/icons.js';
 import {
   featureGroupKey,
   resolveColors,
@@ -339,10 +340,11 @@ function updateLegend(visibleLayers) {
     for (const e of entries) {
       const catDef = CATEGORIES[e.key];
       const label = e.label || catDef?.label || e.key;
-      const icon = catDef?.icon || '';
+      const iconSvg = catDef ? categoryIcon(e.key, 12) : '';
       html += `<div class="map-legend-row">
         <span class="map-legend-swatch" style="background:${e.fill};border-color:${e.stroke}"></span>
-        <span class="map-legend-label">${icon ? `<span class="map-legend-icon">${icon}</span>` : ''}${label}</span>
+        ${iconSvg ? `<span class="map-legend-icon" style="color:${catDef?.color || '#78909C'}">${iconSvg}</span>` : ''}
+        <span class="map-legend-label">${label}</span>
       </div>`;
     }
     div.innerHTML = html;

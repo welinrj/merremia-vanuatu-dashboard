@@ -406,8 +406,13 @@ html, body {
 .target-checkbox input { display: none; }
 
 .target-pill-icon {
-  font-size: 13px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  line-height: 0;
+}
+
+.target-pill-icon svg {
+  flex-shrink: 0;
 }
 
 /* ── KPI Widgets ─────────────────────────────────────────── */
