@@ -4,6 +4,27 @@
  * The tracker in the admin page shows which have been submitted.
  */
 const EXPECTED_LAYERS = [
+  // Reference layers (EEZ & Admin0 — used for T1 marine calculation)
+  {
+    id: 'eez-boundary',
+    name: 'Exclusive Economic Zone (EEZ)',
+    category: 'EEZ',
+    target: 'T1',
+    realm: 'marine',
+    countsToward30x30: false,
+    isReference: true,
+    description: 'Vanuatu EEZ boundary — used to derive marine spatial planning coverage (EEZ minus land area)'
+  },
+  {
+    id: 'admin0-boundary',
+    name: 'National Boundary (Admin0 Coastline)',
+    category: 'ADMIN_BOUNDARY',
+    target: 'T1',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    isReference: true,
+    description: 'Vanuatu national boundary / coastline — subtracted from EEZ to compute net marine area'
+  },
   // Target 1: Biodiversity Spatial Planning
   {
     id: 'spatial-plans',

@@ -7,7 +7,7 @@
  * - T6: Invasive species with species breakdown
  * - All others: General target metrics with net/gross area display
  */
-import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics } from '../../gis/areaCalc.js';
+import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics, computeTarget1Metrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { CATEGORIES } from '../../config/categories.js';
 import { resolveColors } from '../../config/symbology.js';
@@ -65,32 +65,28 @@ export function renderKPIWidgets(container) {
 }
 
 /**
- * Renders Target 1 (Biodiversity Spatial Planning) KPIs
- * with percentage of national land and sea area covered.
+ * Renders Target 1 (Biodiversity Spatial Planning) KPIs.
+ *
+ * Marine coverage = EEZ area minus Admin0 (land) area.
+ *   Derived from reference layers, not feature data. MPA excluded.
+ *
+ * Terrestrial coverage = dissolved T1 feature area / national terrestrial baseline.
  */
 function renderTarget1KPIs(container, layers, filters) {
-  const m = computeTargetMetrics(layers, 'T1', filters);
-  const baselines = ENV.nationalBaselines;
+  const m = computeTarget1Metrics(layers, filters);
+  const baselines = m.baselines;
 
-  const tNet = m.realmTotals.terrestrial_ha;
-  const mNet = m.realmTotals.marine_ha;
-  const tPct = baselines.terrestrial_ha > 0 ? (tNet / baselines.terrestrial_ha) * 100 : 0;
-  const mPct = baselines.marine_ha > 0 ? (mNet / baselines.marine_ha) * 100 : 0;
+  const tPct = m.terrestrial_pct;
+  const mPct = m.marine_pct;
   const tPctClamped = Math.min(tPct, 100);
   const mPctClamped = Math.min(mPct, 100);
 
-  const tHasOverlap = m.realmTotals.gross_terrestrial_ha > 0 && Math.abs(m.realmTotals.gross_terrestrial_ha - tNet) > 1;
-  const mHasOverlap = m.realmTotals.gross_marine_ha > 0 && Math.abs(m.realmTotals.gross_marine_ha - mNet) > 1;
-
   // Combined totals
   const combinedTotalHa = baselines.terrestrial_ha + baselines.marine_ha;
-  const combinedCurrentHa = tNet + mNet;
+  const combinedCurrentHa = m.terrestrial_ha + m.marine_ha;
   const combinedPct = combinedTotalHa > 0 ? (combinedCurrentHa / combinedTotalHa) * 100 : 0;
 
-  // Count reference layers
-  const refCount = countReferenceLayers(layers, 'T1');
-
-  // Category badges
+  // Category badges (terrestrial feature layers only)
   const catBadges = m.categoryBreakdown.map(c => {
     const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
     return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
@@ -98,15 +94,27 @@ function renderTarget1KPIs(container, layers, filters) {
     </span>`;
   }).join('');
 
+  // Marine reference data notice
+  const marineNote = (!m.hasEEZ || !m.hasAdmin0)
+    ? `<div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:12px;color:#856404;margin-bottom:6px">
+        Marine calculation requires <strong>EEZ</strong> and <strong>National Boundary (Admin0)</strong> reference layers.
+        ${!m.hasEEZ ? ' Missing: EEZ.' : ''}${!m.hasAdmin0 ? ' Missing: Admin0.' : ''}
+        Upload them as reference layers with the corresponding category.
+      </div>`
+    : '';
+
   container.innerHTML = `
+    ${marineNote}
     <div class="kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-value">${formatNumber(tNet)}</div>
+        <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
+        <div class="kpi-sublabel">From uploaded feature datasets</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value marine">${formatNumber(mNet)}</div>
+        <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
         <div class="kpi-label">Marine (ha)</div>
+        <div class="kpi-sublabel">EEZ minus land area</div>
       </div>
 
       <div class="kpi-card wide">
@@ -118,7 +126,7 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(tNet)} ha of ${formatNumber(baselines.terrestrial_ha)} ha national terrestrial area
+          ${formatNumber(m.terrestrial_ha)} ha of ${formatNumber(baselines.terrestrial_ha)} ha national terrestrial area
         </div>
       </div>
 
@@ -131,7 +139,7 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(mNet)} ha of ${formatNumber(baselines.marine_ha)} ha national marine area
+          ${formatNumber(m.marine_ha)} ha = EEZ (${formatNumber(m.eez_ha)} ha) minus land (${formatNumber(m.admin0_ha)} ha)
         </div>
       </div>
 
@@ -163,6 +171,9 @@ function renderTarget1KPIs(container, layers, filters) {
       </div>
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
+    <div class="kpi-methodology-note">
+      Marine: EEZ area minus Admin0 coastline (excludes MPA). Terrestrial: feature area / ${formatNumber(baselines.terrestrial_ha)} ha baseline.
+    </div>
   `;
 }
 

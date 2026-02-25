@@ -3,6 +3,8 @@
  * Covers all NBSAP/GBF targets for Vanuatu.
  */
 export const CATEGORIES = {
+  EEZ: { label: 'Exclusive Economic Zone', defaultRealm: 'marine', color: '#0277BD' },
+  ADMIN_BOUNDARY: { label: 'National Boundary (Admin0)', defaultRealm: 'terrestrial', color: '#37474F' },
   CCA: { label: 'Community Conserved Area', defaultRealm: 'terrestrial', color: '#2ecc71' },
   MPA: { label: 'Marine Protected Area', defaultRealm: 'marine', color: '#3498db' },
   PA: { label: 'Protected Area', defaultRealm: 'terrestrial', color: '#27ae60' },
