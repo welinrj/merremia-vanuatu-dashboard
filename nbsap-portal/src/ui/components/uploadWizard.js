@@ -462,7 +462,7 @@ function renderStep2(body) {
     <div class="form-group">
       <label>Category</label>
       <select id="wizard-category">
-        ${CATEGORY_KEYS.map(k => `<option value="${k}" ${k === defaultCategory ? 'selected' : ''}>${CATEGORIES[k].label}</option>`).join('')}
+        ${CATEGORY_KEYS.map(k => `<option value="${k}" ${k === defaultCategory ? 'selected' : ''}>${CATEGORIES[k].icon || ''} ${CATEGORIES[k].label}</option>`).join('')}
       </select>
     </div>
 

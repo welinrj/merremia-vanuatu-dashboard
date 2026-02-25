@@ -337,10 +337,12 @@ function updateLegend(visibleLayers) {
     const div = L.DomUtil.create('div', 'map-legend');
     let html = '<div class="map-legend-title">Legend</div>';
     for (const e of entries) {
-      const label = e.label || CATEGORIES[e.key]?.label || e.key;
+      const catDef = CATEGORIES[e.key];
+      const label = e.label || catDef?.label || e.key;
+      const icon = catDef?.icon || '';
       html += `<div class="map-legend-row">
         <span class="map-legend-swatch" style="background:${e.fill};border-color:${e.stroke}"></span>
-        <span class="map-legend-label">${label}</span>
+        <span class="map-legend-label">${icon ? `<span class="map-legend-icon">${icon}</span>` : ''}${label}</span>
       </div>`;
     }
     div.innerHTML = html;

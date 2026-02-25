@@ -31,7 +31,7 @@ export function initDataPortal() {
           </select>
           <select id="portal-filter-category">
             <option value="All">All Categories</option>
-            ${Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}">${v.label}</option>`).join('')}
+            ${Object.entries(CATEGORIES).map(([k, v]) => `<option value="${k}">${v.icon || ''} ${v.label}</option>`).join('')}
           </select>
           <select id="portal-filter-status">
             <option value="All">All Status</option>
@@ -63,7 +63,7 @@ export function initDataPortal() {
   for (const t of allTargets) {
     const opt = document.createElement('option');
     opt.value = t.code;
-    opt.textContent = t.code;
+    opt.textContent = `${t.icon || ''} ${t.code}`;
     sel.appendChild(opt);
   }
 
@@ -124,7 +124,7 @@ function buildLayerRow(l) {
           </div>
         </div>
       </td>
-      <td><span style="font-size:12px;color:var(--text-secondary)">${CATEGORIES[m.category]?.label || m.category}</span></td>
+      <td><span style="font-size:12px;color:var(--text-secondary)">${catConfig.icon || ''} ${CATEGORIES[m.category]?.label || m.category}</span></td>
       <td style="text-transform:capitalize">${m.realm}</td>
       <td>${coverageCell}</td>
       <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
@@ -218,8 +218,8 @@ function renderPortalTable() {
 
     html += `
       <div class="portal-target-group">
-        <div class="portal-group-header" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--gray-50,#f8f9fa);border:1px solid var(--border-color,#e0e0e0);border-radius:8px 8px 0 0;margin-top:16px">
-          <span class="badge badge-info" style="font-size:13px;font-weight:700;padding:3px 10px">${t.code}</span>
+        <div class="portal-group-header" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${t.color || '#0072BC'}0A;border:1px solid ${t.color || '#0072BC'}30;border-radius:8px 8px 0 0;margin-top:16px">
+          <span class="badge" style="font-size:13px;font-weight:700;padding:3px 10px;background:${t.color || '#0072BC'};color:#fff;border-radius:20px">${t.icon || ''} ${t.code}</span>
           <span style="font-weight:600;font-size:14px;color:var(--text-primary)">${t.name}</span>
           <span style="font-size:12px;color:var(--text-secondary);margin-left:auto">${groupLayers.length} dataset${groupLayers.length !== 1 ? 's' : ''}</span>
         </div>
@@ -310,8 +310,11 @@ function renderLayerDetails(layerId) {
       <div class="card-body">
         <table class="metadata-table">
           <tr><td>Uploaded</td><td>${new Date(m.uploadTimestamp).toLocaleString()}</td></tr>
-          <tr><td>Category</td><td>${CATEGORIES[m.category]?.label || m.category}</td></tr>
-          <tr><td>Targets</td><td>${m.targets.map(t => `<span class="badge badge-info" style="margin-right:3px">${t}</span>`).join('')}</td></tr>
+          <tr><td>Category</td><td><span style="color:${catConfig.color || 'inherit'}">${catConfig.icon || ''}</span> ${CATEGORIES[m.category]?.label || m.category}</td></tr>
+          <tr><td>Targets</td><td>${m.targets.map(t => {
+            const tc = (TARGETS_CONFIG.targets || []).find(x => x.code === t);
+            return `<span class="badge" style="margin-right:3px;background:${tc?.color || '#0072BC'}20;color:${tc?.color || '#0072BC'};border:1px solid ${tc?.color || '#0072BC'}40">${tc?.icon || ''} ${t}</span>`;
+          }).join('')}</td></tr>
           <tr><td>Realm</td><td style="text-transform:capitalize">${m.realm}</td></tr>
           ${m.isReference
             ? (() => {

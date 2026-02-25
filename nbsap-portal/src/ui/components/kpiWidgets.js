@@ -13,17 +13,17 @@ import { CATEGORIES } from '../../config/categories.js';
 import { resolveColors } from '../../config/symbology.js';
 import ENV from '../../config/env.js';
 
-/** Target display metadata */
+/** Target display metadata — icons, labels, colours, and units */
 const TARGET_META = {
-  T1: { icon: '\u{1F5FA}', label: 'Biodiversity Spatial Planning', unit: 'ha planned' },
-  T2: { icon: '\u{1F33F}', label: 'Degraded Areas & Restoration', unit: 'ha mapped' },
-  T3: { icon: '\u{1F30F}', label: '30x30 Conservation', unit: 'ha conserved' },
-  T4: { icon: '\u{1F98E}', label: 'Species & Biodiversity', unit: 'species records' },
-  T6: { icon: '\u{1FAB2}', label: 'Invasive Alien Species', unit: 'ha detected' },
-  T7: { icon: '\u{2697}', label: 'Pesticide & Herbicide', unit: 'ha mapped' },
-  T8: { icon: '\u{1F30A}', label: 'Coastal Eutrophication', unit: 'ha impacted' },
-  T10: { icon: '\u{1F33E}', label: 'Land Cover Change', unit: 'ha mapped' },
-  T12: { icon: '\u{1F333}', label: 'Blue & Green Spaces', unit: 'ha mapped' }
+  T1:  { icon: '\u{1F5FA}', label: 'Biodiversity Spatial Planning', color: '#1565C0', unit: 'ha planned' },
+  T2:  { icon: '\u{1F33F}', label: 'Degraded Areas & Restoration',  color: '#D84315', unit: 'ha mapped' },
+  T3:  { icon: '\u{1F30F}', label: '30x30 Conservation',            color: '#2E7D32', unit: 'ha conserved' },
+  T4:  { icon: '\u{1F99C}', label: 'Species & Biodiversity',        color: '#7E57C2', unit: 'species records' },
+  T6:  { icon: '\u{1FAB2}', label: 'Invasive Alien Species',        color: '#C62828', unit: 'ha detected' },
+  T7:  { icon: '\u{2697}',  label: 'Pesticide & Herbicide',         color: '#8E24AA', unit: 'ha mapped' },
+  T8:  { icon: '\u{1F30A}', label: 'Coastal Eutrophication',        color: '#00838F', unit: 'ha impacted' },
+  T10: { icon: '\u{1F33E}', label: 'Land Cover Change',             color: '#795548', unit: 'ha mapped' },
+  T12: { icon: '\u{1F333}', label: 'Blue & Green Spaces',           color: '#388E3C', unit: 'ha mapped' }
 };
 
 /**

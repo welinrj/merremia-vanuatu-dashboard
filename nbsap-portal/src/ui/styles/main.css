@@ -392,15 +392,23 @@ html, body {
 .target-checkbox:hover {
   border-color: var(--primary);
   color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
 }
 
 .target-checkbox.selected {
   background: var(--primary);
   color: white;
   border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
 
 .target-checkbox input { display: none; }
+
+.target-pill-icon {
+  font-size: 13px;
+  line-height: 1;
+}
 
 /* ── KPI Widgets ─────────────────────────────────────────── */
 .kpi-grid {
@@ -1373,6 +1381,11 @@ html, body {
   text-overflow: ellipsis;
 }
 
+.map-legend-icon {
+  font-size: 12px;
+  margin-right: 2px;
+}
+
 /* ── Responsive ──────────────────────────────────────────── */
 @media (max-width: 1024px) {
   .header-top {
@@ -1564,11 +1577,31 @@ html, body {
 .cat-badge {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   font-size: 11px;
   font-weight: 600;
   padding: 4px 10px;
   border-radius: 20px;
   white-space: nowrap;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.cat-badge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* ── Portal Target Group Headers ──────────────────────── */
+.portal-target-group {
+  transition: box-shadow var(--transition-fast);
+}
+
+.portal-target-group:hover {
+  box-shadow: var(--shadow-sm);
+}
+
+.portal-group-header {
+  transition: background var(--transition-fast);
 }
 
 /* ── Type Breakdown (compact table inside KPI sidebar) ── */
