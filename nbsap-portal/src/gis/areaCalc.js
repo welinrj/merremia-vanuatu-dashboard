@@ -303,6 +303,14 @@ export function compute30x30Metrics(layers, filters = {}) {
 const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'EEZ', 'ADMIN_BOUNDARY']);
 
 /**
+ * Categories that automatically count toward T1 even without an explicit
+ * T1 target tag.  These represent biodiversity spatial planning by nature
+ * (CCAs are community spatial plans, KBAs delineate planning zones, etc.).
+ * Matches the recommendedCategories for T1 in targets config.
+ */
+const T1_AUTO_CATEGORIES = new Set(['SPATIAL_PLAN', 'KBA', 'CCA']);
+
+/**
  * Computes Target 1 metrics with special marine calculation.
  *
  * Marine: EEZ reference layer area minus Admin0 (land) reference layer area.
@@ -311,6 +319,9 @@ const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'EEZ', 'ADMIN_BOUNDARY']);
  *
  * Terrestrial: dissolved area of all T1 terrestrial feature layers
  *   (excluding reference layers and MPA) divided by national terrestrial baseline.
+ *   Layers tagged T1 OR from T1 recommended categories (CCA, KBA, SPATIAL_PLAN)
+ *   are included automatically so that CCAs count toward spatial planning
+ *   coverage even when uploaded only under T3.
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters
@@ -354,8 +365,13 @@ export function computeTarget1Metrics(layers, filters = {}) {
   for (const layer of layers) {
     const meta = layer.metadata;
     if (meta.isReference) continue;
-    if (!meta.targets || !meta.targets.includes('T1')) continue;
     if (T1_EXCLUDED_CATEGORIES.has(meta.category)) continue;
+
+    // Include layers that are either explicitly tagged T1 or belong to
+    // a T1 recommended category (CCA, KBA, SPATIAL_PLAN)
+    const taggedT1 = meta.targets && meta.targets.includes('T1');
+    const autoCategory = T1_AUTO_CATEGORIES.has(meta.category);
+    if (!taggedT1 && !autoCategory) continue;
 
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
     if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
@@ -375,12 +391,10 @@ export function computeTarget1Metrics(layers, filters = {}) {
       const realm = f.properties.realm || meta.realm || 'terrestrial';
       totalFeatures++;
 
-      if (realm === 'terrestrial') {
-        terrestrialFeatures.push(f);
-        grossTerrestrial += areaHa;
-      }
-      // Marine features from non-reference layers are also counted as spatial plan data
-      // but marine total comes from EEZ - admin0
+      if (realm !== 'terrestrial') continue; // T1 terrestrial only; marine comes from EEZ - admin0
+
+      terrestrialFeatures.push(f);
+      grossTerrestrial += areaHa;
 
       const prov = f.properties.province || 'Unassigned';
       if (!provinceGross[prov]) provinceGross[prov] = { terrestrial: 0, tCount: 0 };
