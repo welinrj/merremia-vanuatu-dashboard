@@ -1342,9 +1342,9 @@ html, body {
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
   padding: 10px 12px;
-  min-width: 140px;
-  max-width: 220px;
-  max-height: 260px;
+  min-width: 160px;
+  max-width: 240px;
+  max-height: 300px;
   overflow-y: auto;
   font-family: var(--font);
   backdrop-filter: blur(4px);
@@ -1389,6 +1389,31 @@ html, body {
 .map-legend-icon {
   font-size: 12px;
   margin-right: 2px;
+}
+
+/* Layer toggle checkboxes */
+.map-layer-toggle {
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.map-layer-toggle:hover {
+  background: rgba(0,0,0,0.03);
+  border-radius: 3px;
+}
+.map-layer-toggle.layer-hidden {
+  opacity: 0.45;
+}
+.map-layer-toggle.layer-hidden .map-legend-swatch {
+  background: #ccc !important;
+  border-color: #aaa !important;
+}
+.map-layer-cb {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  accent-color: var(--primary);
 }
 
 /* ── Responsive ──────────────────────────────────────────── */
