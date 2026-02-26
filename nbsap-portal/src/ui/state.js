@@ -65,10 +65,23 @@ export function updateFilters(filterUpdates) {
  * @param {{ id: string, metadata: object, geojson: object }} layerRecord
  */
 export function addLayer(layerRecord) {
-  const existing = appState.layers.findIndex(l => l.id === layerRecord.id);
-  if (existing >= 0) {
-    appState.layers[existing] = layerRecord;
+  // Replace by exact ID if it already exists
+  const existingIdx = appState.layers.findIndex(l => l.id === layerRecord.id);
+  if (existingIdx >= 0) {
+    appState.layers[existingIdx] = layerRecord;
   } else {
+    // Also remove any older duplicate with the same filename + category
+    const fname = layerRecord.metadata?.originalFilename;
+    const cat = layerRecord.metadata?.category;
+    if (fname && cat) {
+      appState.layers = appState.layers.filter(l => {
+        if (l.metadata?.originalFilename === fname && l.metadata?.category === cat) {
+          console.warn(`Dedup on add: replacing "${l.metadata.name}" (${l.id}) with "${layerRecord.metadata.name}" (${layerRecord.id})`);
+          return false;
+        }
+        return true;
+      });
+    }
     appState.layers.push(layerRecord);
   }
   _dashboardLayersCache = null;
@@ -121,12 +134,15 @@ export function removeLayer(layerId) {
  * Deduplicates layers with the same originalFilename + category,
  * keeping only the most recently uploaded version.
  * @param {Array} layers
+ * @returns {Array} IDs of duplicate layers that were removed (for Firestore cleanup)
  */
 export function setLayers(layers) {
-  appState.layers = deduplicateLayers(layers);
+  const { unique, removedIds } = deduplicateLayers(layers);
+  appState.layers = unique;
   _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
+  return removedIds;
 }
 
 /**
@@ -139,6 +155,7 @@ export function setLayers(layers) {
 function deduplicateLayers(layers) {
   const grouped = {};
   const unique = [];
+  const removedIds = [];
 
   for (const l of layers) {
     const fname = l.metadata?.originalFilename;
@@ -159,13 +176,16 @@ function deduplicateLayers(layers) {
         new Date(b.metadata.uploadTimestamp) - new Date(a.metadata.uploadTimestamp)
       );
       unique.push(dupes[0]);
+      for (let i = 1; i < dupes.length; i++) {
+        removedIds.push(dupes[i].id);
+      }
       console.warn(
         `Dedup: kept latest "${dupes[0].metadata.originalFilename}" (${dupes[0].metadata.category}), ` +
         `removed ${dupes.length - 1} older duplicate(s)`
       );
     }
   }
-  return unique;
+  return { unique, removedIds };
 }
 
 /**
@@ -180,6 +200,32 @@ export function findDuplicateLayer(filename, category) {
   return appState.layers.find(l =>
     l.metadata?.originalFilename === filename && l.metadata?.category === category
   ) || null;
+}
+
+/**
+ * Finds all existing layers that match by filename OR by name+category.
+ * Used to warn users before uploading duplicates.
+ * @param {string} filename - Original filename being uploaded
+ * @param {string} name - Layer name chosen by user
+ * @param {string} category - Category chosen by user
+ * @returns {Array} Matching layer records
+ */
+export function findPotentialDuplicates(filename, name, category) {
+  const matches = [];
+  const seen = new Set();
+  for (const l of appState.layers) {
+    const m = l.metadata;
+    if (!m) continue;
+    // Exact filename + category match
+    if (filename && m.originalFilename === filename && m.category === category) {
+      if (!seen.has(l.id)) { matches.push(l); seen.add(l.id); }
+    }
+    // Same name + category match
+    if (name && m.name === name && m.category === category) {
+      if (!seen.has(l.id)) { matches.push(l); seen.add(l.id); }
+    }
+  }
+  return matches;
 }
 
 /**
