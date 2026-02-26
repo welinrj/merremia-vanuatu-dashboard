@@ -7,7 +7,7 @@
  * - T6: Invasive species with species breakdown
  * - All others: General target metrics with net/gross area display
  */
-import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics, computeTarget1Metrics } from '../../gis/areaCalc.js';
+import { compute30x30Metrics, computeGeneralMetrics, computeTargetMetrics, computeTarget1Metrics, computeTarget2Metrics } from '../../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { CATEGORIES } from '../../config/categories.js';
 import { categoryIcon, targetIcon } from '../../config/icons.js';
@@ -42,6 +42,8 @@ export function renderKPIWidgets(container) {
     const target = activeTargets[0];
     if (target === 'T1') {
       renderTarget1KPIs(container, layers, filters);
+    } else if (target === 'T2') {
+      renderTarget2KPIs(container, layers, filters);
     } else if (target === 'T3') {
       renderTarget3KPIs(container, layers, filters);
     } else if (target === 'T4') {
@@ -175,6 +177,143 @@ function renderTarget1KPIs(container, layers, filters) {
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
     <div class="kpi-methodology-note">
       Marine = (EEZ &minus; National Boundary) / total EEZ &times; 100. Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
+    </div>
+  `;
+}
+
+/**
+ * Renders Target 2 (Degraded Areas & Restoration) KPIs with restoration progress bar.
+ *
+ * Shows:
+ * - Degraded area total and restoration area total
+ * - Restoration progress bar (restoration_ha / degraded_ha * 100)
+ * - Terrestrial vs marine/coastal realm breakdown
+ * - Per-province restoration progress bars
+ * - Category badges (DEGRADED vs RESTORATION)
+ */
+function renderTarget2KPIs(container, layers, filters) {
+  const m = computeTarget2Metrics(layers, filters);
+
+  const restPctClamped = Math.min(m.restoration_pct, 100);
+  const totalMapped = m.degraded_ha + m.restoration_ha;
+
+  // Province progress cards — only provinces with degraded data
+  const provCards = m.provinceBreakdown
+    .filter(p => p.degraded_ha > 0 || p.restoration_ha > 0)
+    .map(p => {
+      const pPct = p.restoration_pct || 0;
+      const pPctClamped = Math.min(pPct, 100);
+      return `
+        <div class="t2-province-card">
+          <div class="t2-province-header">
+            <span class="t2-province-name">${p.province}</span>
+            <span class="t2-province-pct">${pPct.toFixed(1)}%</span>
+          </div>
+          <div class="progress-bar-container" style="height:10px;margin-top:4px">
+            <div class="progress-bar-fill t2-restoration"
+                 style="width: ${pPctClamped.toFixed(1)}%">
+            </div>
+          </div>
+          <div class="t2-province-stats">
+            <span>Degraded: ${formatNumber(p.degraded_ha)} ha</span>
+            <span>Restored: ${formatNumber(p.restoration_ha)} ha</span>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+  // Category badges
+  const catBadges = m.categoryBreakdown.map(c => {
+    const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
+    return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
+      ${categoryIcon(c.category, 13)} ${catDef.label}: ${formatNumber(c.area_ha)} ha (${c.features})
+    </span>`;
+  }).join('');
+
+  // Status indicator
+  const statusColor = m.restoration_pct >= 30 ? '#065f46' : m.restoration_pct >= 10 ? '#b45309' : '#991b1b';
+  const statusText = m.restoration_pct >= 30
+    ? 'Strong restoration progress'
+    : m.restoration_pct >= 10
+      ? 'Restoration underway'
+      : m.degraded_ha > 0
+        ? 'Early stages — more restoration needed'
+        : 'No degraded area data uploaded yet';
+
+  container.innerHTML = `
+    <div class="kpi-grid">
+      <div class="kpi-card accent-orange">
+        <div class="kpi-value" style="color:#D84315">${formatNumber(m.degraded_ha)}</div>
+        <div class="kpi-label">Degraded Area (ha)</div>
+        <div class="kpi-sublabel">${m.degraded_features} record${m.degraded_features !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="kpi-card accent-green">
+        <div class="kpi-value" style="color:#2E7D32">${formatNumber(m.restoration_ha)}</div>
+        <div class="kpi-label">Restoration Area (ha)</div>
+        <div class="kpi-sublabel">${m.restoration_features} site${m.restoration_features !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${formatNumber(totalMapped)}</div>
+        <div class="kpi-label">Total Mapped (ha)</div>
+        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.provinceBreakdown.length}</div>
+        <div class="kpi-label">Provinces</div>
+        <div class="kpi-sublabel">With T2 data</div>
+      </div>
+
+      <div class="kpi-card wide" style="background:var(--surface-alt, #fef7f0);border:1px solid #fed7aa">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <div style="font-weight:600;font-size:13px;color:#92400e">
+            Restoration Progress: ${m.restoration_pct.toFixed(1)}% of degraded area
+          </div>
+          <div style="font-size:11px;color:${statusColor};font-weight:600">
+            ${statusText}
+          </div>
+        </div>
+        <div class="progress-bar-container" style="height:22px">
+          <div class="progress-bar-fill t2-restoration"
+               style="width: ${restPctClamped.toFixed(1)}%">
+            ${m.restoration_pct >= 2 ? m.restoration_pct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-secondary)">
+          <span>${formatNumber(m.restoration_ha)} ha restored of ${formatNumber(m.degraded_ha)} ha degraded</span>
+          <span>${m.degraded_ha > m.restoration_ha
+            ? formatNumber(m.degraded_ha - m.restoration_ha) + ' ha remaining'
+            : 'Target exceeded!'}</span>
+        </div>
+      </div>
+
+      ${m.realmTotals.degraded_terrestrial_ha > 0 || m.realmTotals.degraded_marine_ha > 0 ? `
+        <div class="kpi-card">
+          <div class="kpi-value" style="color:#D84315">${formatNumber(m.realmTotals.degraded_terrestrial_ha)}</div>
+          <div class="kpi-label">Terrestrial Degraded</div>
+          <div class="kpi-sublabel">${formatNumber(m.realmTotals.restoration_terrestrial_ha)} ha restoring</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-value marine">${formatNumber(m.realmTotals.degraded_marine_ha)}</div>
+          <div class="kpi-label">Marine/Coastal Degraded</div>
+          <div class="kpi-sublabel">${formatNumber(m.realmTotals.restoration_marine_ha)} ha restoring</div>
+        </div>
+      ` : ''}
+    </div>
+
+    ${provCards ? `
+      <div class="t2-province-breakdown">
+        <div class="breakdown-header" style="font-size:13px;font-weight:600;margin:12px 0 8px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+          Provincial Restoration Progress
+        </div>
+        <div class="t2-province-grid">${provCards}</div>
+      </div>
+    ` : ''}
+
+    ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
+
+    <div class="kpi-methodology-note">
+      Restoration progress = (restoration area &divide; degraded area) &times; 100. Areas dissolved to remove overlaps.
     </div>
   `;
 }
