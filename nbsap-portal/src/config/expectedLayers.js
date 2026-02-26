@@ -4,28 +4,7 @@
  * The tracker in the admin page shows which have been submitted.
  */
 const EXPECTED_LAYERS = [
-  // Reference layers (EEZ & Admin0 — used for T1 marine calculation)
-  {
-    id: 'eez-boundary',
-    name: 'Exclusive Economic Zone (EEZ)',
-    category: 'EEZ',
-    target: 'T1',
-    realm: 'marine',
-    countsToward30x30: false,
-    isReference: true,
-    description: 'Vanuatu EEZ boundary — used to derive marine spatial planning coverage (EEZ minus land area)'
-  },
-  {
-    id: 'admin0-boundary',
-    name: 'National Boundary (Admin0 Coastline)',
-    category: 'ADMIN_BOUNDARY',
-    target: 'T1',
-    realm: 'terrestrial',
-    countsToward30x30: false,
-    isReference: true,
-    description: 'Vanuatu national boundary / coastline — subtracted from EEZ to compute net marine area'
-  },
-  // Target 1: Biodiversity Spatial Planning
+  // Target 1: Biodiversity Spatial Planning (terrestrial only)
   {
     id: 'spatial-plans',
     name: 'Biodiversity Spatial Plans',
@@ -33,7 +12,7 @@ const EXPECTED_LAYERS = [
     target: 'T1',
     realm: 'terrestrial',
     countsToward30x30: false,
-    description: 'Provincial and municipal physical plans with CCA boundary zones and marine spatial planning areas'
+    description: 'Provincial and municipal physical plans with CCA boundary zones'
   },
   {
     id: 'kba-terrestrial',
@@ -73,6 +52,27 @@ const EXPECTED_LAYERS = [
     description: 'Active and planned restoration sites for degraded ecosystems'
   },
   // Target 3: 30x30 Conservation
+  // Reference layers (EEZ & Admin0 — used for T3 marine baseline calculation)
+  {
+    id: 'eez-boundary',
+    name: 'Exclusive Economic Zone (EEZ)',
+    category: 'EEZ',
+    target: 'T3',
+    realm: 'marine',
+    countsToward30x30: false,
+    isReference: true,
+    description: 'Vanuatu EEZ boundary — used to derive marine baseline area for 30x30 target'
+  },
+  {
+    id: 'admin0-boundary',
+    name: 'National Boundary (Admin0 Coastline)',
+    category: 'ADMIN_BOUNDARY',
+    target: 'T3',
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    isReference: true,
+    description: 'Vanuatu national boundary / coastline — used as terrestrial baseline for 30x30 target'
+  },
   {
     id: 'cca-terrestrial',
     name: 'Community Conserved Areas',

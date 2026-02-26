@@ -299,25 +299,23 @@ export function compute30x30Metrics(layers, filters = {}) {
 
 // ─── TARGET 1 METRICS (Biodiversity Spatial Planning) ────────────────────────
 
-/** Categories excluded from T1 terrestrial feature calculations */
-const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'EEZ', 'ADMIN_BOUNDARY']);
+/** Categories excluded from T1 feature calculations */
+const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'LMMA', 'EEZ', 'ADMIN_BOUNDARY']);
 
 /**
  * Categories that count toward T1 terrestrial calculation.
- * T1 Terrestrial = (CCA + Inland Water) / total terrestrial baseline * 100
+ * T1 = terrestrial-only spatial planning coverage.
  */
 const T1_TERRESTRIAL_CATEGORIES = new Set(['CCA', 'INLAND_WATER']);
 
 /**
- * Computes Target 1 metrics.
+ * Computes Target 1 metrics (terrestrial only).
  *
- * Marine:  ((EEZ - National Boundary) / total EEZ) * 100
- *   EEZ and Admin0 (national boundary) are found by category.
- *   Marine coverage represents the ocean portion of the EEZ.
+ * T1 measures the percentage of land area covered by biodiversity-inclusive
+ * spatial plans: ((CCA + Inland Water) / total terrestrial baseline) * 100.
  *
- * Terrestrial: ((CCA + Inland Water) / total terrestrial baseline) * 100
- *   Only CCA and INLAND_WATER categories contribute to terrestrial T1.
- *   Features are dissolved to remove overlaps.
+ * T1 has only terrestrial Biodiversity Spatial Plans — no marine component.
+ * Marine protected area calculations belong to T3 (30x30 Conservation).
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters
@@ -329,23 +327,6 @@ export function computeTarget1Metrics(layers, filters = {}) {
   if (cached) return cached;
 
   const baselines = ENV.nationalBaselines;
-
-  // ── Find EEZ and Admin0 layers for marine calculation ──────────────
-  let eezAreaHa = 0;
-  let admin0AreaHa = 0;
-
-  for (const layer of layers) {
-    const meta = layer.metadata;
-    if (meta.category === 'EEZ') {
-      eezAreaHa = meta.totalAreaHa || 0;
-    } else if (meta.category === 'ADMIN_BOUNDARY') {
-      admin0AreaHa = meta.totalAreaHa || 0;
-    }
-  }
-
-  // Marine T1 = (EEZ - National Boundary) / total EEZ * 100
-  const marineNetHa = Math.max(0, eezAreaHa - admin0AreaHa);
-  const mPct = eezAreaHa > 0 ? (marineNetHa / eezAreaHa) * 100 : 0;
 
   // ── Terrestrial: CCA + Inland Water only ──────────────────────────
   const terrestrialFeatures = [];
@@ -443,13 +424,6 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
   const result = {
     targetCode: 'T1',
-    // Marine: (EEZ - National Boundary) / total EEZ
-    marine_ha: round2(marineNetHa),
-    marine_pct: round3(mPct),
-    eez_ha: round2(eezAreaHa),
-    admin0_ha: round2(admin0AreaHa),
-    hasEEZ: eezAreaHa > 0,
-    hasAdmin0: admin0AreaHa > 0,
     // Terrestrial: (CCA + Inland Water) / total terrestrial
     terrestrial_ha: round2(netTerrestrial),
     terrestrial_pct: round3(tPct),

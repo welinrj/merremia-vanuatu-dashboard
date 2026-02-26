@@ -5,7 +5,7 @@ export default {
       "name": "Target 1: Biodiversity Spatial Planning",
       "icon": "\u{1F5FA}",
       "color": "#1565C0",
-      "description": "Percentage of land and sea area covered by biodiversity-inclusive spatial plans (provincial/municipal physical plans, CCA boundary zones, marine spatial planning).",
+      "description": "Percentage of land area covered by biodiversity-inclusive spatial plans (provincial/municipal physical plans, CCA boundary zones).",
       "isMetricTarget": true,
       "recommendedCategories": ["SPATIAL_PLAN", "KBA", "CCA"]
     },
