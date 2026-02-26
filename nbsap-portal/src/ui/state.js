@@ -98,6 +98,18 @@ export function updateLayerMeta(layerId, metadataUpdates) {
  */
 export function removeLayer(layerId) {
   appState.layers = appState.layers.filter(l => l.id !== layerId);
+
+  // Clean stale tracker entries that reference this layer ID
+  for (const [expectedId, entries] of Object.entries(appState.layerTracker)) {
+    const filtered = entries.filter(e => e.layerId !== layerId);
+    if (filtered.length === 0) {
+      delete appState.layerTracker[expectedId];
+    } else if (filtered.length !== entries.length) {
+      appState.layerTracker[expectedId] = filtered;
+    }
+  }
+
+  _trackedIdsCache = null;
   _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();

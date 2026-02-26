@@ -8,7 +8,7 @@ import TARGETS_CONFIG from '../config/targets.js';
 import { categoryIcon, targetIcon } from '../config/icons.js';
 import ENV from '../config/env.js';
 import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
-import { deleteLayer, addAuditEntry, saveLayerMetadata } from '../services/storage/index.js';
+import { deleteLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
 import { isAdmin } from '../services/auth/index.js';
 import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
 
@@ -613,8 +613,23 @@ async function removeLayerAction(layerId) {
   const state = getAppState();
   const layer = state.layers.find(l => l.id === layerId);
 
-  await deleteLayer(layerId);
+  try {
+    await deleteLayer(layerId);
+  } catch (err) {
+    console.error('Failed to delete layer from storage:', err);
+    alert('Failed to delete layer. Please try again.');
+    return;
+  }
+
+  // Remove from local state (also cleans tracker entries for this layer)
   removeLayer(layerId);
+
+  // Persist updated tracker to Firestore so deleted layers don't reappear
+  try {
+    await setSetting('layerTracker', getAppState().layerTracker);
+  } catch (err) {
+    console.warn('Failed to save tracker after deletion:', err);
+  }
 
   await addAuditEntry({
     action: 'delete',
@@ -623,7 +638,7 @@ async function removeLayerAction(layerId) {
     targets: layer?.metadata?.targets || [],
     category: layer?.metadata?.category || '',
     result: 'deleted'
-  });
+  }).catch(() => {});
 
   selectedLayerId = null;
   document.getElementById('portal-sidebar').innerHTML = `
