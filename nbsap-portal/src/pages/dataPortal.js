@@ -137,8 +137,7 @@ function buildLayerRow(l) {
     coverageCell = `${m.featureCount}`;
   }
 
-  const showDownload = !isRef || admin;
-  const showRemove = admin && (!isRef || admin);
+  const showRemove = admin;
 
   return `
     <tr data-layer-id="${l.id}" class="${selectedLayerId === l.id ? 'selected' : ''}" style="cursor:pointer">
@@ -159,7 +158,7 @@ function buildLayerRow(l) {
       <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
       <td class="actions">
         <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
-        ${showDownload ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
+        ${admin ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
         ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
       </td>
     </tr>
@@ -394,6 +393,18 @@ function renderLayerDetails(layerId) {
         }
       </div>
     </div>
+
+    ${!admin ? `
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-header">
+        <span>Request Data Download</span>
+      </div>
+      <div class="card-body" style="font-size:13px">
+        <p style="margin:0 0 8px;color:var(--text-secondary)">To download CSV or GeoJSON files, please contact:</p>
+        <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">rbaereleo@vanuatu.gov.vu</a></div>
+        <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">dlaunder@vanuatu.gov.vu</a></div>
+      </div>
+    </div>` : ''}
 
     ${m.warnings.length > 0 ? `
       <div class="card">
