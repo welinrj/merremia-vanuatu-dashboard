@@ -36,7 +36,7 @@ import {
   printExtinctPolygonStyle,
   printExtinctPointStyle
 } from '../../config/symbology.js';
-import { getAppState, getDashboardLayers } from '../state.js';
+import { getAppState, getDashboardLayers, ensureGeoJSONForTargets } from '../state.js';
 import { getLayerOrder } from './mapView.js';
 import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
 
@@ -102,10 +102,13 @@ function buildLegendHtml(layers, showProvince) {
 /**
  * Opens the print view for a single target.
  */
-export function openPrintMap(targetCode) {
+export async function openPrintMap(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode);
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode]);
 
   const overlay = buildOverlay([targetCode]);
   document.body.appendChild(overlay);
@@ -126,10 +129,13 @@ export function openPrintMap(targetCode) {
  * initializing before the next province starts, preventing browser crashes
  * on large datasets like T10.
  */
-export function openPrintProvinceMaps(targetCode) {
+export async function openPrintProvinceMaps(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode);
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode]);
 
   const state = getAppState();
   const provinces = state.provinces || [];
@@ -181,10 +187,13 @@ const T4_SPECIES = [
  * Each page shows the species distribution across all provinces,
  * with resident vs extinct/possibly extinct areas differentiated.
  */
-export function openPrintSpeciesMaps(targetCode) {
+export async function openPrintSpeciesMaps(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode || 'T4');
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode || 'T4']);
 
   const state = getAppState();
   const layers = getTargetLayers(targetCode || 'T4');
@@ -592,10 +601,14 @@ function buildProvinceSharedContext(targetCode, layers, provinces) {
 /**
  * Opens the print view for all targets (one map page per target).
  */
-export function openPrintAllMaps() {
+export async function openPrintAllMaps() {
   closePrintOverlay();
 
   const targetCodes = targetsConfig.targets.map(t => t.code);
+
+  // Ensure GeoJSON is loaded for ALL targets before rendering
+  await ensureGeoJSONForTargets(targetCodes);
+
   const overlay = buildOverlay(targetCodes);
   document.body.appendChild(overlay);
   document.body.classList.add('print-mode');
