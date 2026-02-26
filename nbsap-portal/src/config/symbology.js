@@ -14,18 +14,18 @@
 export const SYMBOLOGY = {
   // Boundary / Reference
   EEZ:            { fill: '#0277BD', stroke: '#01579B' },
-  ADMIN_BOUNDARY: { fill: '#546E7A', stroke: '#37474F' },
+  ADMIN_BOUNDARY: { fill: '#37474F', stroke: '#263238' },
   // Conservation — green spectrum
-  CCA:            { fill: '#43A047', stroke: '#2E7D32' },
+  CCA:            { fill: '#2E7D32', stroke: '#1B5E20' },
   PA:             { fill: '#1B5E20', stroke: '#0D3311' },
   OECM:           { fill: '#7E57C2', stroke: '#5E35B1' },
-  KBA:            { fill: '#F57C00', stroke: '#E65100' },
+  KBA:            { fill: '#EF6C00', stroke: '#E65100' },
   // Marine — blue spectrum
   MPA:            { fill: '#1565C0', stroke: '#0D47A1' },
-  LMMA:           { fill: '#00897B', stroke: '#00695C' },
-  INLAND_WATER:   { fill: '#0288D1', stroke: '#01579B' },
+  LMMA:           { fill: '#00796B', stroke: '#004D40' },
+  INLAND_WATER:   { fill: '#4FC3F7', stroke: '#0288D1' },
   // Planning
-  SPATIAL_PLAN:   { fill: '#455A64', stroke: '#263238' },
+  SPATIAL_PLAN:   { fill: '#78909C', stroke: '#546E7A' },
   // Degradation & restoration
   DEGRADED:       { fill: '#D84315', stroke: '#BF360C' },
   RESTORATION:    { fill: '#F9A825', stroke: '#F57F17' },
@@ -221,8 +221,8 @@ export function dissolvedFillStyle(category, typeValue) {
   return {
     fillColor: colors.fill,
     color: colors.stroke,
-    weight: 2,
-    fillOpacity: 0.30,
+    weight: 2.5,
+    fillOpacity: 0.45,
     interactive: false
   };
 }
@@ -239,7 +239,7 @@ export function featureOutlineStyle(feature, category) {
   return {
     fillColor: colors.fill,
     color: colors.stroke,
-    weight: status.weight * 0.6,
+    weight: status.weight * 0.8,
     fillOpacity: 0,
     dashArray: status.dashArray || '4 3'
   };
@@ -253,8 +253,8 @@ export function referencePolygonStyle(category, typeValue) {
   return {
     fillColor: colors.fill,
     color: colors.stroke,
-    weight: 1.5,
-    fillOpacity: 0.08,
+    weight: 2,
+    fillOpacity: 0.15,
     dashArray: '8 4'
   };
 }
@@ -302,8 +302,8 @@ export function printDissolvedStyle(category, typeValue) {
   return {
     fillColor: colors.fill,
     color: colors.stroke,
-    weight: 2,
-    fillOpacity: 0.35
+    weight: 2.5,
+    fillOpacity: 0.50
   };
 }
 
