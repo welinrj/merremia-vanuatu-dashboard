@@ -8,7 +8,7 @@ import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
 import { saveLayer, deleteLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
-import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer, findPotentialDuplicates } from '../state.js';
+import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer, findPotentialDuplicates, getExpectedLayerName } from '../state.js';
 import { showConfirm } from './dialog.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
@@ -350,7 +350,7 @@ function renderStep1(body) {
   const el = wizardState.expectedLayer;
   const trackerHint = el
     ? `<div style="padding:10px 14px;background:var(--primary-lighter);border:1px solid var(--primary);border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px">
-         Uploading for: <strong>${el.name}</strong> (${el.category} / ${el.target})
+         Uploading for: <strong>${getExpectedLayerName(el)}</strong> (${el.category} / ${el.target})
        </div>`
     : '';
 
@@ -444,7 +444,7 @@ function renderStep1(body) {
 function renderStep2(body) {
   const el = wizardState.expectedLayer;
   const defaultName = el
-    ? el.name
+    ? getExpectedLayerName(el)
     : (wizardState.opts.originalFilename || '').replace(/\.(zip|kml|csv|geojson|json)$/i, '');
   const defaultCategory = el ? el.category : CATEGORY_KEYS[0];
   const defaultRealm = el ? el.realm : 'terrestrial';
@@ -453,7 +453,7 @@ function renderStep2(body) {
 
   body.innerHTML = `
     ${el ? `<div style="padding:10px 14px;background:var(--primary-lighter);border:1px solid var(--primary);border-radius:var(--radius-sm);margin-bottom:14px;font-size:13px">
-      Uploading for: <strong>${el.name}</strong> &mdash; fields have been pre-filled.
+      Uploading for: <strong>${getExpectedLayerName(el)}</strong> &mdash; fields have been pre-filled.
     </div>` : ''}
     <div class="form-group">
       <label>Layer Name</label>
@@ -646,7 +646,7 @@ function renderStep3(body) {
     if (wizardState.expectedLayer) {
       trackLayer(wizardState.expectedLayer.id, result.metadata.id);
       await setSetting('layerTracker', getAppState().layerTracker);
-      addLog(`Tracked as: ${wizardState.expectedLayer.name}`);
+      addLog(`Tracked as: ${getExpectedLayerName(wizardState.expectedLayer)}`);
     }
 
     statusEl.innerHTML = `

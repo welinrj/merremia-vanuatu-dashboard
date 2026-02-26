@@ -32,6 +32,9 @@ const appState = {
   /** Auth state */
   isAdmin: false,
 
+  /** Custom display names for expected layers: { [expectedLayerId]: string } */
+  customLayerNames: {},
+
   /**
    * Layer tracker: maps expected layer IDs to arrays of uploaded layer info.
    * { [expectedLayerId]: [{ layerId, uploadedAt }, ...] }
@@ -241,6 +244,33 @@ export function setProvincesGeojson(geojson) {
       .sort();
     appState.provinces = [...new Set(names)];
   }
+}
+
+/**
+ * Sets custom layer names (loaded from storage on init).
+ * @param {object} names - { [expectedLayerId]: string }
+ */
+export function setCustomLayerNames(names) {
+  appState.customLayerNames = names || {};
+}
+
+/**
+ * Sets a custom display name for an expected layer.
+ * Does NOT persist to storage — caller should also call setSetting().
+ * @param {string} expectedLayerId
+ * @param {string} name
+ */
+export function setCustomLayerName(expectedLayerId, name) {
+  appState.customLayerNames[expectedLayerId] = name;
+}
+
+/**
+ * Returns the display name for an expected layer, using custom name if set.
+ * @param {{ id: string, name: string }} expectedLayer
+ * @returns {string}
+ */
+export function getExpectedLayerName(expectedLayer) {
+  return appState.customLayerNames[expectedLayer.id] || expectedLayer.name;
 }
 
 /**

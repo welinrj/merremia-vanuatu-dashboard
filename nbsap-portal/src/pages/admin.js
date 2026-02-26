@@ -6,7 +6,7 @@
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
 import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting } from '../services/storage/index.js';
-import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker } from '../ui/state.js';
+import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
@@ -163,7 +163,7 @@ async function renderAdminDashboard(page) {
                       <div style="display:flex;align-items:center;gap:8px">
                         <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
                         <div>
-                          <strong style="font-size:13px">${el.name}</strong>
+                          <strong class="layer-name-editable" data-expected-id="${el.id}" style="font-size:13px;cursor:pointer;border-bottom:1px dashed var(--text-tertiary)" title="Click to rename">${getExpectedLayerName(el)}</strong>
                           <div style="font-size:11px;color:var(--text-tertiary)">${el.description}</div>
                         </div>
                       </div>
@@ -335,12 +335,57 @@ async function renderAdminDashboard(page) {
     });
   });
 
+  // Tracker: Inline rename on layer names
+  page.querySelectorAll('.layer-name-editable').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const expectedId = el.dataset.expectedId;
+      const expectedLayer = EXPECTED_LAYERS.find(l => l.id === expectedId);
+      if (!expectedLayer) return;
+
+      const currentName = getExpectedLayerName(expectedLayer);
+      const input = document.createElement('input');
+      input.type = 'text';
+      input.value = currentName;
+      input.style.cssText = 'font-size:13px;font-weight:600;padding:2px 6px;border:2px solid var(--primary);border-radius:4px;outline:none;width:100%;box-sizing:border-box';
+
+      const parent = el.parentNode;
+      parent.replaceChild(input, el);
+      input.focus();
+      input.select();
+
+      const save = async () => {
+        const newName = input.value.trim();
+        if (newName && newName !== expectedLayer.name) {
+          setCustomLayerName(expectedId, newName);
+          await setSetting('customLayerNames', getAppState().customLayerNames);
+        } else if (newName === expectedLayer.name) {
+          // Reset to default — remove custom override
+          const state = getAppState();
+          delete state.customLayerNames[expectedId];
+          await setSetting('customLayerNames', state.customLayerNames);
+        }
+        renderAdminPage();
+      };
+
+      input.addEventListener('blur', save);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); input.blur(); }
+        if (e.key === 'Escape') {
+          input.value = currentName;
+          input.blur();
+        }
+      });
+    });
+  });
+
   // Tracker: Clear All buttons (remove all files for an expected layer)
   page.querySelectorAll('.tracker-remove-all').forEach(btn => {
     btn.addEventListener('click', async () => {
       const expectedId = btn.dataset.expectedId;
       const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
-      if (!await showConfirm(`Remove all uploaded files for "${expected?.name || expectedId}"? The files remain in storage but won't appear on the dashboard.`, { title: 'Remove Files', okLabel: 'Remove', danger: true })) return;
+      const displayName = expected ? getExpectedLayerName(expected) : expectedId;
+      if (!await showConfirm(`Remove all uploaded files for "${displayName}"? The files remain in storage but won't appear on the dashboard.`, { title: 'Remove Files', okLabel: 'Remove', danger: true })) return;
 
       untrackLayer(expectedId, null);
       await setSetting('layerTracker', getAppState().layerTracker);
