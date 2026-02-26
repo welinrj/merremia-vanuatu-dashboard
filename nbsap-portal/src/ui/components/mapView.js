@@ -592,6 +592,13 @@ export function getMap() {
 }
 
 /**
+ * Returns a copy of the current user-defined layer order (bottom→top).
+ */
+export function getLayerOrder() {
+  return [...layerOrder];
+}
+
+/**
  * Forces a map resize (e.g., after tab switch).
  */
 export function resizeMap() {
