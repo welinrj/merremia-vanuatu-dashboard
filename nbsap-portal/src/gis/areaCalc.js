@@ -303,25 +303,21 @@ export function compute30x30Metrics(layers, filters = {}) {
 const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'EEZ', 'ADMIN_BOUNDARY']);
 
 /**
- * Categories that automatically count toward T1 even without an explicit
- * T1 target tag.  These represent biodiversity spatial planning by nature
- * (CCAs are community spatial plans, KBAs delineate planning zones, etc.).
- * Matches the recommendedCategories for T1 in targets config.
+ * Categories that count toward T1 terrestrial calculation.
+ * T1 Terrestrial = (CCA + Inland Water) / total terrestrial baseline * 100
  */
-const T1_AUTO_CATEGORIES = new Set(['SPATIAL_PLAN', 'KBA', 'CCA']);
+const T1_TERRESTRIAL_CATEGORIES = new Set(['CCA', 'INLAND_WATER']);
 
 /**
- * Computes Target 1 metrics with special marine calculation.
+ * Computes Target 1 metrics.
  *
- * Marine: EEZ reference layer area minus Admin0 (land) reference layer area.
- *   This represents the marine area covered by spatial plans (EEZ minus land).
- *   MPA layers are excluded from T1.
+ * Marine:  ((EEZ - National Boundary) / total EEZ) * 100
+ *   EEZ and Admin0 (national boundary) are found by category.
+ *   Marine coverage represents the ocean portion of the EEZ.
  *
- * Terrestrial: dissolved area of all T1 terrestrial feature layers
- *   (excluding reference layers and MPA) divided by national terrestrial baseline.
- *   Layers tagged T1 OR from T1 recommended categories (CCA, KBA, SPATIAL_PLAN)
- *   are included automatically so that CCAs count toward spatial planning
- *   coverage even when uploaded only under T3.
+ * Terrestrial: ((CCA + Inland Water) / total terrestrial baseline) * 100
+ *   Only CCA and INLAND_WATER categories contribute to terrestrial T1.
+ *   Features are dissolved to remove overlaps.
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters
@@ -335,8 +331,6 @@ export function computeTarget1Metrics(layers, filters = {}) {
   const baselines = ENV.nationalBaselines;
 
   // ── Find EEZ and Admin0 layers for marine calculation ──────────────
-  // Search by category regardless of isReference flag, so datasets
-  // uploaded as regular layers are still found.
   let eezAreaHa = 0;
   let admin0AreaHa = 0;
 
@@ -349,10 +343,11 @@ export function computeTarget1Metrics(layers, filters = {}) {
     }
   }
 
-  // Marine T1 = EEZ area minus land (admin0) area
+  // Marine T1 = (EEZ - National Boundary) / total EEZ * 100
   const marineNetHa = Math.max(0, eezAreaHa - admin0AreaHa);
+  const mPct = eezAreaHa > 0 ? (marineNetHa / eezAreaHa) * 100 : 0;
 
-  // ── Terrestrial: dissolve all T1 terrestrial features ──────────────
+  // ── Terrestrial: CCA + Inland Water only ──────────────────────────
   const terrestrialFeatures = [];
   let grossTerrestrial = 0;
   let totalFeatures = 0;
@@ -367,11 +362,13 @@ export function computeTarget1Metrics(layers, filters = {}) {
     if (meta.isReference) continue;
     if (T1_EXCLUDED_CATEGORIES.has(meta.category)) continue;
 
-    // Include layers that are either explicitly tagged T1 or belong to
-    // a T1 recommended category (CCA, KBA, SPATIAL_PLAN)
+    // Only include CCA and INLAND_WATER categories (tagged T1 or auto-category)
     const taggedT1 = meta.targets && meta.targets.includes('T1');
-    const autoCategory = T1_AUTO_CATEGORIES.has(meta.category);
+    const autoCategory = T1_TERRESTRIAL_CATEGORIES.has(meta.category);
     if (!taggedT1 && !autoCategory) continue;
+
+    // Even T1-tagged layers must be CCA or INLAND_WATER to count toward terrestrial
+    if (taggedT1 && !T1_TERRESTRIAL_CATEGORIES.has(meta.category)) continue;
 
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
     if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
@@ -391,7 +388,7 @@ export function computeTarget1Metrics(layers, filters = {}) {
       const realm = f.properties.realm || meta.realm || 'terrestrial';
       totalFeatures++;
 
-      if (realm !== 'terrestrial') continue; // T1 terrestrial only; marine comes from EEZ - admin0
+      if (realm !== 'terrestrial') continue;
 
       terrestrialFeatures.push(f);
       grossTerrestrial += areaHa;
@@ -411,14 +408,11 @@ export function computeTarget1Metrics(layers, filters = {}) {
     }
   }
 
-  // Dissolve terrestrial features for net area (removes overlaps between
-  // CCA, KBA, SPATIAL_PLAN, and any other T1 layers).
-  // dissolveFeatures() internally filters to polygons and handles size limits.
+  // Dissolve terrestrial features for net area (removes overlaps between CCA + INLAND_WATER)
   const dissolvedTerrestrial = dissolveFeatures(terrestrialFeatures);
   const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
 
   const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
-  const mPct = baselines.marine_ha > 0 ? (marineNetHa / baselines.marine_ha) * 100 : 0;
 
   // Province breakdown (terrestrial only) — dissolve per-province for net area
   const provinceBreakdown = Object.entries(provinceGross)
@@ -449,14 +443,14 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
   const result = {
     targetCode: 'T1',
-    // Marine: derived from EEZ - admin0
+    // Marine: (EEZ - National Boundary) / total EEZ
     marine_ha: round2(marineNetHa),
     marine_pct: round3(mPct),
     eez_ha: round2(eezAreaHa),
     admin0_ha: round2(admin0AreaHa),
     hasEEZ: eezAreaHa > 0,
     hasAdmin0: admin0AreaHa > 0,
-    // Terrestrial: dissolved feature area
+    // Terrestrial: (CCA + Inland Water) / total terrestrial
     terrestrial_ha: round2(netTerrestrial),
     terrestrial_pct: round3(tPct),
     gross_terrestrial_ha: round2(grossTerrestrial),
