@@ -19,7 +19,7 @@ const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.v
 
 /** Target descriptions for the dashboard header */
 const TARGET_HEADERS = {
-  T1: { title: 'Target 1: Biodiversity Spatial Planning', desc: 'Percentage of land and sea covered by biodiversity-inclusive spatial plans' },
+  T1: { title: 'Target 1: Biodiversity Spatial Planning', desc: 'Percentage of land area covered by biodiversity-inclusive spatial plans' },
   T2: { title: 'Target 2: Degraded Areas & Restoration', desc: 'Mapping of degraded areas and active restoration sites' },
   T3: { title: 'Target 3: 30x30 Conservation', desc: 'Conserve 30% of terrestrial and 30% of marine areas by 2030' },
   T4: { title: 'Target 4: Species & Biodiversity', desc: 'Distribution maps of significant species and key biodiversity areas' },

@@ -16,7 +16,7 @@ import ENV from '../../config/env.js';
 
 /** Target display metadata — labels, colours, and units */
 const TARGET_META = {
-  T1:  { label: 'Biodiversity Spatial Planning', color: '#1565C0', unit: 'ha planned' },
+  T1:  { label: 'Biodiversity Spatial Planning (Terrestrial)', color: '#1565C0', unit: 'ha planned' },
   T2:  { label: 'Degraded Areas & Restoration',  color: '#D84315', unit: 'ha mapped' },
   T3:  { label: '30x30 Conservation',            color: '#2E7D32', unit: 'ha conserved' },
   T4:  { label: 'Species & Biodiversity',        color: '#7E57C2', unit: 'species records' },
@@ -70,25 +70,16 @@ export function renderKPIWidgets(container) {
 /**
  * Renders Target 1 (Biodiversity Spatial Planning) KPIs.
  *
- * Marine coverage = EEZ area minus Admin0 (land) area.
- *   Derived from EEZ and Admin0 category layers. MPA excluded.
- *
+ * T1 is terrestrial only — no marine component.
  * Terrestrial coverage = dissolved T1 feature area / national terrestrial baseline.
+ * Marine spatial planning is handled by T3 (30x30 Conservation).
  */
 function renderTarget1KPIs(container, layers, filters) {
   const m = computeTarget1Metrics(layers, filters);
   const baselines = m.baselines;
 
   const tPct = m.terrestrial_pct;
-  const mPct = m.marine_pct;
   const tPctClamped = Math.min(tPct, 100);
-  const mPctClamped = Math.min(mPct, 100);
-
-  // Combined totals using EEZ as marine total (not baselines.marine_ha)
-  const marineTotalHa = m.eez_ha || baselines.marine_ha;
-  const combinedTotalHa = baselines.terrestrial_ha + marineTotalHa;
-  const combinedCurrentHa = m.terrestrial_ha + m.marine_ha;
-  const combinedPct = combinedTotalHa > 0 ? (combinedCurrentHa / combinedTotalHa) * 100 : 0;
 
   // Category badges (terrestrial feature layers only)
   const catBadges = m.categoryBreakdown.map(c => {
@@ -98,17 +89,7 @@ function renderTarget1KPIs(container, layers, filters) {
     </span>`;
   }).join('');
 
-  // Marine data notice
-  const marineNote = (!m.hasEEZ || !m.hasAdmin0)
-    ? `<div style="padding:8px 12px;background:#fff3cd;border:1px solid #ffc107;border-radius:6px;font-size:12px;color:#856404;margin-bottom:6px">
-        Marine calculation requires <strong>EEZ</strong> and <strong>National Boundary (Admin0)</strong> datasets.
-        ${!m.hasEEZ ? ' Missing: EEZ.' : ''}${!m.hasAdmin0 ? ' Missing: Admin0.' : ''}
-        Upload them with the EEZ / Admin Boundary category.
-      </div>`
-    : '';
-
   container.innerHTML = `
-    ${marineNote}
     <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
@@ -116,9 +97,9 @@ function renderTarget1KPIs(container, layers, filters) {
         <div class="kpi-sublabel">CCA + Inland Water (dissolved)</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
-        <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">EEZ minus National Boundary</div>
+        <div class="kpi-value">${m.totalFeatures}</div>
+        <div class="kpi-label">Data Records</div>
+        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
       </div>
 
       <div class="kpi-card wide">
@@ -134,40 +115,6 @@ function renderTarget1KPIs(container, layers, filters) {
         </div>
       </div>
 
-      <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Marine coverage: ${mPct.toFixed(2)}%</div>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill marine"
-               style="width: ${Math.min(mPctClamped, 100).toFixed(1)}%">
-            ${mPct >= 1 ? mPct.toFixed(1) + '%' : ''}
-          </div>
-        </div>
-        <div class="kpi-sublabel" style="margin-top:4px">
-          (EEZ ${formatNumber(m.eez_ha)} ha &minus; Boundary ${formatNumber(m.admin0_ha)} ha) / EEZ ${formatNumber(m.eez_ha)} ha
-        </div>
-      </div>
-
-      <div class="kpi-card wide" style="background:var(--surface-alt, #f0fdf4);border:1px solid #bbf7d0">
-        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:8px">
-          Total Coverage: ${combinedPct.toFixed(2)}% of Vanuatu's land and sea area
-        </div>
-        <div class="progress-bar-container" style="height:20px">
-          <div class="progress-bar-fill terrestrial"
-               style="width: ${Math.min(combinedPct, 100).toFixed(1)}%;background:linear-gradient(90deg, #065f46, #0ea5e9)">
-            ${combinedPct >= 0.5 ? combinedPct.toFixed(1) + '%' : ''}
-          </div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-secondary)">
-          <span>${formatNumber(combinedCurrentHa)} ha covered of ${formatNumber(combinedTotalHa)} ha total</span>
-          <span>Land: ${tPct.toFixed(1)}% | Sea: ${mPct.toFixed(1)}%</span>
-        </div>
-      </div>
-
-      <div class="kpi-card">
-        <div class="kpi-value">${m.totalFeatures}</div>
-        <div class="kpi-label">Data Records</div>
-        <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
-      </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.provinceBreakdown.length}</div>
         <div class="kpi-label">Provinces</div>
@@ -176,7 +123,7 @@ function renderTarget1KPIs(container, layers, filters) {
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
     <div class="kpi-methodology-note">
-      Marine = (EEZ &minus; National Boundary) / total EEZ &times; 100. Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
+      Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
     </div>
   `;
 }

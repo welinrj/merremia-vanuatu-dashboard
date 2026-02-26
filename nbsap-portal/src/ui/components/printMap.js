@@ -1043,7 +1043,7 @@ function renderProvincePage(container, targetCode, target, provinceName, sharedC
 /** GBF target thresholds — target-specific goals where applicable */
 const TARGET_THRESHOLDS = {
   T3: { terrestrial: 30, marine: 30, label: '30% by 2030 (GBF Target 3)' },
-  T1: { terrestrial: 100, marine: 100, label: '100% spatial plan coverage' },
+  T1: { terrestrial: 100, marine: null, label: '100% terrestrial spatial plan coverage' },
   T2: { terrestrial: null, marine: null, label: 'Map all degraded areas' }
 };
 
