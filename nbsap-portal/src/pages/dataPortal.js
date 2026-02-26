@@ -55,14 +55,25 @@ export function initDataPortal() {
           <p><strong>Layer Details</strong></p>
           <p>Select a layer to view metadata and compliance information</p>
         </div>
+        ${!isAdmin() ? `
+        <div class="card" style="margin-top:16px">
+          <div class="card-header">
+            <span>Request Data Download</span>
+          </div>
+          <div class="card-body" style="font-size:13px">
+            <p style="margin:0 0 8px;color:var(--text-secondary)">To download CSV or GeoJSON files, please contact:</p>
+            <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">rbaereleo@vanuatu.gov.vu</a></div>
+            <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">dlaunder@vanuatu.gov.vu</a></div>
+          </div>
+        </div>` : ''}
       </div>
     </div>
     <!-- Metadata editor modal -->
     <div class="modal-overlay" id="metadata-editor-modal">
-      <div class="modal-content" style="max-width:600px;max-height:85vh;overflow-y:auto">
+      <div class="modal" style="max-width:600px;max-height:85vh;overflow-y:auto">
         <div class="modal-header">
           <h3>Edit Metadata</h3>
-          <button class="modal-close-btn" id="meta-editor-close">&times;</button>
+          <button class="modal-close" id="meta-editor-close">&times;</button>
         </div>
         <div id="meta-editor-body"></div>
       </div>
@@ -103,6 +114,30 @@ export function initDataPortal() {
   document.getElementById('meta-editor-close').addEventListener('click', closeMetadataEditor);
   document.getElementById('metadata-editor-modal').addEventListener('click', (e) => {
     if (e.target === e.currentTarget) closeMetadataEditor();
+  });
+
+  // Event delegation on the table container — bind once here, not on every render
+  document.getElementById('portal-table-container').addEventListener('click', (e) => {
+    const btn = e.target.closest('button');
+    if (btn) {
+      const id = btn.dataset.id;
+      if (btn.classList.contains('action-view')) {
+        selectedLayerId = id;
+        renderLayerDetails(id);
+        renderPortalTable();
+      } else if (btn.classList.contains('action-download')) {
+        downloadLayerGeoJSON(id);
+      } else if (btn.classList.contains('action-remove')) {
+        removeLayerAction(id);
+      }
+      return;
+    }
+    const tr = e.target.closest('tr[data-layer-id]');
+    if (tr) {
+      selectedLayerId = tr.dataset.layerId;
+      renderLayerDetails(selectedLayerId);
+      renderPortalTable();
+    }
   });
 
   renderPortalTable();
@@ -280,30 +315,6 @@ function renderPortalTable() {
   }
 
   container.innerHTML = html;
-
-  // Event delegation on the container
-  container.addEventListener('click', (e) => {
-    const btn = e.target.closest('button');
-    if (btn) {
-      const id = btn.dataset.id;
-      if (btn.classList.contains('action-view')) {
-        selectedLayerId = id;
-        renderLayerDetails(id);
-        renderPortalTable();
-      } else if (btn.classList.contains('action-download')) {
-        downloadLayerGeoJSON(id);
-      } else if (btn.classList.contains('action-remove')) {
-        removeLayerAction(id);
-      }
-      return;
-    }
-    const tr = e.target.closest('tr[data-layer-id]');
-    if (tr) {
-      selectedLayerId = tr.dataset.layerId;
-      renderLayerDetails(selectedLayerId);
-      renderPortalTable();
-    }
-  });
 }
 
 /**
