@@ -12,6 +12,9 @@ import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpecies
 import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
+import { isAdmin } from '../services/auth/index.js';
+
+const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.vu'];
 
 /** Target descriptions for the dashboard header */
 const TARGET_HEADERS = {
@@ -36,9 +39,9 @@ export function initDashboard() {
       <div class="dashboard-sidebar">
         <div id="filter-panel-container"></div>
         <div id="kpi-container"></div>
-        <div class="sidebar-section-title">Export Data</div>
+        <div class="sidebar-section-title">Export</div>
         <div class="export-toolbar">
-          <button class="btn btn-sm btn-outline" id="btn-export-csv" title="Export filtered data as CSV">
+          <button class="btn btn-sm btn-outline" id="btn-export-csv" title="${isAdmin() ? 'Export filtered data as CSV' : 'Request data access'}" style="position:relative">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             CSV
           </button>
@@ -106,7 +109,13 @@ export function initDashboard() {
   }, 50);
 
   // Export buttons
-  document.getElementById('btn-export-csv').addEventListener('click', exportCSV);
+  document.getElementById('btn-export-csv').addEventListener('click', () => {
+    if (isAdmin()) {
+      exportCSV();
+    } else {
+      alert(`CSV data download is restricted.\\n\\nTo request data access, please email:\\n${DATA_REQUEST_EMAILS.join('\\n')}`);
+    }
+  });
   document.getElementById('btn-export-json').addEventListener('click', exportTORSnapshot);
   document.getElementById('btn-export-png').addEventListener('click', exportMapPNG);
 
