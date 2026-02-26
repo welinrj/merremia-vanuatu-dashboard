@@ -163,8 +163,15 @@ async function loadAppData() {
 
     if (realLayers.length > 0) {
       // User has real data — use only real layers (metadata only at this point)
-      setLayers(realLayers);
+      // setLayers returns IDs of duplicates that were removed during dedup
+      const removedDupeIds = setLayers(realLayers);
       console.log(`Loaded metadata for ${realLayers.length} layers from Firestore (excluded ${demoLayers.length} demo layers)`);
+
+      // Delete duplicate layers from Firestore in background
+      if (removedDupeIds.length > 0) {
+        console.warn(`Removing ${removedDupeIds.length} duplicate layer(s) from Firestore`);
+        cleanupDuplicateLayers(removedDupeIds);
+      }
 
       // Remove demo layers from Firestore in background so they don't persist
       if (demoLayers.length > 0) {
@@ -386,6 +393,20 @@ function cleanupDemoLayers(demoLayers) {
       console.log(`Cleaned up demo layer from Firestore: ${layer.metadata?.name || layer.id}`);
     }).catch(err => {
       console.warn(`Failed to clean up demo layer ${layer.id}:`, err);
+    });
+  }
+}
+
+/**
+ * Removes duplicate layers from Firestore (background cleanup).
+ * Called when deduplicateLayers() found and removed stale copies on load.
+ */
+function cleanupDuplicateLayers(layerIds) {
+  for (const id of layerIds) {
+    deleteLayer(id).then(() => {
+      console.log(`Removed duplicate layer from Firestore: ${id}`);
+    }).catch(err => {
+      console.warn(`Failed to remove duplicate layer ${id}:`, err);
     });
   }
 }

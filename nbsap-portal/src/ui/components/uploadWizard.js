@@ -8,7 +8,7 @@ import { CATEGORIES, CATEGORY_KEYS } from '../../config/categories.js';
 import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
 import { saveLayer, deleteLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
-import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer } from '../state.js';
+import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer, findPotentialDuplicates } from '../state.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
 let wizardOpen = false;
@@ -547,6 +547,20 @@ function renderStep2(body) {
     wizardState.opts.countsToward30x30 = body.querySelector('#wizard-30x30').checked;
     wizardState.opts.isReference = body.querySelector('#wizard-reference').checked;
     wizardState.opts.prjText = wizardState.prjText;
+
+    // Check for duplicate datasets before processing
+    const dupes = findPotentialDuplicates(
+      wizardState.file?.name || '',
+      wizardState.opts.name,
+      wizardState.opts.category
+    );
+    if (dupes.length > 0) {
+      const names = dupes.map(d => `  - "${d.metadata.name}" (${d.metadata.category}, uploaded ${new Date(d.metadata.uploadTimestamp).toLocaleDateString()})`).join('\n');
+      const proceed = confirm(
+        `A dataset with the same name or file already exists:\n\n${names}\n\nUploading will replace the existing dataset.\nDo you want to continue?`
+      );
+      if (!proceed) return;
+    }
 
     wizardState.step = 3;
     renderWizardStep();
