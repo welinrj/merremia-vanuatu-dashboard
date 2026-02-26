@@ -82,8 +82,9 @@ function renderTarget1KPIs(container, layers, filters) {
   const tPctClamped = Math.min(tPct, 100);
   const mPctClamped = Math.min(mPct, 100);
 
-  // Combined totals
-  const combinedTotalHa = baselines.terrestrial_ha + baselines.marine_ha;
+  // Combined totals using EEZ as marine total (not baselines.marine_ha)
+  const marineTotalHa = m.eez_ha || baselines.marine_ha;
+  const combinedTotalHa = baselines.terrestrial_ha + marineTotalHa;
   const combinedCurrentHa = m.terrestrial_ha + m.marine_ha;
   const combinedPct = combinedTotalHa > 0 ? (combinedCurrentHa / combinedTotalHa) * 100 : 0;
 
@@ -110,16 +111,16 @@ function renderTarget1KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">From uploaded feature datasets</div>
+        <div class="kpi-sublabel">CCA + Inland Water (dissolved)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
         <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">EEZ minus land area</div>
+        <div class="kpi-sublabel">EEZ minus National Boundary</div>
       </div>
 
       <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Land covered by spatial plans: ${tPct.toFixed(2)}%</div>
+        <div class="kpi-label" style="margin-bottom:6px">Terrestrial coverage: ${tPct.toFixed(2)}%</div>
         <div class="progress-bar-container">
           <div class="progress-bar-fill terrestrial"
                style="width: ${Math.min(tPctClamped, 100).toFixed(1)}%">
@@ -127,12 +128,12 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(m.terrestrial_ha)} ha of ${formatNumber(baselines.terrestrial_ha)} ha national terrestrial area
+          (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha total terrestrial = ${formatNumber(m.terrestrial_ha)} ha
         </div>
       </div>
 
       <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Sea covered by spatial plans: ${mPct.toFixed(2)}%</div>
+        <div class="kpi-label" style="margin-bottom:6px">Marine coverage: ${mPct.toFixed(2)}%</div>
         <div class="progress-bar-container">
           <div class="progress-bar-fill marine"
                style="width: ${Math.min(mPctClamped, 100).toFixed(1)}%">
@@ -140,7 +141,7 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(m.marine_ha)} ha = EEZ (${formatNumber(m.eez_ha)} ha) minus land (${formatNumber(m.admin0_ha)} ha)
+          (EEZ ${formatNumber(m.eez_ha)} ha &minus; Boundary ${formatNumber(m.admin0_ha)} ha) / EEZ ${formatNumber(m.eez_ha)} ha
         </div>
       </div>
 
@@ -173,7 +174,7 @@ function renderTarget1KPIs(container, layers, filters) {
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
     <div class="kpi-methodology-note">
-      Marine: EEZ area minus Admin0 coastline (excludes MPA). Terrestrial: feature area / ${formatNumber(baselines.terrestrial_ha)} ha baseline.
+      Marine = (EEZ &minus; National Boundary) / total EEZ &times; 100. Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
     </div>
   `;
 }

@@ -21,6 +21,7 @@ export const CATEGORIES = {
   OECM:            { label: 'Other Effective Conservation Measure', defaultRealm: 'terrestrial', color: '#7E57C2' },
   KBA:             { label: 'Key Biodiversity Area',              defaultRealm: 'terrestrial', color: '#F57C00' },
   LMMA:            { label: 'Locally Managed Marine Area',        defaultRealm: 'marine',      color: '#00897B' },
+  INLAND_WATER:    { label: 'Inland Water',                       defaultRealm: 'terrestrial', color: '#0288D1' },
 
   // ── Planning ──────────────────────────────────────────────────────
   SPATIAL_PLAN:    { label: 'Biodiversity Spatial Plan',          defaultRealm: 'terrestrial', color: '#455A64' },
