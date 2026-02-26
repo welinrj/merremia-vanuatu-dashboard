@@ -276,6 +276,30 @@ export function untrackLayer(expectedLayerId, layerId = null) {
 }
 
 /**
+ * Removes tracker entries whose layerId doesn't exist in the current layers.
+ * Returns true if any entries were removed (caller should persist).
+ */
+export function cleanStaleTrackerEntries() {
+  const validIds = new Set(appState.layers.map(l => l.id));
+  let changed = false;
+  for (const [expectedId, entries] of Object.entries(appState.layerTracker)) {
+    const filtered = entries.filter(e => validIds.has(e.layerId));
+    if (filtered.length !== entries.length) {
+      changed = true;
+      if (filtered.length === 0) {
+        delete appState.layerTracker[expectedId];
+      } else {
+        appState.layerTracker[expectedId] = filtered;
+      }
+    }
+  }
+  if (changed) {
+    _invalidateTrackerCache();
+  }
+  return changed;
+}
+
+/**
  * Returns all tracked layer IDs from the tracker (all expected layers).
  * Cached — invalidated when layerTracker changes.
  */
