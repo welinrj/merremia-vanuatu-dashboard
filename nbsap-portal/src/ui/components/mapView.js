@@ -37,8 +37,29 @@ let legendControl = null;
 /** Tracks which layer IDs the user has hidden via the layer toggle panel */
 const hiddenLayers = new Set();
 
+/** User-defined layer display order (bottom→top). IDs not in list render in default order. */
+let layerOrder = [];
+
 /** Flag to suppress fitBounds during toggle-only rerenders */
 let _suppressFitBounds = false;
+
+/**
+ * Returns layers sorted by user-defined layerOrder (bottom→top).
+ * Layers not in layerOrder keep their original relative position at the end.
+ */
+function sortByLayerOrder(layers) {
+  // Sync layerOrder: add any new IDs, remove stale ones
+  const currentIds = new Set(layers.map(l => l.id));
+  // Remove stale
+  layerOrder = layerOrder.filter(id => currentIds.has(id));
+  // Add new IDs not yet in order
+  for (const l of layers) {
+    if (!layerOrder.includes(l.id)) layerOrder.push(l.id);
+  }
+  // Sort by position in layerOrder
+  const indexMap = new Map(layerOrder.map((id, i) => [id, i]));
+  return [...layers].sort((a, b) => (indexMap.get(a.id) ?? 999) - (indexMap.get(b.id) ?? 999));
+}
 
 /**
  * Canvas renderer — much faster than SVG for large feature sets.
@@ -116,7 +137,9 @@ export function updateMapLayers() {
 
   const state = getAppState();
   const filters = state.filters;
-  const layers = getDashboardLayers();
+  const rawLayers = getDashboardLayers();
+  // Sort by user-defined z-order (bottom→top) so later layers render on top
+  const layers = sortByLayerOrder(rawLayers);
 
   // Render provinces boundary
   if (state.provincesGeojson) {
@@ -346,7 +369,8 @@ export function updateMapLayers() {
 // ── Layer toggle panel ────────────────────────────────────────────────
 
 /**
- * Builds an interactive layer panel with checkboxes per dataset.
+ * Builds an interactive layer panel with checkboxes per dataset
+ * and up/down arrows for z-order reordering.
  * @param {Array} matchingLayers - All layers matching filters (for toggle UI)
  * @param {Array} visibleLayers - Layers actually rendered (not hidden)
  */
@@ -357,27 +381,38 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
   }
   if (!map || matchingLayers.length === 0) return;
 
+  // Sort matchingLayers by layerOrder so panel reflects render order
+  const orderedMatching = sortByLayerOrder(matchingLayers);
+
   legendControl = L.control({ position: 'bottomright' });
   legendControl.onAdd = function () {
     const div = L.DomUtil.create('div', 'map-legend');
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
 
-    let html = '<div class="map-legend-title">Layers</div>';
+    let html = '<div class="map-legend-title">Layers <span class="map-legend-hint">(drag or use arrows to reorder)</span></div>';
 
-    for (const ld of matchingLayers) {
+    for (let i = 0; i < orderedMatching.length; i++) {
+      const ld = orderedMatching[i];
       const meta = ld.metadata;
       const cat = meta.category || 'OTHER';
-      const catDef = CATEGORIES[cat];
       const colors = resolveColors(cat);
       const datasetName = meta.name || 'Unnamed Layer';
       const checked = !hiddenLayers.has(ld.id);
+      const isFirst = i === 0;
+      const isLast = i === orderedMatching.length - 1;
 
-      html += `<label class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" title="${datasetName}">
-        <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
-        <span class="map-legend-swatch" style="background:${colors.fill};border-color:${colors.stroke}"></span>
-        <span class="map-legend-label">${datasetName}</span>
-      </label>`;
+      html += `<div class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" data-layer-id="${ld.id}" draggable="true" title="${datasetName}">
+        <div class="layer-order-controls">
+          <button class="layer-order-btn layer-move-up" data-layer-id="${ld.id}" ${isLast ? 'disabled' : ''} title="Bring forward">&#9650;</button>
+          <button class="layer-order-btn layer-move-down" data-layer-id="${ld.id}" ${isFirst ? 'disabled' : ''} title="Send backward">&#9660;</button>
+        </div>
+        <label class="map-layer-label-wrap">
+          <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
+          <span class="map-legend-swatch" style="background:${colors.fill};border-color:${colors.stroke}"></span>
+          <span class="map-legend-label">${datasetName}</span>
+        </label>
+      </div>`;
     }
 
     div.innerHTML = html;
@@ -396,9 +431,95 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       });
     });
 
+    // Bind reorder button events
+    div.querySelectorAll('.layer-move-up').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        moveLayer(btn.dataset.layerId, 'up');
+      });
+    });
+    div.querySelectorAll('.layer-move-down').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        moveLayer(btn.dataset.layerId, 'down');
+      });
+    });
+
+    // Drag-and-drop reordering
+    let dragSrcId = null;
+    const rows = div.querySelectorAll('.map-layer-toggle[draggable]');
+    rows.forEach(row => {
+      row.addEventListener('dragstart', (e) => {
+        dragSrcId = row.dataset.layerId;
+        row.classList.add('layer-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => {
+        row.classList.remove('layer-dragging');
+        div.querySelectorAll('.layer-dragover').forEach(el => el.classList.remove('layer-dragover'));
+        dragSrcId = null;
+      });
+      row.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        row.classList.add('layer-dragover');
+      });
+      row.addEventListener('dragleave', () => {
+        row.classList.remove('layer-dragover');
+      });
+      row.addEventListener('drop', (e) => {
+        e.preventDefault();
+        row.classList.remove('layer-dragover');
+        const targetId = row.dataset.layerId;
+        if (dragSrcId && dragSrcId !== targetId) {
+          reorderLayer(dragSrcId, targetId);
+        }
+      });
+    });
+
     return div;
   };
   legendControl.addTo(map);
+}
+
+/**
+ * Moves a layer up (higher z-index / on top) or down (lower z-index / behind).
+ * In layerOrder array, higher index = rendered later = on top.
+ */
+function moveLayer(layerId, direction) {
+  const idx = layerOrder.indexOf(layerId);
+  if (idx === -1) return;
+
+  if (direction === 'up' && idx < layerOrder.length - 1) {
+    // Swap with next (move toward top)
+    [layerOrder[idx], layerOrder[idx + 1]] = [layerOrder[idx + 1], layerOrder[idx]];
+  } else if (direction === 'down' && idx > 0) {
+    // Swap with previous (move toward bottom)
+    [layerOrder[idx], layerOrder[idx - 1]] = [layerOrder[idx - 1], layerOrder[idx]];
+  } else {
+    return; // Already at boundary
+  }
+  _suppressFitBounds = true;
+  updateMapLayers();
+}
+
+/**
+ * Reorders a layer by drag-and-drop: moves srcId to the position of targetId.
+ */
+function reorderLayer(srcId, targetId) {
+  const srcIdx = layerOrder.indexOf(srcId);
+  const targetIdx = layerOrder.indexOf(targetId);
+  if (srcIdx === -1 || targetIdx === -1) return;
+
+  // Remove src and insert at target position
+  layerOrder.splice(srcIdx, 1);
+  const insertIdx = layerOrder.indexOf(targetId);
+  layerOrder.splice(insertIdx, 0, srcId);
+
+  _suppressFitBounds = true;
+  updateMapLayers();
 }
 
 /**
