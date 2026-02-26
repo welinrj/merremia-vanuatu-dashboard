@@ -125,6 +125,8 @@ export function initDataPortal() {
         selectedLayerId = id;
         renderLayerDetails(id);
         renderPortalTable();
+      } else if (btn.classList.contains('action-rename')) {
+        renameLayer(id);
       } else if (btn.classList.contains('action-download')) {
         downloadLayerGeoJSON(id);
       } else if (btn.classList.contains('action-remove')) {
@@ -193,6 +195,7 @@ function buildLayerRow(l) {
       <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
       <td class="actions">
         <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
+        ${admin ? `<button class="btn btn-sm btn-outline action-rename" data-id="${l.id}" title="Rename layer">Rename</button>` : ''}
         ${admin ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
         ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
       </td>
