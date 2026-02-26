@@ -325,7 +325,23 @@ function renderPortalTable() {
     `;
   }
 
+  // Download metadata report button at the bottom
+  if (layers.length > 0) {
+    html += `
+      <div style="display:flex;justify-content:center;padding:24px 0 8px">
+        <button class="btn btn-outline" id="btn-download-metadata-report" style="display:inline-flex;align-items:center;gap:8px;padding:10px 24px;font-size:14px">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download Metadata Report (CSV)
+        </button>
+      </div>
+    `;
+  }
+
   container.innerHTML = html;
+
+  // Bind the download button (re-rendered each time)
+  const dlBtn = container.querySelector('#btn-download-metadata-report');
+  if (dlBtn) dlBtn.addEventListener('click', downloadMetadataReport);
 }
 
 /**
@@ -568,15 +584,15 @@ function downloadMetadataReport() {
     const comp = checkMetadataCompleteness(m);
     const row = EXTENDED_METADATA_FIELDS.map(f => {
       const val = m[f.key];
-      return val != null ? String(val) : '';
+      return (val != null && String(val).trim() !== '') ? String(val) : '(empty)';
     });
     row.push(
-      (m.targets || []).join('; '),
-      m.realm || '',
+      (m.targets || []).length > 0 ? m.targets.join('; ') : '(empty)',
+      m.realm || '(empty)',
       String(m.featureCount || 0),
       (m.totalAreaHa || 0).toFixed(2),
-      m.status || '',
-      m.uploadTimestamp ? new Date(m.uploadTimestamp).toLocaleDateString() : '',
+      m.status || '(empty)',
+      m.uploadTimestamp ? new Date(m.uploadTimestamp).toLocaleDateString() : '(empty)',
       String(comp.pct)
     );
     rows.push(row);
