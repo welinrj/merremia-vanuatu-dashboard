@@ -37,6 +37,7 @@ import {
   printExtinctPointStyle
 } from '../../config/symbology.js';
 import { getAppState, getDashboardLayers } from '../state.js';
+import { getLayerOrder } from './mapView.js';
 import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
 
 const OVERLAY_ID = 'print-map-overlay';
@@ -2592,6 +2593,11 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
     }).addTo(printMap);
   }
 
+  // ── Sort layers by user-defined z-order from interactive map ──
+  const order = getLayerOrder();
+  const orderIndex = new Map(order.map((id, i) => [id, i]));
+  const orderedLayers = [...layers].sort((a, b) => (orderIndex.get(a.id) ?? 999) - (orderIndex.get(b.id) ?? 999));
+
   // ── Collect features per symbology group ──
   const groupPolygons = {};   // groupKey → Feature[]
   const groupMeta = {};       // groupKey → { cat, typeValue }
@@ -2599,7 +2605,7 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
   const refPoints = {};       // cat → Feature[]
   const pointsByCat = {};     // cat → Feature[]
 
-  for (const layerData of layers) {
+  for (const layerData of orderedLayers) {
     const meta = layerData.metadata;
     const cat = meta?.category || 'OTHER';
     const allFeats = layerData.geojson?.features || [];

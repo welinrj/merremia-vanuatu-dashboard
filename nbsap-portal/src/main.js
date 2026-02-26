@@ -3,8 +3,8 @@
  * Initializes the app shell, loads data from Firestore, wires up tab navigation,
  * and subscribes to real-time updates for cross-device sync.
  */
-import { listLayers, listLayersMeta, countLayers, saveLayer, deleteLayer, getSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
-import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker, ensureGeoJSONForTargets, hasUnloadedTargets } from './ui/state.js';
+import { listLayers, listLayersMeta, countLayers, saveLayer, deleteLayer, getSetting, setSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
+import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker, ensureGeoJSONForTargets, hasUnloadedTargets, cleanStaleTrackerEntries } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow, markDashboardDirty } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
@@ -194,6 +194,14 @@ async function loadAppData() {
     } catch (demoErr) {
       console.warn('Failed to load demo data:', demoErr);
     }
+  }
+
+  // Clean up stale tracker entries that reference deleted layers
+  if (cleanStaleTrackerEntries()) {
+    console.log('Cleaned stale tracker entries for previously deleted layers');
+    setSetting('layerTracker', getAppState().layerTracker).catch(err =>
+      console.warn('Failed to persist cleaned tracker:', err)
+    );
   }
 
   hideLoadingStatus();
