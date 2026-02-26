@@ -63,7 +63,68 @@ export function createLayerMetadata(opts = {}) {
     totalAreaHa: opts.totalAreaHa || 0,
     status: opts.status || 'Clean',
     warnings: opts.warnings || [],
-    notes: opts.notes || ''
+    notes: opts.notes || '',
+    // Extended metadata (Vanuatu Spatial Data Standard)
+    description: opts.description || '',
+    custodianAgency: opts.custodianAgency || '',
+    responsibleOfficer: opts.responsibleOfficer || '',
+    contactInformation: opts.contactInformation || '',
+    dateCreated: opts.dateCreated || '',
+    dateUpdated: opts.dateUpdated || '',
+    geographicCoverage: opts.geographicCoverage || '',
+    dataSource: opts.dataSource || '',
+    collectionMethod: opts.collectionMethod || '',
+    spatialResolution: opts.spatialResolution || '',
+    dataLimitations: opts.dataLimitations || '',
+    updateFrequency: opts.updateFrequency || '',
+    accessClassification: opts.accessClassification || 'Public'
+  };
+}
+
+/**
+ * Extended metadata fields from the Vanuatu Spatial Data Standard.
+ * Used to build the metadata editor form and completeness checks.
+ */
+export const EXTENDED_METADATA_FIELDS = [
+  { key: 'name',                label: 'Dataset Name',          hint: 'Use standardized naming format', required: true },
+  { key: 'description',         label: 'Description',           hint: 'Brief 2-3 sentence summary', required: true },
+  { key: 'custodianAgency',     label: 'Custodian Agency',      hint: 'Full agency name (e.g. DEPC)', required: true },
+  { key: 'responsibleOfficer',  label: 'Responsible Officer',   hint: 'Name and position', required: false },
+  { key: 'contactInformation',  label: 'Contact Information',   hint: 'Official email or phone', required: false },
+  { key: 'dateCreated',         label: 'Date Created',          hint: 'YYYY-MM-DD format', type: 'date', required: true },
+  { key: 'dateUpdated',         label: 'Date Updated',          hint: 'Record when modified', type: 'date', required: false },
+  { key: 'geographicCoverage',  label: 'Geographic Coverage',   hint: 'Spatial extent', type: 'select', options: ['National', 'Provincial', 'Marine', 'National + Marine'], required: true },
+  { key: 'detectedCRS',         label: 'CRS',                   hint: 'EPSG code', required: false },
+  { key: 'dataSource',          label: 'Data Source',            hint: 'Origin', type: 'select', options: ['Field', 'Satellite', 'Digitized', 'Census', 'Survey', 'Other'], required: true },
+  { key: 'collectionMethod',    label: 'Collection Method',     hint: 'Brief description of how collected', required: false },
+  { key: 'spatialResolution',   label: 'Spatial Resolution',    hint: 'Pixel size or scale', required: false },
+  { key: 'dataLimitations',     label: 'Data Limitations',      hint: 'Coverage gaps, known constraints', required: false },
+  { key: 'updateFrequency',     label: 'Update Frequency',      hint: 'Revision cycle', type: 'select', options: ['Annual', 'Biennial', 'Project-based', 'One-time', 'As needed'], required: false },
+  { key: 'accessClassification', label: 'Access Classification', hint: 'Sensitivity level', type: 'select', options: ['Public', 'Restricted', 'Confidential'], required: true }
+];
+
+/**
+ * Checks metadata completeness for a layer.
+ * Returns { complete, filled, total, missing[] }
+ */
+export function checkMetadataCompleteness(metadata) {
+  const missing = [];
+  let filled = 0;
+  for (const field of EXTENDED_METADATA_FIELDS) {
+    const val = metadata[field.key];
+    if (val && String(val).trim()) {
+      filled++;
+    } else if (field.required) {
+      missing.push(field.label);
+    }
+  }
+  const total = EXTENDED_METADATA_FIELDS.length;
+  return {
+    complete: missing.length === 0,
+    filled,
+    total,
+    pct: Math.round((filled / total) * 100),
+    missing
   };
 }
 
