@@ -10,6 +10,7 @@ import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker }
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
+import { showConfirm } from '../ui/components/dialog.js';
 
 /** Safe accessor for Vite's BASE_URL */
 function getBaseUrl() {
@@ -339,7 +340,7 @@ async function renderAdminDashboard(page) {
     btn.addEventListener('click', async () => {
       const expectedId = btn.dataset.expectedId;
       const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
-      if (!confirm(`Remove all uploaded files for "${expected?.name || expectedId}"? The files remain in storage but won't appear on the dashboard.`)) return;
+      if (!await showConfirm(`Remove all uploaded files for "${expected?.name || expectedId}"? The files remain in storage but won't appear on the dashboard.`, { title: 'Remove Files', okLabel: 'Remove', danger: true })) return;
 
       untrackLayer(expectedId, null);
       await setSetting('layerTracker', getAppState().layerTracker);
@@ -401,7 +402,7 @@ async function renderAdminDashboard(page) {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (!confirm('Full Restore will clear ALL existing data and replace it with the backup. Continue?')) {
+    if (!await showConfirm('Full Restore will clear ALL existing data and replace it with the backup. Continue?', { title: 'Full Restore', okLabel: 'Restore', danger: true })) {
       e.target.value = '';
       return;
     }
