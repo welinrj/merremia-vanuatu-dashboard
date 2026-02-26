@@ -12,19 +12,19 @@
 export const CATEGORIES = {
   // ── Boundary / Reference ──────────────────────────────────────────
   EEZ:             { label: 'Exclusive Economic Zone',            defaultRealm: 'marine',      color: '#0277BD' },
-  ADMIN_BOUNDARY:  { label: 'National Boundary (Admin0)',         defaultRealm: 'terrestrial', color: '#546E7A' },
+  ADMIN_BOUNDARY:  { label: 'National Boundary (Admin0)',         defaultRealm: 'terrestrial', color: '#37474F' },
 
   // ── Conservation (green spectrum) ─────────────────────────────────
-  CCA:             { label: 'Community Conserved Area',           defaultRealm: 'terrestrial', color: '#43A047' },
+  CCA:             { label: 'Community Conserved Area',           defaultRealm: 'terrestrial', color: '#2E7D32' },
   MPA:             { label: 'Marine Protected Area',              defaultRealm: 'marine',      color: '#1565C0' },
   PA:              { label: 'Protected Area',                     defaultRealm: 'terrestrial', color: '#1B5E20' },
   OECM:            { label: 'Other Effective Conservation Measure', defaultRealm: 'terrestrial', color: '#7E57C2' },
-  KBA:             { label: 'Key Biodiversity Area',              defaultRealm: 'terrestrial', color: '#F57C00' },
-  LMMA:            { label: 'Locally Managed Marine Area',        defaultRealm: 'marine',      color: '#00897B' },
-  INLAND_WATER:    { label: 'Inland Water',                       defaultRealm: 'terrestrial', color: '#0288D1' },
+  KBA:             { label: 'Key Biodiversity Area',              defaultRealm: 'terrestrial', color: '#EF6C00' },
+  LMMA:            { label: 'Locally Managed Marine Area',        defaultRealm: 'marine',      color: '#00796B' },
+  INLAND_WATER:    { label: 'Inland Water',                       defaultRealm: 'terrestrial', color: '#4FC3F7' },
 
   // ── Planning ──────────────────────────────────────────────────────
-  SPATIAL_PLAN:    { label: 'Biodiversity Spatial Plan',          defaultRealm: 'terrestrial', color: '#455A64' },
+  SPATIAL_PLAN:    { label: 'Biodiversity Spatial Plan',          defaultRealm: 'terrestrial', color: '#78909C' },
 
   // ── Degradation & Restoration ─────────────────────────────────────
   DEGRADED:        { label: 'Degraded Area',                      defaultRealm: 'terrestrial', color: '#D84315' },
