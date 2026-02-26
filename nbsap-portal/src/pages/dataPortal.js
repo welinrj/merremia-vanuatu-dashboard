@@ -11,6 +11,7 @@ import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
 import { deleteLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
 import { isAdmin } from '../services/auth/index.js';
 import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
+import { showAlert, showConfirm, showPrompt } from '../ui/components/dialog.js';
 
 let portalSearch = '';
 let portalFilterTarget = 'All';
@@ -457,7 +458,7 @@ async function renameLayer(layerId) {
   const layer = state.layers.find(l => l.id === layerId);
   if (!layer) return;
 
-  const newName = prompt('Enter new layer name:', layer.metadata.name);
+  const newName = await showPrompt('Enter new layer name:', layer.metadata.name, { title: 'Rename Layer' });
   if (!newName || newName.trim() === '' || newName === layer.metadata.name) return;
 
   const updated = { ...layer.metadata, name: newName.trim(), dateUpdated: new Date().toISOString().split('T')[0] };
@@ -553,7 +554,7 @@ function downloadMetadataReport() {
   const state = getAppState();
   const layers = state.layers || [];
   if (layers.length === 0) {
-    alert('No datasets to export.');
+    showAlert('No datasets to export.');
     return;
   }
 
@@ -608,7 +609,7 @@ function downloadLayerGeoJSON(layerId) {
 }
 
 async function removeLayerAction(layerId) {
-  if (!confirm('Remove this layer? This cannot be undone.')) return;
+  if (!await showConfirm('Remove this layer? This cannot be undone.', { title: 'Delete Layer', okLabel: 'Delete', danger: true })) return;
 
   const state = getAppState();
   const layer = state.layers.find(l => l.id === layerId);
@@ -617,7 +618,7 @@ async function removeLayerAction(layerId) {
     await deleteLayer(layerId);
   } catch (err) {
     console.error('Failed to delete layer from storage:', err);
-    alert('Failed to delete layer. Please try again.');
+    showAlert('Failed to delete layer. Please try again.', { title: 'Error' });
     return;
   }
 

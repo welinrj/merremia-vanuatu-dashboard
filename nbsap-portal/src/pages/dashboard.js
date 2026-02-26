@@ -13,6 +13,7 @@ import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
 import { isAdmin } from '../services/auth/index.js';
+import { showAlert } from '../ui/components/dialog.js';
 
 const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.vu'];
 
@@ -113,7 +114,7 @@ export function initDashboard() {
     if (isAdmin()) {
       exportCSV();
     } else {
-      alert(`CSV data download is restricted.\\n\\nTo request data access, please email:\\n${DATA_REQUEST_EMAILS.join('\\n')}`);
+      showAlert(`CSV data download is restricted.\n\nTo request data access, please email:\n${DATA_REQUEST_EMAILS.join('\n')}`, { title: 'Access Restricted' });
     }
   });
   document.getElementById('btn-export-json').addEventListener('click', exportTORSnapshot);

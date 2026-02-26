@@ -9,6 +9,7 @@ import targetsConfig from '../../config/targets.js';
 import { runPipeline } from '../../core/pipeline.js';
 import { saveLayer, deleteLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
 import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer, findPotentialDuplicates } from '../state.js';
+import { showConfirm } from './dialog.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
 let wizardOpen = false;
@@ -536,7 +537,7 @@ function renderStep2(body) {
     renderWizardStep();
   });
 
-  body.querySelector('#wizard-next-2').addEventListener('click', () => {
+  body.querySelector('#wizard-next-2').addEventListener('click', async () => {
     // Gather values — targets are optional (admin datasets have none)
     const selectedTargets = [...body.querySelectorAll('#wizard-targets input:checked')].map(i => i.value);
 
@@ -556,8 +557,9 @@ function renderStep2(body) {
     );
     if (dupes.length > 0) {
       const names = dupes.map(d => `  - "${d.metadata.name}" (${d.metadata.category}, uploaded ${new Date(d.metadata.uploadTimestamp).toLocaleDateString()})`).join('\n');
-      const proceed = confirm(
-        `A dataset with the same name or file already exists:\n\n${names}\n\nUploading will replace the existing dataset.\nDo you want to continue?`
+      const proceed = await showConfirm(
+        `A dataset with the same name or file already exists:\n\n${names}\n\nUploading will replace the existing dataset.\nDo you want to continue?`,
+        { title: 'Duplicate Dataset', okLabel: 'Replace' }
       );
       if (!proceed) return;
     }

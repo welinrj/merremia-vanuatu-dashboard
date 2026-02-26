@@ -5,6 +5,7 @@
 import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
 import { getMap } from './mapView.js';
+import { showAlert } from './dialog.js';
 
 /**
  * Exports the current summary table as CSV, respecting active filters.
@@ -102,7 +103,7 @@ export async function exportMapPNG() {
   const leafletMap = getMap();
   const mapEl = document.getElementById('map');
   if (!leafletMap || !mapEl) {
-    alert('Map not ready. Please wait for layers to load.');
+    showAlert('Map not ready. Please wait for layers to load.');
     return;
   }
 
@@ -192,7 +193,7 @@ export async function exportMapPNG() {
     }, 'image/png');
   } catch (err) {
     console.error('Map PNG export failed:', err);
-    alert('Map PNG export failed. Try using browser Print/Screenshot (Ctrl+Shift+S) instead.');
+    showAlert('Map PNG export failed. Try using browser Print/Screenshot (Ctrl+Shift+S) instead.');
   }
 }
 
