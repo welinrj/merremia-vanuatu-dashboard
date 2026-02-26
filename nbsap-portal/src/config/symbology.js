@@ -23,6 +23,7 @@ export const SYMBOLOGY = {
   // Marine — blue spectrum
   MPA:            { fill: '#1565C0', stroke: '#0D47A1' },
   LMMA:           { fill: '#00897B', stroke: '#00695C' },
+  INLAND_WATER:   { fill: '#0288D1', stroke: '#01579B' },
   // Planning
   SPATIAL_PLAN:   { fill: '#455A64', stroke: '#263238' },
   // Degradation & restoration
