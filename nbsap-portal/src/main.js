@@ -4,7 +4,7 @@
  * and subscribes to real-time updates for cross-device sync.
  */
 import { listLayers, listLayersMeta, countLayers, saveLayer, deleteLayer, getSetting, setSetting, getLayer, onLayersChanged, onSettingsChanged } from './services/storage/index.js';
-import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker, ensureGeoJSONForTargets, hasUnloadedTargets, cleanStaleTrackerEntries } from './ui/state.js';
+import { getAppState, setLayers, setProvincesGeojson, addLayer, removeLayer, setLayerTracker, setCustomLayerNames, ensureGeoJSONForTargets, hasUnloadedTargets, cleanStaleTrackerEntries } from './ui/state.js';
 import { isAdmin } from './services/auth/index.js';
 import { initDashboard, refreshDashboard, onDashboardShow, markDashboardDirty } from './pages/dashboard.js';
 import { initDataPortal, refreshPortal } from './pages/dataPortal.js';
@@ -152,6 +152,14 @@ async function loadAppData() {
     console.warn('Failed to load layer tracker:', err);
   }
 
+  // Load custom layer names
+  try {
+    const names = await withTimeout(getSetting('customLayerNames'), 10000);
+    if (names) setCustomLayerNames(names);
+  } catch (err) {
+    console.warn('Failed to load custom layer names:', err);
+  }
+
   // Load layer METADATA first (fast — no GeoJSON chunks), then lazy-load GeoJSON
   // for the active target only. This prevents large datasets from blocking startup.
   try {
@@ -295,14 +303,20 @@ function subscribeToRealtimeUpdates() {
     }
   });
 
-  // Listen for settings changes (layer tracker sync)
+  // Listen for settings changes (layer tracker + custom names sync)
   onSettingsChanged((settings) => {
     if (!initialLoadComplete) return;
 
+    let changed = false;
     if (settings.layerTracker) {
       setLayerTracker(settings.layerTracker);
-      window.dispatchEvent(new CustomEvent('nbsap:refresh'));
+      changed = true;
     }
+    if (settings.customLayerNames) {
+      setCustomLayerNames(settings.customLayerNames);
+      changed = true;
+    }
+    if (changed) window.dispatchEvent(new CustomEvent('nbsap:refresh'));
   });
 }
 
