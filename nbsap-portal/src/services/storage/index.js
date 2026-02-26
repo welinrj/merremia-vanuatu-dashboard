@@ -13,6 +13,7 @@ export const {
   countLayers,
   getLayer,
   saveLayer,
+  saveLayerMetadata,
   deleteLayer,
   saveMetrics,
   getMetrics,

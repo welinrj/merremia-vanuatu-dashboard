@@ -1,15 +1,16 @@
 /**
  * Data Portal page.
  * Lists all layers grouped by target, supports search/filter, upload, and layer management.
+ * Includes metadata editor and completeness tracking per Vanuatu Spatial Data Standard.
  */
 import { CATEGORIES } from '../config/categories.js';
 import TARGETS_CONFIG from '../config/targets.js';
 import { categoryIcon, targetIcon } from '../config/icons.js';
 import ENV from '../config/env.js';
-import { getAppState, removeLayer } from '../ui/state.js';
-import { deleteLayer, addAuditEntry } from '../services/storage/index.js';
+import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
+import { deleteLayer, addAuditEntry, saveLayerMetadata } from '../services/storage/index.js';
 import { isAdmin } from '../services/auth/index.js';
-import { validateTORCompliance } from '../core/schema.js';
+import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
 
 let portalSearch = '';
 let portalFilterTarget = 'All';
@@ -56,6 +57,16 @@ export function initDataPortal() {
         </div>
       </div>
     </div>
+    <!-- Metadata editor modal -->
+    <div class="modal-overlay" id="metadata-editor-modal">
+      <div class="modal-content" style="max-width:600px;max-height:85vh;overflow-y:auto">
+        <div class="modal-header">
+          <h3>Edit Metadata</h3>
+          <button class="modal-close-btn" id="meta-editor-close">&times;</button>
+        </div>
+        <div id="meta-editor-body"></div>
+      </div>
+    </div>
   `;
 
   // Populate target filter from static import
@@ -89,7 +100,22 @@ export function initDataPortal() {
     renderPortalTable();
   });
 
+  document.getElementById('meta-editor-close').addEventListener('click', closeMetadataEditor);
+  document.getElementById('metadata-editor-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closeMetadataEditor();
+  });
+
   renderPortalTable();
+}
+
+// ── Metadata completeness badge ─────────────────────────────────────
+
+function metadataBadge(metadata) {
+  const c = checkMetadataCompleteness(metadata);
+  if (c.complete) {
+    return `<span class="badge badge-success" title="All required metadata filled" style="font-size:10px">META OK</span>`;
+  }
+  return `<span class="badge" style="font-size:10px;background:#fff3cd;color:#856404;border:1px solid #ffc107" title="Missing: ${c.missing.join(', ')}">${c.pct}%</span>`;
 }
 
 /**
@@ -122,6 +148,7 @@ function buildLayerRow(l) {
           <div>
             <strong>${m.name}</strong>
             ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
+            ${metadataBadge(m)}
           </div>
         </div>
       </td>
@@ -296,6 +323,8 @@ function renderLayerDetails(layerId) {
   const m = layer.metadata;
   const tor = validateTORCompliance(m, layer.geojson);
   const catConfig = CATEGORIES[m.category] || {};
+  const comp = checkMetadataCompleteness(m);
+  const admin = isAdmin();
 
   sidebar.innerHTML = `
     <div class="detail-header">
@@ -303,10 +332,18 @@ function renderLayerDetails(layerId) {
       <h4>${m.name}</h4>
     </div>
 
+    ${admin ? `<div style="display:flex;gap:6px;margin-bottom:12px">
+      <button class="btn btn-sm btn-primary" id="btn-edit-metadata">Edit Metadata</button>
+      <button class="btn btn-sm btn-outline" id="btn-rename-layer">Rename</button>
+    </div>` : ''}
+
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">
         <span>Metadata</span>
-        <span class="badge badge-${m.status.toLowerCase()}">${m.status}</span>
+        <span>${comp.complete
+          ? '<span class="badge badge-success" style="font-size:10px">Complete</span>'
+          : `<span class="badge" style="font-size:10px;background:#fff3cd;color:#856404">${comp.pct}% — ${comp.missing.length} missing</span>`
+        }</span>
       </div>
       <div class="card-body">
         <table class="metadata-table">
@@ -329,9 +366,24 @@ function renderLayerDetails(layerId) {
           <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`
           }
           <tr><td>30x30</td><td>${m.countsToward30x30 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--text-secondary)">No</span>'}</td></tr>
+          ${m.description ? `<tr><td>Description</td><td style="font-size:12px">${m.description}</td></tr>` : ''}
+          ${m.custodianAgency ? `<tr><td>Custodian</td><td>${m.custodianAgency}</td></tr>` : ''}
+          ${m.dataSource ? `<tr><td>Data Source</td><td>${m.dataSource}</td></tr>` : ''}
+          ${m.accessClassification && m.accessClassification !== 'Public' ? `<tr><td>Access</td><td>${m.accessClassification}</td></tr>` : ''}
         </table>
       </div>
     </div>
+
+    ${!comp.complete ? `
+    <div class="card" style="margin-bottom:14px;border-color:#ffc107">
+      <div class="card-header" style="background:#fff8e1">
+        <span style="color:#856404;font-weight:600">Missing Metadata</span>
+      </div>
+      <div class="card-body">
+        ${comp.missing.map(f => `<div style="font-size:12px;color:#856404;margin-bottom:3px">- ${f}</div>`).join('')}
+        ${admin ? '<div style="margin-top:8px"><button class="btn btn-sm btn-primary" id="btn-fill-metadata">Fill in now</button></div>' : ''}
+      </div>
+    </div>` : ''}
 
     <div class="card" style="margin-bottom:14px">
       <div class="card-header">TOR Compliance</div>
@@ -352,6 +404,115 @@ function renderLayerDetails(layerId) {
       </div>
     ` : ''}
   `;
+
+  // Bind admin action buttons
+  if (admin) {
+    const editBtn = sidebar.querySelector('#btn-edit-metadata');
+    if (editBtn) editBtn.addEventListener('click', () => openMetadataEditor(layerId));
+
+    const renameBtn = sidebar.querySelector('#btn-rename-layer');
+    if (renameBtn) renameBtn.addEventListener('click', () => renameLayer(layerId));
+
+    const fillBtn = sidebar.querySelector('#btn-fill-metadata');
+    if (fillBtn) fillBtn.addEventListener('click', () => openMetadataEditor(layerId));
+  }
+}
+
+// ── Rename layer ─────────────────────────────────────────────────────
+
+async function renameLayer(layerId) {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === layerId);
+  if (!layer) return;
+
+  const newName = prompt('Enter new layer name:', layer.metadata.name);
+  if (!newName || newName.trim() === '' || newName === layer.metadata.name) return;
+
+  const updated = { ...layer.metadata, name: newName.trim(), dateUpdated: new Date().toISOString().split('T')[0] };
+  updateLayerMeta(layerId, updated);
+  await saveLayerMetadata(layerId, updated);
+  renderLayerDetails(layerId);
+  renderPortalTable();
+}
+
+// ── Metadata editor modal ────────────────────────────────────────────
+
+function openMetadataEditor(layerId) {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === layerId);
+  if (!layer) return;
+
+  const m = layer.metadata;
+  const body = document.getElementById('meta-editor-body');
+
+  let html = '<form id="meta-editor-form" style="padding:16px">';
+
+  for (const field of EXTENDED_METADATA_FIELDS) {
+    const val = m[field.key] || '';
+    const reqBadge = field.required ? '<span style="color:var(--danger);font-weight:700">*</span>' : '';
+
+    html += `<div class="form-group" style="margin-bottom:12px">
+      <label style="font-weight:600;font-size:13px">${field.label} ${reqBadge}</label>`;
+
+    if (field.type === 'select' && field.options) {
+      html += `<select name="${field.key}" class="form-control" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm)">
+        <option value="">-- Select --</option>
+        ${field.options.map(o => `<option value="${o}" ${val === o ? 'selected' : ''}>${o}</option>`).join('')}
+      </select>`;
+    } else if (field.type === 'date') {
+      html += `<input type="date" name="${field.key}" value="${val}" class="form-control" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm)">`;
+    } else if (field.key === 'description' || field.key === 'dataLimitations' || field.key === 'collectionMethod') {
+      html += `<textarea name="${field.key}" rows="2" class="form-control" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);resize:vertical">${val}</textarea>`;
+    } else {
+      html += `<input type="text" name="${field.key}" value="${escapeAttr(val)}" class="form-control" style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm)">`;
+    }
+
+    html += `<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">${field.hint}</div>
+    </div>`;
+  }
+
+  html += `<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+    <button type="button" class="btn btn-outline" id="meta-editor-cancel">Cancel</button>
+    <button type="submit" class="btn btn-primary">Save Metadata</button>
+  </div></form>`;
+
+  body.innerHTML = html;
+
+  // Show modal
+  document.getElementById('metadata-editor-modal').classList.add('active');
+
+  // Bind events
+  body.querySelector('#meta-editor-cancel').addEventListener('click', closeMetadataEditor);
+
+  body.querySelector('#meta-editor-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const updates = {};
+
+    for (const field of EXTENDED_METADATA_FIELDS) {
+      const el = form.elements[field.key];
+      if (el) updates[field.key] = el.value.trim();
+    }
+
+    // Always set dateUpdated
+    updates.dateUpdated = new Date().toISOString().split('T')[0];
+
+    const fullMeta = { ...m, ...updates };
+    updateLayerMeta(layerId, fullMeta);
+    await saveLayerMetadata(layerId, fullMeta);
+
+    closeMetadataEditor();
+    renderLayerDetails(layerId);
+    renderPortalTable();
+  });
+}
+
+function closeMetadataEditor() {
+  document.getElementById('metadata-editor-modal').classList.remove('active');
+}
+
+function escapeAttr(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 }
 
 function downloadLayerGeoJSON(layerId) {

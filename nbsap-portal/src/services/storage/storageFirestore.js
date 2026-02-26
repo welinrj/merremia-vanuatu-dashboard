@@ -214,6 +214,19 @@ export async function saveLayer(layerRecord) {
   return layerRecord;
 }
 
+/**
+ * Updates only the metadata for an existing layer (no GeoJSON re-write).
+ * @param {string} id - Layer ID
+ * @param {object} metadata - Full metadata object
+ */
+export async function saveLayerMetadata(id, metadata) {
+  const parentRef = doc(db, COL_LAYERS, id);
+  const snap = await getDoc(parentRef);
+  if (!snap.exists()) throw new Error(`Layer ${id} not found`);
+  const existing = snap.data();
+  await setDoc(parentRef, { ...existing, metadata });
+}
+
 export async function deleteLayer(id) {
   await deleteChunks(id);
   await deleteDoc(doc(db, COL_LAYERS, id));

@@ -78,6 +78,21 @@ export function addLayer(layerRecord) {
 }
 
 /**
+ * Updates metadata for an existing layer in state.
+ * Does NOT persist to storage — caller should also call saveLayerMetadata().
+ * @param {string} layerId
+ * @param {object} metadataUpdates - Partial metadata fields to merge
+ */
+export function updateLayerMeta(layerId, metadataUpdates) {
+  const layer = appState.layers.find(l => l.id === layerId);
+  if (!layer) return;
+  Object.assign(layer.metadata, metadataUpdates);
+  _dashboardLayersCache = null;
+  clearMetricsCache();
+  dispatchRefresh();
+}
+
+/**
  * Removes a layer from the state.
  * @param {string} layerId
  */
