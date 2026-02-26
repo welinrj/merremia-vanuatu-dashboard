@@ -41,6 +41,10 @@ export function initDataPortal() {
             <option value="Warnings">Warnings</option>
             <option value="Failed">Failed</option>
           </select>
+          ${isAdmin() ? `<button class="btn btn-sm btn-outline" id="btn-metadata-report" title="Download metadata report for all datasets" style="margin-left:auto;white-space:nowrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Metadata Report
+          </button>` : ''}
         </div>
         <div id="portal-table-container"></div>
       </div>
@@ -110,6 +114,9 @@ export function initDataPortal() {
     portalFilterStatus = e.target.value;
     renderPortalTable();
   });
+
+  const metaReportBtn = document.getElementById('btn-metadata-report');
+  if (metaReportBtn) metaReportBtn.addEventListener('click', downloadMetadataReport);
 
   document.getElementById('meta-editor-close').addEventListener('click', closeMetadataEditor);
   document.getElementById('metadata-editor-modal').addEventListener('click', (e) => {
@@ -538,6 +545,50 @@ function closeMetadataEditor() {
 
 function escapeAttr(str) {
   return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+// ── Metadata report (CSV) ────────────────────────────────────────────
+
+function downloadMetadataReport() {
+  const state = getAppState();
+  const layers = state.layers || [];
+  if (layers.length === 0) {
+    alert('No datasets to export.');
+    return;
+  }
+
+  const headers = EXTENDED_METADATA_FIELDS.map(f => f.label);
+  headers.push('Targets', 'Realm', 'Feature Count', 'Total Area (ha)', 'Status', 'Upload Date', 'Completeness %');
+
+  const rows = [headers];
+
+  for (const l of layers) {
+    const m = l.metadata;
+    const comp = checkMetadataCompleteness(m);
+    const row = EXTENDED_METADATA_FIELDS.map(f => {
+      const val = m[f.key];
+      return val != null ? String(val) : '';
+    });
+    row.push(
+      (m.targets || []).join('; '),
+      m.realm || '',
+      String(m.featureCount || 0),
+      (m.totalAreaHa || 0).toFixed(2),
+      m.status || '',
+      m.uploadTimestamp ? new Date(m.uploadTimestamp).toLocaleDateString() : '',
+      String(comp.pct)
+    );
+    rows.push(row);
+  }
+
+  const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `metadata-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function downloadLayerGeoJSON(layerId) {
