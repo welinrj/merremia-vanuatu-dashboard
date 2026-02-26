@@ -15,7 +15,6 @@
 import L from 'leaflet';
 import ENV from '../../config/env.js';
 import { CATEGORIES } from '../../config/categories.js';
-import { categoryIcon } from '../../config/icons.js';
 import {
   featureGroupKey,
   resolveColors,
@@ -371,15 +370,13 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       const cat = meta.category || 'OTHER';
       const catDef = CATEGORIES[cat];
       const colors = resolveColors(cat);
-      const label = meta.name || catDef?.label || cat;
-      const iconSvg = catDef ? categoryIcon(cat, 12) : '';
+      const datasetName = meta.name || 'Unnamed Layer';
       const checked = !hiddenLayers.has(ld.id);
 
-      html += `<label class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" title="${label}">
+      html += `<label class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" title="${datasetName}">
         <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
         <span class="map-legend-swatch" style="background:${colors.fill};border-color:${colors.stroke}"></span>
-        ${iconSvg ? `<span class="map-legend-icon" style="color:${catDef?.color || '#78909C'}">${iconSvg}</span>` : ''}
-        <span class="map-legend-label">${label}</span>
+        <span class="map-legend-label">${datasetName}</span>
       </label>`;
     }
 
