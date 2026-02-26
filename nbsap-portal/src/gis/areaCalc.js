@@ -466,6 +466,183 @@ export function computeTarget1Metrics(layers, filters = {}) {
   return result;
 }
 
+// ─── TARGET 2 METRICS (Degraded Areas & Restoration) ─────────────────────────
+
+/**
+ * Categories relevant to T2.
+ * DEGRADED = areas identified as degraded
+ * RESTORATION = areas under active restoration
+ */
+const T2_DEGRADED_CATEGORIES = new Set(['DEGRADED']);
+const T2_RESTORATION_CATEGORIES = new Set(['RESTORATION']);
+
+/**
+ * Computes Target 2 metrics: degraded area mapping and restoration progress.
+ *
+ * Separates features into DEGRADED and RESTORATION categories, dissolves
+ * each independently, then computes:
+ *   - Total degraded area (ha)
+ *   - Total restoration area (ha)
+ *   - Restoration ratio: restoration_ha / degraded_ha * 100
+ *   - Realm breakdown (terrestrial vs marine/coastal)
+ *   - Province and category breakdowns
+ *
+ * @param {Array<{ metadata: object, geojson: object }>} layers
+ * @param {object} filters
+ * @returns {object} T2 metrics
+ */
+export function computeTarget2Metrics(layers, filters = {}) {
+  const key = _cacheKey('t2', null, filters);
+  const cached = _metricsCache.get(key);
+  if (cached) return cached;
+
+  const degradedFeatures = [];
+  const restorationFeatures = [];
+  let grossDegraded = 0;
+  let grossRestoration = 0;
+  let totalFeatures = 0;
+  let layerCount = 0;
+
+  const provinceGross = {};
+  const provinceFeatureRefs = {};
+  const categoryGross = {};
+  const categoryFeatureRefs = {};
+
+  // Realm accumulators
+  let grossDegradedTerrestrial = 0;
+  let grossDegradedMarine = 0;
+  let grossRestorationTerrestrial = 0;
+  let grossRestorationMarine = 0;
+
+  for (const layer of layers) {
+    const meta = layer.metadata;
+    if (meta.isReference) continue;
+    if (!meta.targets || !meta.targets.includes('T2')) continue;
+    if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
+    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+
+    layerCount++;
+    const cat = meta.category || 'OTHER';
+    const isDegraded = T2_DEGRADED_CATEGORIES.has(cat);
+    const isRestoration = T2_RESTORATION_CATEGORIES.has(cat);
+
+    const features = (layer.geojson?.features || []).filter(f => {
+      if (filters.province && filters.province !== 'All') {
+        if (f.properties.province !== filters.province) return false;
+      }
+      return true;
+    });
+
+    for (const f of features) {
+      const areaHa = f.properties.area_ha || 0;
+      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      totalFeatures++;
+
+      if (isDegraded) {
+        degradedFeatures.push(f);
+        grossDegraded += areaHa;
+        if (realm === 'marine') grossDegradedMarine += areaHa;
+        else grossDegradedTerrestrial += areaHa;
+      } else if (isRestoration) {
+        restorationFeatures.push(f);
+        grossRestoration += areaHa;
+        if (realm === 'marine') grossRestorationMarine += areaHa;
+        else grossRestorationTerrestrial += areaHa;
+      }
+
+      // Province grouping
+      const prov = f.properties.province || 'Unassigned';
+      if (!provinceGross[prov]) {
+        provinceGross[prov] = { degraded: 0, restoration: 0, count: 0 };
+      }
+      if (isDegraded) provinceGross[prov].degraded += areaHa;
+      if (isRestoration) provinceGross[prov].restoration += areaHa;
+      provinceGross[prov].count++;
+      if (!provinceFeatureRefs[prov]) provinceFeatureRefs[prov] = { degraded: [], restoration: [] };
+      if (isDegraded) provinceFeatureRefs[prov].degraded.push(f);
+      if (isRestoration) provinceFeatureRefs[prov].restoration.push(f);
+
+      // Category grouping
+      if (!categoryGross[cat]) categoryGross[cat] = { area: 0, count: 0 };
+      categoryGross[cat].area += areaHa;
+      categoryGross[cat].count++;
+      if (!categoryFeatureRefs[cat]) categoryFeatureRefs[cat] = [];
+      categoryFeatureRefs[cat].push(f);
+    }
+  }
+
+  // Dissolve degraded and restoration separately for net areas
+  const dissolvedDegraded = dissolveFeatures(degradedFeatures);
+  const dissolvedRestoration = dissolveFeatures(restorationFeatures);
+  const netDegraded = dissolvedDegraded ? computeAreaHa(dissolvedDegraded) : grossDegraded;
+  const netRestoration = dissolvedRestoration ? computeAreaHa(dissolvedRestoration) : grossRestoration;
+
+  // Restoration ratio = restoration / degraded * 100
+  const restorationPct = netDegraded > 0 ? (netRestoration / netDegraded) * 100 : 0;
+
+  // Province breakdown
+  const provinceBreakdown = Object.entries(provinceGross)
+    .filter(([name]) => VALID_PROVINCES.has(name))
+    .map(([name, data]) => {
+      const pf = provinceFeatureRefs[name];
+      const dDissolved = pf ? dissolveFeatures(pf.degraded) : null;
+      const rDissolved = pf ? dissolveFeatures(pf.restoration) : null;
+      const dNet = dDissolved ? computeAreaHa(dDissolved) : data.degraded;
+      const rNet = rDissolved ? computeAreaHa(rDissolved) : data.restoration;
+      return {
+        province: name,
+        degraded_ha: round2(dNet),
+        restoration_ha: round2(rNet),
+        terrestrial_ha: round2(dNet + rNet),
+        total_ha: round2(dNet + rNet),
+        features: data.count,
+        restoration_pct: dNet > 0 ? round3((rNet / dNet) * 100) : 0
+      };
+    }).sort((a, b) => b.total_ha - a.total_ha);
+
+  // Category breakdown
+  const categoryBreakdown = Object.entries(categoryGross).map(([cat, gross]) => {
+    const dissolved = dissolveFeatures(categoryFeatureRefs[cat] || []);
+    const netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
+    return {
+      category: cat,
+      area_ha: round2(netCatArea),
+      gross_area_ha: round2(gross.area),
+      features: gross.count
+    };
+  }).sort((a, b) => b.area_ha - a.area_ha);
+
+  const result = {
+    targetCode: 'T2',
+    // Degraded areas
+    degraded_ha: round2(netDegraded),
+    gross_degraded_ha: round2(grossDegraded),
+    degraded_features: degradedFeatures.length,
+    // Restoration sites
+    restoration_ha: round2(netRestoration),
+    gross_restoration_ha: round2(grossRestoration),
+    restoration_features: restorationFeatures.length,
+    // Restoration progress ratio
+    restoration_pct: round3(restorationPct),
+    // Realm breakdown
+    realmTotals: {
+      degraded_terrestrial_ha: round2(grossDegradedTerrestrial),
+      degraded_marine_ha: round2(grossDegradedMarine),
+      restoration_terrestrial_ha: round2(grossRestorationTerrestrial),
+      restoration_marine_ha: round2(grossRestorationMarine)
+    },
+    // General
+    totalFeatures,
+    layerCount,
+    provinceBreakdown,
+    categoryBreakdown,
+    dissolvedDegraded,
+    dissolvedRestoration
+  };
+  _metricsCache.set(key, result);
+  return result;
+}
+
 // ─── GENERAL METRICS ─────────────────────────────────────────────────────────
 
 /**

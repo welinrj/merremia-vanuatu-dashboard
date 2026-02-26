@@ -1716,6 +1716,71 @@ html, body {
   color: var(--danger);
 }
 
+/* ── T2 Restoration Progress ─────────────────────────── */
+.kpi-card.accent-orange::before {
+  background: #D84315;
+  opacity: 1;
+}
+
+.kpi-card.accent-green::before {
+  background: var(--success);
+  opacity: 1;
+}
+
+.progress-bar-fill.t2-restoration {
+  background: linear-gradient(90deg, #D84315, #F9A825, #2E7D32);
+}
+
+.t2-province-breakdown {
+  margin-top: 8px;
+}
+
+.t2-province-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 8px;
+}
+
+.t2-province-card {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  transition: all var(--transition-fast);
+  animation: fadeInUp 0.4s ease-out both;
+}
+
+.t2-province-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.t2-province-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.t2-province-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text);
+}
+
+.t2-province-pct {
+  font-size: 13px;
+  font-weight: 700;
+  color: #92400e;
+}
+
+.t2-province-stats {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
 /* ── T4 Species Cards ────────────────────────────────── */
 .species-grid {
   display: grid;
