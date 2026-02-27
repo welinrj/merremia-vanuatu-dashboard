@@ -3,14 +3,32 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Vanuatu NBSAP GIS Portal</title>
-  <meta name="description" content="National Biodiversity Strategy and Action Plan - GIS Data Portal & Dashboard for Vanuatu. Target 3 (30x30) monitoring.">
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>">
+  <title>Vanuatu NBSAP GIS Portal — National Biodiversity Strategy & Action Plan</title>
+  <meta name="description" content="Vanuatu's National Biodiversity Strategy and Action Plan (NBSAP) GIS Data Portal. Tracks progress across 9 NBSAP targets aligned with the Kunming-Montreal Global Biodiversity Framework (GBF), including 30x30 conservation monitoring.">
+  <meta name="keywords" content="Vanuatu, NBSAP, biodiversity, GIS, 30x30, Kunming-Montreal, GBF, CBD, conservation, DEPC">
+  <meta name="author" content="Department of Environmental Protection and Conservation (DEPC), Vanuatu">
+  <meta name="robots" content="noindex, nofollow">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Vanuatu NBSAP GIS Portal">
+  <meta property="og:description" content="National Biodiversity Strategy and Action Plan — GIS Data Portal & 30x30 Dashboard for Vanuatu.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_VU">
+
+  <!-- Favicon: Vanuatu green leaf -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='16' fill='%23006B3F'/><text y='.88em' font-size='74' x='13'>🌿</text></svg>">
+
+  <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+
+  <!-- App styles -->
   <link rel="stylesheet" href="./src/ui/styles/main.css">
+
   <script type="importmap">
   {
     "imports": {
@@ -24,98 +42,178 @@
   </script>
 </head>
 <body>
-  <div class="app-container">
-    <!-- Top Header Bar -->
-    <header class="header-bar">
+  <!-- Skip to main content (accessibility) -->
+  <a href="#page-dashboard" class="skip-link">Skip to main content</a>
+
+  <div class="app-container" role="application" aria-label="Vanuatu NBSAP GIS Portal">
+
+    <!-- ── Top Header Bar ─────────────────────────────────── -->
+    <header class="header-bar" role="banner">
       <div class="header-top">
         <div class="header-brand">
-          <div class="brand-icon">
-            <svg width="48" height="36" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.3)"><defs><clipPath id="vu-h"><path d="M0 0v475l420-195h480v-85H420Z"/></clipPath></defs><path fill="#009543" d="M0 0h640v480H0z"/><path fill="#d21034" d="M0 0h640v240H0z"/><g clip-path="url(#vu-h)" transform="scale(.71111 1.01053)"><path stroke="#fdce12" stroke-width="110" d="m0 0 420 195h480v85H420L0 475"/><path fill="none" stroke="#000" stroke-width="60" d="m0 0 420 195h480m0 85H420L0 475"/></g><g fill="#fdce12" transform="translate(-22)scale(1.01053)"><path d="M106.9 283v27c23.5 0 69.7-18 69.7-76.1s-49.3-68.9-64-68.9-60.3 10.6-60.3 58c0 47.6 44.7 52 53.5 52s41.8-8 38-43.6a35.5 35.5 0 0 1-35.4 31.5c-24 0-39-17.8-39-35.4s14.6-41.2 39.9-41.2 43.8 22.5 43.8 45.1-17.8 51.5-46.2 51.5z"/><g id="vu-hb"><path stroke="#fdce12" stroke-width=".8" d="m86.2 247.7 1.4 1s11.2-25.5 41.1-43.6c-3.8 2-23.8 12-42.5 42.6z"/><path d="M89.1 243.3s-3.4-7-.4-10.2 1.7 8.3 1.7 8.3l1.3-1.9s-2-8.6.2-10.4 1.2 8.3 1.2 8.3l1.4-1.8s-1.5-8.4.7-10 .9 8 .9 8l1.6-2s-1.2-8 1.5-9.9.3 7.6.3 7.6l1.8-2s-.8-7.3 1.5-9c2.3-1.6.4 7 .4 7l1.6-1.8s-.5-6.8 1.7-8.4.2 6.5.2 6.5l1.7-1.6s-.4-6.9 2.4-8.2-.5 6.4-.5 6.4l2-1.6s.5-8 2.9-8.7c2.4-.8-1 7-1 7l1.7-1.4s.9-6.8 3.5-7.6c2.7-.9-1.6 6.2-1.6 6.2l1.7-1.3s1.9-6.8 4.4-7.6c2.4-.7-2.6 6.5-2.6 6.5l1.7-1.2s2.7-6.2 5-6.6c2.1-.4-2.6 5.1-2.6 5.1l2.1-1.2s3.5-6.4 4.8-4.5-5 4.9-5 4.9l-2 1.2s7.5-3.6 8.4-1.8-10.3 3-10.3 3l-1.8 1.2s7.5-2 6.6-.1-8.4 1.5-8.4 1.5l-1.7 1.2s7.5-1.8 6.5 0c-1 1.6-8.3 1.5-8.3 1.5l-1.8 1.5s7.3-2 6.2.3-9.4 2.1-9.4 2.1l-2 2s7.7-2.7 7-.6c-.6 2-9.4 3-9.4 3l-2 2s8.3-2.7 5.8-.2c-2.4 2.6-8.5 3.2-8.5 3.2l-2.3 3s8.2-5 7-2.2-9.2 4.7-9.2 4.7l-1.6 2s7.4-4.3 6.6-2c-.7 2.5-8.6 5-8.6 5l-1.3 1.8s8.7-5.2 8-2.5c-.8 2.6-9.1 4.5-9.1 4.5l-1 1.7s8-4.7 8-2.4c.2 2.2-9.4 4.4-9.4 4.4z"/></g><use xlink:href="#vu-hb" width="100%" height="100%" transform="matrix(-1 0 0 1 220 0)"/></g></svg>
+          <!-- Vanuatu flag -->
+          <div class="brand-icon" aria-hidden="true">
+            <svg width="48" height="36" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,0.3)" role="img" aria-label="Flag of Vanuatu"><title>Flag of Vanuatu</title><defs><clipPath id="vu-h"><path d="M0 0v475l420-195h480v-85H420Z"/></clipPath></defs><path fill="#009543" d="M0 0h640v480H0z"/><path fill="#d21034" d="M0 0h640v240H0z"/><g clip-path="url(#vu-h)" transform="scale(.71111 1.01053)"><path stroke="#fdce12" stroke-width="110" d="m0 0 420 195h480v85H420L0 475"/><path fill="none" stroke="#000" stroke-width="60" d="m0 0 420 195h480m0 85H420L0 475"/></g><g fill="#fdce12" transform="translate(-22)scale(1.01053)"><path d="M106.9 283v27c23.5 0 69.7-18 69.7-76.1s-49.3-68.9-64-68.9-60.3 10.6-60.3 58c0 47.6 44.7 52 53.5 52s41.8-8 38-43.6a35.5 35.5 0 0 1-35.4 31.5c-24 0-39-17.8-39-35.4s14.6-41.2 39.9-41.2 43.8 22.5 43.8 45.1-17.8 51.5-46.2 51.5z"/><g id="vu-hb"><path stroke="#fdce12" stroke-width=".8" d="m86.2 247.7 1.4 1s11.2-25.5 41.1-43.6c-3.8 2-23.8 12-42.5 42.6z"/><path d="M89.1 243.3s-3.4-7-.4-10.2 1.7 8.3 1.7 8.3l1.3-1.9s-2-8.6.2-10.4 1.2 8.3 1.2 8.3l1.4-1.8s-1.5-8.4.7-10 .9 8 .9 8l1.6-2s-1.2-8 1.5-9.9.3 7.6.3 7.6l1.8-2s-.8-7.3 1.5-9c2.3-1.6.4 7 .4 7l1.6-1.8s-.5-6.8 1.7-8.4.2 6.5.2 6.5l1.7-1.6s-.4-6.9 2.4-8.2-.5 6.4-.5 6.4l2-1.6s.5-8 2.9-8.7c2.4-.8-1 7-1 7l1.7-1.4s.9-6.8 3.5-7.6c2.7-.9-1.6 6.2-1.6 6.2l1.7-1.3s1.9-6.8 4.4-7.6c2.4-.7-2.6 6.5-2.6 6.5l1.7-1.2s2.7-6.2 5-6.6c2.1-.4-2.6 5.1-2.6 5.1l2.1-1.2s3.5-6.4 4.8-4.5-5 4.9-5 4.9l-2 1.2s7.5-3.6 8.4-1.8-10.3 3-10.3 3l-1.8 1.2s7.5-2 6.6-.1-8.4 1.5-8.4 1.5l-1.7 1.2s7.5-1.8 6.5 0c-1 1.6-8.3 1.5-8.3 1.5l-1.8 1.5s7.3-2 6.2.3-9.4 2.1-9.4 2.1l-2 2s7.7-2.7 7-.6c-.6 2-9.4 3-9.4 3l-2 2s8.3-2.7 5.8-.2c-2.4 2.6-8.5 3.2-8.5 3.2l-2.3 3s8.2-5 7-2.2-9.2 4.7-9.2 4.7l-1.6 2s7.4-4.3 6.6-2c-.7 2.5-8.6 5-8.6 5l-1.3 1.8s8.7-5.2 8-2.5c-.8 2.6-9.1 4.5-9.1 4.5l-1 1.7s8-4.7 8-2.4c.2 2.2-9.4 4.4-9.4 4.4z"/></g><use xlink:href="#vu-hb" width="100%" height="100%" transform="matrix(-1 0 0 1 220 0)"/></g></svg>
           </div>
           <div class="brand-text">
             <div class="brand-title">Vanuatu NBSAP</div>
-            <div class="brand-subtitle">GIS Data Portal & 30x30 Dashboard</div>
+            <div class="brand-subtitle">GIS Data Portal &amp; 30x30 Dashboard</div>
           </div>
         </div>
+
+        <!-- Partner logos (right of header) -->
+        <div class="header-partners" aria-label="Partner organisations">
+          <div class="partner-logo-group">
+            <div class="partner-logo-item" title="Department of Environmental Protection and Conservation">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>DEPC</span>
+            </div>
+            <div class="partner-logo-divider" aria-hidden="true"></div>
+            <div class="partner-logo-item" title="Convention on Biological Diversity — Kunming-Montreal Global Biodiversity Framework">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/><path d="M2 12h20"/></svg>
+              <span>CBD / GBF</span>
+            </div>
+            <div class="partner-logo-divider" aria-hidden="true"></div>
+            <div class="partner-logo-item" title="United Nations Development Programme">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+              <span>UNDP</span>
+            </div>
+          </div>
+        </div>
+
         <div class="header-right">
-          <div class="auth-badge" id="auth-badge" title="Click Admin tab to login">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <div class="access-level-badge" aria-label="Access level: Public">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
+            Public Access
+          </div>
+          <div class="auth-badge" id="auth-badge" title="Click Admin tab to login" role="status" aria-live="polite">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
             <span>Public</span>
           </div>
         </div>
       </div>
-      <nav class="header-nav">
-        <button class="nav-tab active" data-tab="dashboard">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          Dashboard
+
+      <!-- Navigation -->
+      <nav class="header-nav" role="navigation" aria-label="Main navigation">
+        <button class="nav-tab active" data-tab="dashboard" aria-selected="true" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          <span>Dashboard</span>
         </button>
-        <button class="nav-tab" data-tab="portal">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="M6 12v6"/></svg>
-          Data Portal
+        <button class="nav-tab" data-tab="portal" aria-selected="false" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="M6 12v6"/></svg>
+          <span>Data Portal</span>
         </button>
-        <button class="nav-tab" data-tab="admin">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m-7-11l5.2 3m3.6 2.1L19 23M1 17l5.2-3m3.6-2.1L19 1M1 7l5.2 3"/></svg>
-          Admin
+        <button class="nav-tab" data-tab="admin" aria-selected="false" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Admin</span>
         </button>
-        <button class="nav-tab" data-tab="about">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          About
+        <button class="nav-tab" data-tab="about" aria-selected="false" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+          <span>About</span>
         </button>
       </nav>
     </header>
 
-    <!-- Page Containers (pre-populated with loading states) -->
-    <div class="page-container">
-      <div id="page-dashboard" class="page active">
-        <div class="loading-state" id="loading-dashboard">
-          <div class="loading-spinner"></div>
-          <p>Loading dashboard...</p>
+    <!-- ── Page Containers ──────────────────────────────────── -->
+    <main class="page-container" role="main" id="main-content">
+      <div id="page-dashboard" class="page active" role="tabpanel" aria-label="Dashboard">
+        <div class="loading-state" id="loading-dashboard" aria-live="polite">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p>Loading dashboard&hellip;</p>
         </div>
       </div>
-      <div id="page-portal" class="page">
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Loading data portal...</p>
+      <div id="page-portal" class="page" role="tabpanel" aria-label="Data Portal" aria-hidden="true">
+        <div class="loading-state" aria-live="polite">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p>Loading data portal&hellip;</p>
         </div>
       </div>
-      <div id="page-admin" class="page">
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Loading admin panel...</p>
+      <div id="page-admin" class="page" role="tabpanel" aria-label="Admin" aria-hidden="true">
+        <div class="loading-state" aria-live="polite">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p>Loading admin panel&hellip;</p>
         </div>
       </div>
-      <div id="page-about" class="page">
-        <div class="loading-state">
-          <div class="loading-spinner"></div>
-          <p>Loading...</p>
+      <div id="page-about" class="page" role="tabpanel" aria-label="About" aria-hidden="true">
+        <div class="loading-state" aria-live="polite">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <p>Loading&hellip;</p>
         </div>
       </div>
-    </div>
+    </main>
 
-    <footer class="app-footer">
-      <p>Developed by Vanua Spatial Solutions</p>
+    <!-- ── Footer ──────────────────────────────────────────── -->
+    <footer class="app-footer" role="contentinfo">
+      <div class="footer-inner">
+        <div class="footer-left">
+          <div class="footer-brand">
+            <strong>Vanuatu NBSAP GIS Portal</strong>
+            <span class="footer-version" id="footer-version">v2.0.0</span>
+          </div>
+          <div class="footer-org">
+            Department of Environmental Protection &amp; Conservation (DEPC) &mdash; Republic of Vanuatu
+          </div>
+          <div class="footer-legal">
+            Data sourced from national surveys and global databases. For official reporting only.
+            All area calculations use geodesic methods (WGS84). &copy; <span id="footer-year"></span> DEPC Vanuatu.
+          </div>
+        </div>
+        <div class="footer-partners" aria-label="Partner organisations">
+          <span class="footer-partners-label">In partnership with</span>
+          <div class="footer-partner-list">
+            <span class="footer-partner-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+              CBD
+            </span>
+            <span class="footer-partner-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/></svg>
+              UNDP
+            </span>
+            <span class="footer-partner-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              GEF
+            </span>
+            <span class="footer-partner-chip">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+              Govt of Vanuatu
+            </span>
+          </div>
+        </div>
+        <div class="footer-right">
+          <div class="footer-framework-badge">
+            <div class="gbf-badge">
+              <div class="gbf-badge-top">Aligned with</div>
+              <div class="gbf-badge-title">Kunming-Montreal</div>
+              <div class="gbf-badge-sub">Global Biodiversity Framework</div>
+            </div>
+          </div>
+        </div>
+      </div>
     </footer>
   </div>
 
-  <!-- Upload Wizard Modal -->
-  <div class="modal-overlay" id="upload-wizard-modal">
+  <!-- ── Upload Wizard Modal ─────────────────────────────── -->
+  <div class="modal-overlay" id="upload-wizard-modal" role="dialog" aria-modal="true" aria-labelledby="wizard-modal-title">
     <div class="modal">
       <div class="modal-header">
         <div class="modal-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          <h3>Upload Data Layer</h3>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <h3 id="wizard-modal-title">Upload Data Layer</h3>
         </div>
-        <button class="modal-close" id="wizard-modal-close-btn" aria-label="Close">&times;</button>
+        <button class="modal-close" id="wizard-modal-close-btn" aria-label="Close upload dialog">&times;</button>
       </div>
       <div class="modal-body">
-        <div class="wizard-steps" id="wizard-steps"></div>
+        <div class="wizard-steps" id="wizard-steps" role="list"></div>
         <div id="wizard-body"></div>
       </div>
     </div>
   </div>
 
   <script>
-    // Catch both sync errors and unhandled promise rejections
+    // Dynamic footer year
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+
+    // Error handling
     window.__nbsapLoaded = false;
     function showLoadError(msg) {
       var el = document.getElementById('page-dashboard');
@@ -123,13 +221,12 @@
         el.innerHTML = '<div style="padding:40px;max-width:600px;margin:0 auto">' +
           '<h2 style="color:#065f46;margin-bottom:12px">Loading Error</h2>' +
           '<p style="color:#64748b;font-size:14px;line-height:1.6;margin-bottom:16px">' + msg + '</p>' +
-          '<p style="color:#94a3b8;font-size:13px">Try refreshing the page. If this persists, the app may need to be built first: run <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">npm run dev</code> from the <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">nbsap-portal</code> directory.</p>' +
+          '<p style="color:#94a3b8;font-size:13px">Try refreshing the page. If this persists, run <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">npm run dev</code> from the <code style="background:#f1f5f9;padding:2px 6px;border-radius:4px">nbsap-portal</code> directory.</p>' +
           '</div>';
       }
     }
     window.addEventListener('error', function(e) { showLoadError(e.message || 'Unknown error'); });
     window.addEventListener('unhandledrejection', function(e) { showLoadError(e.reason ? (e.reason.message || String(e.reason)) : 'Module loading failed'); });
-    // Timeout fallback: if app hasn't loaded in 10s, show help
     setTimeout(function() {
       if (!window.__nbsapLoaded) {
         showLoadError('Application failed to load within 10 seconds. This may indicate a network or build issue.');

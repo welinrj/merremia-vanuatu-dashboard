@@ -46,17 +46,37 @@ function renderLoginForm(page) {
       <div class="login-container">
         <div class="login-card">
           <div class="login-card-header">
-            <img src="${base}vanuatu-coat-of-arms.svg" alt="Republic of Vanuatu Coat of Arms" style="width:90px;height:auto;margin-bottom:12px">
-            <h3>Admin Login</h3>
-            <p>Enter your passphrase to access management features</p>
+            <div class="login-official-banner">
+              <img src="${base}vanuatu-coat-of-arms.svg"
+                   alt="Republic of Vanuatu Coat of Arms"
+                   width="48" height="48"
+                   style="filter:brightness(1.1)">
+              <div>
+                <div class="login-official-text">Republic of Vanuatu</div>
+                <div style="font-size:11px;opacity:0.8;font-weight:500">DEPC &mdash; NBSAP GIS Portal</div>
+              </div>
+            </div>
+            <h3 style="margin-top:4px">Restricted Access</h3>
+            <p>Enter your administrator passphrase to access data management features</p>
           </div>
           <div class="login-card-body">
             <div class="form-group">
-              <label>Passphrase</label>
-              <input type="password" id="admin-passphrase" placeholder="Enter admin passphrase">
+              <label for="admin-passphrase">Passphrase</label>
+              <input type="password" id="admin-passphrase" placeholder="Enter admin passphrase" autocomplete="current-password">
             </div>
-            <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none;padding:8px 12px;background:var(--danger-light);border-radius:var(--radius-sm)"></div>
-            <button class="btn btn-primary" id="btn-admin-login" style="width:100%;justify-content:center;padding:10px">Login</button>
+            <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none;padding:8px 12px;background:var(--danger-light);border-radius:var(--radius-sm)" role="alert"></div>
+            <button class="btn btn-primary" id="btn-admin-login" style="width:100%;justify-content:center;padding:10px">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Login
+            </button>
+            <div class="admin-system-info" style="margin-top:16px">
+              <table>
+                <tr><td>Portal</td><td>Vanuatu NBSAP GIS v2.0.0</td></tr>
+                <tr><td>Operator</td><td>DEPC, Republic of Vanuatu</td></tr>
+                <tr><td>Framework</td><td>Kunming-Montreal GBF 2024&ndash;2030</td></tr>
+                <tr><td>Access</td><td>Authorised personnel only</td></tr>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -97,8 +117,16 @@ async function renderAdminDashboard(page) {
     <div class="admin-layout">
       <div class="admin-header">
         <div>
-          <h2>Admin Panel</h2>
-          <p style="font-size:13px;color:var(--text-secondary);margin-top:2px">Manage data, backups, and system settings &mdash; data syncs in real time across all devices</p>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <h2>Admin Panel</h2>
+            <span class="badge badge-success" style="font-size:11px;padding:3px 10px">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:3px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              Authenticated
+            </span>
+          </div>
+          <p style="font-size:13px;color:var(--text-secondary);margin-top:2px">
+            Vanuatu NBSAP GIS Portal &mdash; DEPC Administrator &mdash; data syncs in real time via Firestore
+          </p>
         </div>
         <button class="btn btn-outline" id="btn-admin-logout">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -282,25 +310,38 @@ async function renderAdminDashboard(page) {
       <div class="card">
         <div class="card-header">
           <div style="display:flex;align-items:center;gap:8px">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            Auth Status
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+            System Information
           </div>
+          <span class="badge badge-success" style="font-size:10px">Online</span>
         </div>
         <div class="card-body" style="font-size:13px">
           <table class="metadata-table">
-            <tr><td>Provider</td><td>Local Passphrase</td></tr>
-            <tr><td>Storage</td><td>Firestore (real-time sync)</td></tr>
-            <tr><td>Status</td><td><span class="badge badge-success">Authenticated</span></td></tr>
-            <tr><td>Session</td><td>Active (clears on page reload)</td></tr>
+            <tr><td>Portal Version</td><td><strong>v2.0.0</strong></td></tr>
+            <tr><td>Operator</td><td>Department of Environmental Protection &amp; Conservation (DEPC), Vanuatu</td></tr>
+            <tr><td>Framework</td><td>Kunming-Montreal Global Biodiversity Framework, 2024&ndash;2030</td></tr>
+            <tr><td>Auth Provider</td><td>Local Passphrase (bcrypt)</td></tr>
+            <tr><td>Storage</td><td>Google Firestore &mdash; real-time sync across all devices</td></tr>
+            <tr><td>Auth Status</td><td><span class="badge badge-success">Authenticated</span></td></tr>
+            <tr><td>Session</td><td>Active &mdash; clears on page reload</td></tr>
+            <tr><td>Session Time</td><td id="admin-session-time">&mdash;</td></tr>
           </table>
-          <p style="margin-top:12px;color:var(--text-tertiary);font-size:12px">
-            To change passphrase, update the hash in localStorage key <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:11px">nbsap_admin_hash</code>
-            or use the auth provider API.
+          <p style="margin-top:12px;color:var(--text-tertiary);font-size:12px;line-height:1.6">
+            To change the admin passphrase, update the hash stored in localStorage key
+            <code style="background:var(--gray-100);padding:2px 6px;border-radius:4px;font-size:11px">nbsap_admin_hash</code>.
+            For security incidents, contact DEPC system administrator immediately.
           </p>
         </div>
       </div>
     </div>
   `;
+
+  // Set session start time
+  const sessionEl = page.querySelector('#admin-session-time');
+  if (sessionEl) {
+    const now = new Date();
+    sessionEl.textContent = now.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+  }
 
   // Logout
   page.querySelector('#btn-admin-logout').addEventListener('click', () => {

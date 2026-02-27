@@ -1,169 +1,478 @@
 /**
- * About / Help page.
- * Comprehensive documentation for all NBSAP targets, data sources, and guidance.
+ * About / Documentation page.
+ * Professional UN-grade layout: hero, key facts, GBF target alignment,
+ * partner organisations, data governance, contacts, and technical notes.
  */
+
+/** Safe accessor for Vite's BASE_URL */
+function getBaseUrl() {
+  try { return (import.meta.env && import.meta.env.BASE_URL) || './'; }
+  catch { return './'; }
+}
 
 export function initAbout() {
   const page = document.getElementById('page-about');
+  const base = getBaseUrl();
+
   page.innerHTML = `
     <div class="about-layout">
-      <h2>Vanuatu NBSAP GIS Data Portal</h2>
-      <p>
-        This portal supports monitoring and reporting for Vanuatu's
-        <strong style="color:var(--text)">National Biodiversity Strategy and Action Plan (NBSAP)</strong>,
-        aligned with the <strong style="color:var(--text)">Kunming-Montreal Global Biodiversity Framework (GBF)</strong>.
-        It tracks progress across 9 key targets covering conservation, species management, land use, and environmental monitoring.
-      </p>
 
-      <h3>What This Portal Does</h3>
-      <ul>
-        <li><strong style="color:var(--text)">Dashboard:</strong> Interactive maps, target-specific KPI widgets, and charts showing progress by target, province, and category.</li>
-        <li><strong style="color:var(--text)">Data Portal:</strong> Upload shapefiles (.shp/.zip) with automatic validation, CRS reprojection, geometry cleaning, field mapping, province assignment, and area calculation.</li>
-        <li><strong style="color:var(--text)">Admin:</strong> Manage authentication, audit logs, layer tracker, and backup/restore operations.</li>
-        <li><strong style="color:var(--text)">Exports:</strong> Download filtered data as CSV, JSON reporting snapshots, or map screenshots (PNG).</li>
-      </ul>
-
-      <h3>NBSAP Targets Tracked</h3>
-
-      <div class="target-doc-grid">
-        <div class="target-doc-card">
-          <div class="target-doc-code">T1</div>
-          <div class="target-doc-body">
-            <strong>Biodiversity Spatial Planning</strong>
-            <p>Percentage of land and sea area covered by biodiversity-inclusive spatial plans &mdash; CCA, KBA, MPA, LMMA, Spatial Plans, and Inland Water.</p>
-            <div class="target-doc-layers">Layers: Biodiversity Spatial Plans, Key Biodiversity Areas, Marine Protected Areas, Locally Managed Marine Areas, Community Conserved Areas, Inland Water</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T2</div>
-          <div class="target-doc-body">
-            <strong>Degraded Area Mapping & Restoration</strong>
-            <p>Mapping of degraded terrestrial, inland water, marine, and coastal ecosystems. Tracking active and planned restoration sites.</p>
-            <div class="target-doc-layers">Layers: Degraded Terrestrial Areas, Degraded Marine/Coastal Areas, Ecosystem Restoration Sites</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T3</div>
-          <div class="target-doc-body">
-            <strong>30x30 Conservation</strong>
-            <p>Conserve at least 30% of terrestrial and 30% of marine areas by 2030 through protected areas, community conserved areas, MPAs, LMMAs, and OECMs.</p>
-            <div class="target-doc-layers">Layers: CCAs, MPAs, LMMAs, Protected Areas (WDPA), OECMs</div>
-            <div class="target-doc-baseline">Baselines: Terrestrial 1,219,000 ha | Marine 66,300,000 ha</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T4</div>
-          <div class="target-doc-body">
-            <strong>Species & Biodiversity Distribution</strong>
-            <p>Distribution maps of significant species and key biodiversity areas across Vanuatu's islands.</p>
-            <div class="target-doc-layers">Layers: Significant Species Distribution, Key Biodiversity Areas</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T6</div>
-          <div class="target-doc-body">
-            <strong>Invasive Alien Species</strong>
-            <p>Spatial analysis to identify total coverage (ha) and distribution of key Invasive Alien Species (IAS): <em>Merremia peltata</em> (Big Leaf), Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle, and other IAS.</p>
-            <div class="target-doc-layers">Layers: Merremia peltata Detection, Other Invasive Alien Species</div>
-            <div class="target-doc-note">Merremia detection supports remote sensing and field survey data with confidence scoring.</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T7</div>
-          <div class="target-doc-body">
-            <strong>Pesticide & Herbicide Mapping</strong>
-            <p>Map out areas of pesticide and herbicide use in large-scale and/or small-scale commercial farming operations.</p>
-            <div class="target-doc-layers">Layers: Pesticide & Herbicide Use Areas</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T8</div>
-          <div class="target-doc-body">
-            <strong>Coastal Eutrophication</strong>
-            <p>Mapping of coastal eutrophication and nutrient-impacted zones around Vanuatu islands.</p>
-            <div class="target-doc-layers">Layers: Coastal Eutrophication Zones</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T10</div>
-          <div class="target-doc-body">
-            <strong>Agriculture & Land Cover Change</strong>
-            <p>Mapping of land cover change for agriculture, livestock, fisheries, and forestry across Vanuatu.</p>
-            <div class="target-doc-layers">Layers: Land Cover / Land Use Change</div>
-          </div>
-        </div>
-
-        <div class="target-doc-card">
-          <div class="target-doc-code">T12</div>
-          <div class="target-doc-body">
-            <strong>Blue & Green Spaces</strong>
-            <p>Mapping of blue and green spaces &mdash; parks within provincial and municipal areas, and botanical gardens.</p>
-            <div class="target-doc-layers">Layers: Blue & Green Spaces</div>
+      <!-- ── Hero ─────────────────────────────────────────── -->
+      <div class="about-hero">
+        <div class="about-hero-inner">
+          <img src="${base}vanuatu-coat-of-arms.svg"
+               alt="Republic of Vanuatu Coat of Arms"
+               class="about-hero-flag"
+               width="72" height="72">
+          <div class="about-hero-text">
+            <h1>Vanuatu NBSAP GIS Data Portal</h1>
+            <p>
+              The official GIS monitoring platform for Vanuatu's
+              <strong style="color:rgba(255,255,255,0.95)">National Biodiversity Strategy and Action Plan (NBSAP)</strong>,
+              aligned with the
+              <strong style="color:rgba(255,255,255,0.95)">Kunming-Montreal Global Biodiversity Framework (GBF)</strong>.
+              Tracks progress across 9 targets covering conservation, species, land use, and environmental monitoring.
+            </p>
+            <div class="about-hero-meta">
+              <span class="about-hero-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                DEPC Vanuatu
+              </span>
+              <span class="about-hero-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+                CBD / Kunming-Montreal GBF
+              </span>
+              <span class="about-hero-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><rect x="7" y="10" width="3" height="8"/><rect x="14" y="6" width="3" height="12"/></svg>
+                9 NBSAP Targets
+              </span>
+              <span class="about-hero-chip">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6M5.636 5.636l4.243 4.243m4.242 4.242l4.243 4.243"/></svg>
+                v2.0.0 &mdash; 2024&ndash;2030
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
-      <h3>Data Sources</h3>
-      <ul>
-        <li><strong style="color:var(--text)">Protected Areas:</strong> WDPA (World Database on Protected Areas)</li>
-        <li><strong style="color:var(--text)">Community Conserved Areas:</strong> DEPC Vanuatu records, Custom Tabu Areas</li>
-        <li><strong style="color:var(--text)">Marine Protected Areas:</strong> National marine management plans</li>
-        <li><strong style="color:var(--text)">LMMAs:</strong> Locally Managed Marine Areas Network</li>
-        <li><strong style="color:var(--text)">Key Biodiversity Areas:</strong> BirdLife International / KBA Partnership</li>
-        <li><strong style="color:var(--text)">Invasive Species:</strong> DEPC IAS surveys, remote sensing imagery, field survey GPS data</li>
-        <li><strong style="color:var(--text)">Land Cover:</strong> Satellite imagery classification, national forestry surveys</li>
-        <li><strong style="color:var(--text)">Province Boundaries:</strong> Vanuatu National Statistics Office</li>
-      </ul>
+      <!-- ── Key Facts ─────────────────────────────────────── -->
+      <h3>Vanuatu at a Glance</h3>
+      <div class="about-facts-grid">
+        <div class="about-fact-card">
+          <div class="about-fact-value">1,219,000</div>
+          <div class="about-fact-label">Terrestrial Baseline (ha)</div>
+        </div>
+        <div class="about-fact-card">
+          <div class="about-fact-value marine">66,300,000</div>
+          <div class="about-fact-label">Marine EEZ Baseline (ha)</div>
+        </div>
+        <div class="about-fact-card">
+          <div class="about-fact-value">9</div>
+          <div class="about-fact-label">NBSAP Targets Tracked</div>
+        </div>
+        <div class="about-fact-card">
+          <div class="about-fact-value">6</div>
+          <div class="about-fact-label">Provinces Covered</div>
+        </div>
+        <div class="about-fact-card">
+          <div class="about-fact-value">30%</div>
+          <div class="about-fact-label">30x30 Conservation Target</div>
+        </div>
+        <div class="about-fact-card">
+          <div class="about-fact-value">2030</div>
+          <div class="about-fact-label">GBF Target Year</div>
+        </div>
+      </div>
 
-      <h3>How to Use</h3>
-      <ol style="margin-left:20px;margin-bottom:12px">
-        <li>Use the <strong style="color:var(--text)">Dashboard</strong> tab to explore data on an interactive map</li>
-        <li>Apply <strong style="color:var(--text)">filters</strong> by target, province, category, realm, or year</li>
-        <li>Select a <strong style="color:var(--text)">single target</strong> to see target-specific KPIs, province breakdown, and category analysis</li>
-        <li>For <strong style="color:var(--text)">Target 3</strong>, view 30x30 progress bars showing % of terrestrial and marine baselines conserved</li>
-        <li>For <strong style="color:var(--text)">Target 6</strong>, view invasive species detection breakdown with Merremia-specific metrics</li>
-        <li>Use <strong style="color:var(--text)">Export</strong> buttons to download data as CSV, JSON, or PNG for reporting</li>
-        <li>Admin users can <strong style="color:var(--text)">upload</strong> new shapefile layers via the Data Portal tab</li>
+      <div class="about-section-divider"></div>
+
+      <!-- ── What This Portal Does ─────────────────────────── -->
+      <h3>Portal Capabilities</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:24px">
+        <div class="card" style="margin:0">
+          <div class="card-header" style="gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            Dashboard &amp; Analytics
+          </div>
+          <div class="card-body" style="font-size:13px;color:var(--text-secondary);padding:14px 18px">
+            Interactive maps, target-specific KPI widgets, progress bars toward GBF targets,
+            and charts showing breakdowns by province, category, and realm.
+          </div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-header" style="gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2"><path d="M4 22h14a2 2 0 0 0 2-2V7.5L14.5 2H6a2 2 0 0 0-2 2v4"/><polyline points="14 2 14 8 20 8"/><path d="M3 15h6"/><path d="M6 12v6"/></svg>
+            Data Portal
+          </div>
+          <div class="card-body" style="font-size:13px;color:var(--text-secondary);padding:14px 18px">
+            Layer catalogue grouped by target, with metadata compliance tracking,
+            TOR compliance checks, and GeoJSON export. Fully searchable and filterable.
+          </div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-header" style="gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warning)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            Shapefile Upload
+          </div>
+          <div class="card-body" style="font-size:13px;color:var(--text-secondary);padding:14px 18px">
+            Automated GIS pipeline: CRS detection, WGS84 reprojection, geometry cleaning,
+            field mapping, province assignment via spatial join, and geodesic area calculation.
+          </div>
+        </div>
+        <div class="card" style="margin:0">
+          <div class="card-header" style="gap:8px">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+            Reporting &amp; Export
+          </div>
+          <div class="card-body" style="font-size:13px;color:var(--text-secondary);padding:14px 18px">
+            Export filtered data as CSV, JSON reporting snapshots aligned with TOR requirements,
+            and print-quality A4 cartographic maps for all 9 targets with provincial breakdowns.
+          </div>
+        </div>
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── GBF Target Alignment ───────────────────────────── -->
+      <h3>GBF Target Alignment &mdash; NBSAP Targets Tracked</h3>
+      <p style="margin-bottom:16px">
+        Each portal layer is mapped to a specific Kunming-Montreal GBF target. Below is a summary
+        of the nine NBSAP targets covered by this portal, their data requirements, and primary layers.
+      </p>
+      <div class="gbf-target-grid">
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#1565C0">T1</div>
+          <div class="gbf-target-body">
+            <strong>Biodiversity Spatial Planning</strong>
+            <p>Percentage of land and sea area covered by biodiversity-inclusive spatial plans. Includes CCAs, KBAs, MPAs, LMMAs, Spatial Plans, and Inland Water.</p>
+            <div class="gbf-target-layers">Layers: Biodiversity Spatial Plans, KBAs, MPAs, LMMAs, CCAs, Inland Water</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#D84315">T2</div>
+          <div class="gbf-target-body">
+            <strong>Degraded Area Mapping &amp; Restoration</strong>
+            <p>Mapping of degraded terrestrial, inland water, marine, and coastal ecosystems. Tracking active and planned restoration sites with restoration progress bars.</p>
+            <div class="gbf-target-layers">Layers: Degraded Terrestrial Areas, Degraded Marine/Coastal, Ecosystem Restoration Sites</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#2E7D32">T3</div>
+          <div class="gbf-target-body">
+            <strong>30&times;30 Conservation</strong>
+            <p>Conserve at least 30% of terrestrial and 30% of marine areas by 2030 through protected areas, CCAs, MPAs, LMMAs, and OECMs. Primary dashboard target.</p>
+            <div class="gbf-target-layers">Layers: CCAs, MPAs, LMMAs, Protected Areas (WDPA), OECMs</div>
+            <div class="gbf-target-layers" style="color:var(--primary);font-style:normal;font-weight:600">Baselines: 1,219,000 ha terrestrial | 66,300,000 ha marine</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#7E57C2">T4</div>
+          <div class="gbf-target-body">
+            <strong>Species &amp; Biodiversity Distribution</strong>
+            <p>Distribution maps for Vanuatu&rsquo;s six significant species: Megapode, Mountain Starling, Streaked Fantail, Kingfisher, Flying Fox, and Plerandra. Includes KBA mapping.</p>
+            <div class="gbf-target-layers">Layers: Significant Species Distribution, Key Biodiversity Areas</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#C62828">T6</div>
+          <div class="gbf-target-body">
+            <strong>Invasive Alien Species</strong>
+            <p>Spatial analysis of total coverage (ha) and distribution of key IAS: <em>Merremia peltata</em> (Big Leaf), Fire Ants, African Snail, Crown-of-Thorns, Sako, and Coconut Beetle.</p>
+            <div class="gbf-target-layers">Layers: Merremia peltata Detection, Other IAS</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#8E24AA">T7</div>
+          <div class="gbf-target-body">
+            <strong>Pesticide &amp; Herbicide Mapping</strong>
+            <p>Spatial mapping of areas of pesticide and herbicide use in large-scale and small-scale commercial farming operations across Vanuatu&rsquo;s islands.</p>
+            <div class="gbf-target-layers">Layers: Pesticide &amp; Herbicide Use Areas</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#00838F">T8</div>
+          <div class="gbf-target-body">
+            <strong>Coastal Eutrophication</strong>
+            <p>Mapping of coastal eutrophication zones and nutrient-impacted marine areas around Vanuatu&rsquo;s islands, identifying areas of elevated nutrient loading.</p>
+            <div class="gbf-target-layers">Layers: Coastal Eutrophication Zones</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#795548">T10</div>
+          <div class="gbf-target-body">
+            <strong>Agriculture &amp; Land Cover Change</strong>
+            <p>Mapping of land cover change for agriculture, livestock, fisheries, and forestry across Vanuatu, tracking conversion from natural ecosystems.</p>
+            <div class="gbf-target-layers">Layers: Land Cover / Land Use Change</div>
+          </div>
+        </div>
+
+        <div class="gbf-target-card">
+          <div class="gbf-target-badge" style="background:#388E3C">T12</div>
+          <div class="gbf-target-body">
+            <strong>Blue &amp; Green Spaces</strong>
+            <p>Mapping of urban and peri-urban blue and green spaces &mdash; parks within provincial and municipal areas, botanical gardens, and coastal blue spaces.</p>
+            <div class="gbf-target-layers">Layers: Blue &amp; Green Spaces</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── Partner Organisations ──────────────────────────── -->
+      <h3>Partner Organisations</h3>
+      <div class="about-partner-grid">
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:var(--primary-lighter);color:var(--primary)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="partner-card-name">DEPC</div>
+          <div class="partner-card-fullname">Department of Environmental Protection &amp; Conservation, Vanuatu</div>
+          <div class="partner-card-role">Lead implementing agency &amp; data custodian</div>
+        </div>
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:#e8f4fc;color:#0072BC">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+          </div>
+          <div class="partner-card-name">CBD</div>
+          <div class="partner-card-fullname">Convention on Biological Diversity</div>
+          <div class="partner-card-role">Kunming-Montreal GBF framework &amp; reporting standards</div>
+        </div>
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:#e8f4fc;color:#0072BC">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          </div>
+          <div class="partner-card-name">UNDP</div>
+          <div class="partner-card-fullname">United Nations Development Programme</div>
+          <div class="partner-card-role">Technical support &amp; capacity development</div>
+        </div>
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:#fff3cd;color:#856404">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          </div>
+          <div class="partner-card-name">GEF</div>
+          <div class="partner-card-fullname">Global Environment Facility</div>
+          <div class="partner-card-role">Biodiversity project financing</div>
+        </div>
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:var(--primary-lighter);color:var(--primary)">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          </div>
+          <div class="partner-card-name">Govt of Vanuatu</div>
+          <div class="partner-card-fullname">Ministry of Climate Change, Meteorology, Geo-Hazards, Environment, Energy &amp; Disaster Management</div>
+          <div class="partner-card-role">Policy ownership &amp; national mandate</div>
+        </div>
+
+        <div class="about-partner-card">
+          <div class="partner-card-icon" style="background:#f3e8ff;color:#7E57C2">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          </div>
+          <div class="partner-card-name">Vanua Spatial</div>
+          <div class="partner-card-fullname">Vanua Spatial Solutions</div>
+          <div class="partner-card-role">GIS system design, development &amp; technical implementation</div>
+        </div>
+
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── Data Sources ────────────────────────────────────── -->
+      <h3>Primary Data Sources</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:24px">
+        ${[
+          ['Protected Areas', 'WDPA — World Database on Protected Areas (UNEP-WCMC / IUCN)'],
+          ['Community Conserved Areas', 'DEPC Vanuatu records, Custom Tabu Areas, village surveys'],
+          ['Marine Protected Areas', 'National marine management plans, DEPC registers'],
+          ['LMMAs', 'Locally Managed Marine Areas Network (LMMA Network)'],
+          ['Key Biodiversity Areas', 'BirdLife International / KBA Partnership'],
+          ['Invasive Species', 'DEPC IAS surveys, remote sensing imagery, GPS field surveys'],
+          ['Land Cover', 'Satellite imagery classification, national forestry surveys'],
+          ['Species Distribution', 'DEPC biodiversity surveys, BirdLife Vanuatu records'],
+          ['Province Boundaries', 'Vanuatu National Statistics Office (VNSO)'],
+        ].map(([src, desc]) => `
+          <div style="display:flex;gap:10px;padding:10px 12px;background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-sm)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">${src}</div>
+              <div style="font-size:11px;color:var(--text-secondary)">${desc}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── Data Governance ────────────────────────────────── -->
+      <h3>Data Governance &amp; Attribution</h3>
+      <div class="about-governance-box">
+        <h4>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Data Use Requirements
+        </h4>
+        <ul>
+          <li>All data displayed in this portal is the property of the Department of Environmental Protection &amp; Conservation (DEPC), Republic of Vanuatu, unless otherwise stated.</li>
+          <li>Users of this portal must cite: <em>"Vanuatu NBSAP GIS Portal, DEPC Vanuatu, [year]"</em> in any publications, reports, or presentations that use data from this system.</li>
+          <li>Data classified as <strong>Restricted</strong> must not be shared publicly without prior written approval from DEPC.</li>
+          <li>All spatial analyses use geodesic methods with WGS84 (EPSG:4326) coordinates to ensure internationally comparable area measurements.</li>
+          <li>For data download requests, contact the DEPC Data Management team (details below).</li>
+        </ul>
+      </div>
+
+      <div class="about-disclaimer-box">
+        <h4>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Data Quality Notice
+        </h4>
+        <p>
+          Spatial data in this portal represents best-available information at the time of upload and may not reflect the most current field conditions.
+          Area calculations are computed using union/dissolve methodology to prevent double-counting of overlapping polygons.
+          Users should validate data independently before using it for legal or policy decisions.
+          Baseline figures (terrestrial: 1,219,000 ha; marine EEZ: 66,300,000 ha) are derived from nationally agreed spatial datasets.
+        </p>
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── How to Use ─────────────────────────────────────── -->
+      <h3>How to Use This Portal</h3>
+      <ol style="margin-left:20px;margin-bottom:16px;line-height:2">
+        <li>Open the <strong style="color:var(--text)">Dashboard</strong> tab to explore data on an interactive map with legend controls</li>
+        <li>Apply <strong style="color:var(--text)">filters</strong> by target, province, category, realm, or year from the sidebar</li>
+        <li>Select a <strong style="color:var(--text)">single target</strong> to see target-specific KPIs, progress bars toward GBF targets, provincial breakdown, and category analysis</li>
+        <li>For <strong style="color:var(--text)">Target 3</strong>, view 30x30 progress bars showing % of terrestrial and marine baselines conserved toward the 30% GBF goal</li>
+        <li>For <strong style="color:var(--text)">Target 6</strong>, view invasive species detection breakdown with Merremia-specific metrics and provincial spread</li>
+        <li>Use <strong style="color:var(--text)">Export</strong> buttons to download data as CSV, JSON reporting snapshots, or PNG map screenshots for reports</li>
+        <li>Use <strong style="color:var(--text)">Print Maps</strong> to generate standardised A4 cartographic maps for individual targets, by province, or all 9 targets at once</li>
+        <li>Admin users can <strong style="color:var(--text)">upload</strong> new shapefile layers and manage metadata via the Admin tab</li>
       </ol>
 
-      <h3>Upload & Analysis Pipeline</h3>
-      <p>When you upload a shapefile, the portal automatically:</p>
-      <ol style="margin-left:20px;margin-bottom:12px">
-        <li><strong style="color:var(--text)">Validates</strong> the file format and geometry types</li>
-        <li><strong style="color:var(--text)">Detects CRS</strong> and reprojects to WGS84 (EPSG:4326) if needed</li>
-        <li><strong style="color:var(--text)">Cleans geometries</strong> &mdash; fixes invalid polygons, removes slivers</li>
-        <li><strong style="color:var(--text)">Maps fields</strong> to standard attribute names (name, type, province, etc.)</li>
-        <li><strong style="color:var(--text)">Assigns provinces</strong> using centroid-in-polygon spatial joins against Vanuatu boundaries</li>
-        <li><strong style="color:var(--text)">Calculates areas</strong> using geodesic methods (turf.area) in hectares</li>
-        <li><strong style="color:var(--text)">Generates a report</strong> with feature count, total area, and any warnings</li>
-      </ol>
+      <div class="about-section-divider"></div>
 
-      <h3>Technical Notes</h3>
-      <ul>
-        <li>All data is stored locally in your browser (IndexedDB) when using static hosting.</li>
-        <li>Area calculations use geodesic methods (turf.area) for accuracy on WGS84 coordinates.</li>
-        <li>The union/dissolve process removes overlapping areas to prevent double-counting.</li>
-        <li>Province assignment uses centroid-in-polygon spatial joins.</li>
-        <li>Supported upload formats: .zip (containing .shp, .dbf, .shx, .prj) up to 50 MB.</li>
-      </ul>
+      <!-- ── Upload & Analysis Pipeline ────────────────────── -->
+      <h3>Automated GIS Processing Pipeline</h3>
+      <p style="margin-bottom:12px">When a shapefile is uploaded, the portal runs a fully automated 7-step GIS pipeline:</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:20px">
+        ${[
+          ['1. Validation', 'File format, geometry type, and attribute completeness checks'],
+          ['2. CRS Detection', 'Identifies coordinate reference system from .prj file'],
+          ['3. Reprojection', 'Converts to WGS84 (EPSG:4326) using proj4js if needed'],
+          ['4. Geometry Cleaning', 'Fixes invalid polygons, removes slivers and self-intersections'],
+          ['5. Field Mapping', 'Maps attributes to standard names (name, type, province, area_ha)'],
+          ['6. Province Assignment', 'Centroid-in-polygon spatial join against Vanuatu province boundaries'],
+          ['7. Area Calculation', 'Geodesic area computation using turf.area() in hectares (ha)'],
+        ].map(([step, desc], i) => `
+          <div style="display:flex;gap:10px;padding:10px 12px;background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-sm)">
+            <div style="width:28px;height:28px;background:var(--primary);color:white;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;flex-shrink:0">${i + 1}</div>
+            <div>
+              <div style="font-size:12px;font-weight:600;color:var(--text)">${step}</div>
+              <div style="font-size:11px;color:var(--text-secondary)">${desc}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
 
-      <h3>Links & Resources</h3>
-      <ul>
-        <li><a href="https://www.cbd.int/gbf/targets/" target="_blank" rel="noopener">GBF Targets (CBD)</a></li>
-        <li><a href="https://www.protectedplanet.net/" target="_blank" rel="noopener">Protected Planet / WDPA</a></li>
-        <li><a href="https://www.keybiodiversityareas.org/" target="_blank" rel="noopener">Key Biodiversity Areas</a></li>
-        <li><a href="https://lmmanetwork.org/" target="_blank" rel="noopener">LMMA Network</a></li>
-      </ul>
+      <div class="about-section-divider"></div>
 
-      <h3>Version</h3>
-      <p>v2.0.0 &mdash; Built for the Department of Environmental Protection and Conservation (DEPC), Vanuatu.</p>
+      <!-- ── Technical Notes ────────────────────────────────── -->
+      <h3>Technical Specifications</h3>
+      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:20px">
+        <table style="width:100%;border-collapse:collapse;font-size:13px">
+          ${[
+            ['Storage', 'Google Firestore (real-time sync across all devices)'],
+            ['Map Engine', 'Leaflet.js v1.9.4 with OpenStreetMap / Esri base tiles'],
+            ['GIS Library', 'Turf.js v7.1.0 for spatial operations and area calculation'],
+            ['Projection', 'Web display: EPSG:3857 (Web Mercator) | Data: EPSG:4326 (WGS84)'],
+            ['CRS Support', 'Automatic reprojection via proj4js for uploaded data'],
+            ['Upload Format', '.zip containing .shp, .dbf, .shx, .prj — up to 50 MB'],
+            ['Area Method', 'Geodesic (turf.area) with union/dissolve to prevent double-counting'],
+            ['Print Export', 'A4 landscape cartographic maps via Leaflet print plugin'],
+            ['Authentication', 'Local passphrase with bcrypt hashing; session-only storage'],
+            ['Browser Support', 'Chrome, Firefox, Edge, Safari (ES2020+ required)'],
+          ].map(([k, v]) => `
+            <tr style="border-bottom:1px solid var(--border-light)">
+              <td style="padding:10px 16px;font-weight:600;color:var(--text-secondary);width:35%;font-size:12px;background:var(--gray-50)">${k}</td>
+              <td style="padding:10px 16px;color:var(--text);font-size:12px">${v}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── Contact ────────────────────────────────────────── -->
+      <h3>Contact &amp; Data Requests</h3>
+      <div class="about-contact-grid">
+        <div class="about-contact-card">
+          <div class="contact-card-name">Raymond Baereleo</div>
+          <div class="contact-card-title">GIS &amp; Data Management, DEPC</div>
+          <a href="mailto:rbaereleo@vanuatu.gov.vu" class="contact-card-email">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            rbaereleo@vanuatu.gov.vu
+          </a>
+        </div>
+        <div class="about-contact-card">
+          <div class="contact-card-name">David Launder</div>
+          <div class="contact-card-title">Senior Environment Officer, DEPC</div>
+          <a href="mailto:dlaunder@vanuatu.gov.vu" class="contact-card-email">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            dlaunder@vanuatu.gov.vu
+          </a>
+        </div>
+        <div class="about-contact-card">
+          <div class="contact-card-name">DEPC Vanuatu</div>
+          <div class="contact-card-title">Department of Environmental Protection &amp; Conservation</div>
+          <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Port Vila, Republic of Vanuatu</div>
+        </div>
+      </div>
+
+      <div class="about-section-divider"></div>
+
+      <!-- ── Links & Resources ──────────────────────────────── -->
+      <h3>Links &amp; Resources</h3>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px">
+        ${[
+          ['CBD GBF Targets', 'https://www.cbd.int/gbf/targets/'],
+          ['Protected Planet / WDPA', 'https://www.protectedplanet.net/'],
+          ['Key Biodiversity Areas', 'https://www.keybiodiversityareas.org/'],
+          ['LMMA Network', 'https://lmmanetwork.org/'],
+          ['UNDP Biodiversity', 'https://www.undp.org/topics/nature-environment/biodiversity'],
+          ['Vanuatu DEPC', 'https://depc.gov.vu/'],
+        ].map(([label, url]) => `
+          <a href="${url}" target="_blank" rel="noopener noreferrer"
+             style="display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+                    padding:7px 14px;border:1px solid var(--border);border-radius:var(--radius-sm);
+                    background:var(--bg-white);color:var(--secondary);text-decoration:none;
+                    transition:all 0.15s ease">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+            ${label}
+          </a>
+        `).join('')}
+      </div>
+
+      <!-- ── Version ────────────────────────────────────────── -->
+      <div style="padding:12px 16px;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--border);font-size:12px;color:var(--text-secondary);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <span>
+          <strong style="color:var(--text)">Version:</strong> v2.0.0 &mdash;
+          Built for DEPC Vanuatu.
+          GBF reporting period: 2024&ndash;2030.
+        </span>
+        <span style="font-size:11px;color:var(--text-tertiary)">
+          Developed by <strong style="color:var(--text-secondary)">Vanua Spatial Solutions</strong>
+        </span>
+      </div>
 
     </div>
   `;
