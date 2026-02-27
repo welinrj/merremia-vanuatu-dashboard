@@ -663,12 +663,30 @@ export async function openPrintAllMaps() {
   document.body.classList.add('print-mode');
 
   const pageContainer = overlay.querySelector('#print-pages');
+  const state = getAppState();
 
+  // Render all page HTML synchronously first (creates DOM containers for each map).
+  // Map initialization is deferred and done sequentially below — creating many Leaflet
+  // canvas instances simultaneously exhausts browser canvas memory and causes some maps
+  // to render blank.  The same sequential pattern is used by openPrintProvinceMaps.
+  const mapEntries = []; // [{ mapId, targetCode, layers }]
   for (const code of targetCodes) {
     const target = getTargetConfig(code);
     if (!target) continue;
-    renderTargetPage(pageContainer, code, target);
+    const mapId = renderTargetPage(pageContainer, code, target, true /* skipMapInit */);
+    mapEntries.push({ mapId, code, layers: getTargetLayers(code) });
   }
+
+  // Sequential map initialization: wait 600 ms between each to let the canvas settle
+  let idx = 0;
+  function initNext() {
+    if (idx >= mapEntries.length) return;
+    const { mapId, code, layers } = mapEntries[idx];
+    idx++;
+    initPrintLeafletMap(mapId, code, layers, state.provincesGeojson);
+    setTimeout(() => requestAnimationFrame(initNext), 600);
+  }
+  requestAnimationFrame(initNext);
 
   overlay.querySelector('#print-close-btn').addEventListener('click', closePrintOverlay);
   overlay.querySelector('#print-print-btn').addEventListener('click', () => window.print());
@@ -720,8 +738,12 @@ function buildOverlay(targetCodes, customLabel) {
 /**
  * Renders one print page for a target and appends it to the container.
  * Includes detailed technical metrics suitable for GBF/NBSAP reporting.
+ *
+ * @param {boolean} [skipMapInit] - When true, skip scheduling Leaflet map
+ *   initialization (caller will do it sequentially). Returns the map container ID.
+ * @returns {string} Map container ID
  */
-function renderTargetPage(container, targetCode, target) {
+function renderTargetPage(container, targetCode, target, skipMapInit = false) {
   const state = getAppState();
   const allLayers = getDashboardLayers();
   const layers = getTargetLayers(targetCode);
@@ -913,9 +935,13 @@ function renderTargetPage(container, targetCode, target) {
   const analysis = generateTargetAnalysis(targetCode, layers, metrics, expected, baselines);
   renderAnalysisPage(container, targetCode, target, analysis);
 
-  requestAnimationFrame(() => {
-    setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson), 100);
-  });
+  if (!skipMapInit) {
+    requestAnimationFrame(() => {
+      setTimeout(() => initPrintLeafletMap(mapId, targetCode, layers, state.provincesGeojson), 100);
+    });
+  }
+
+  return mapId;
 }
 
 /**
