@@ -416,16 +416,16 @@ export function initAbout() {
       <h3>Contact &amp; Data Requests</h3>
       <div class="about-contact-grid">
         <div class="about-contact-card">
-          <div class="contact-card-name">Raymond Baereleo</div>
-          <div class="contact-card-title">GIS &amp; Data Management, DEPC</div>
+          <div class="contact-card-name">Rolenas Baereleo</div>
+          <div class="contact-card-title">Manager BioDiversity &amp; Conservation, DEPC</div>
           <a href="mailto:rbaereleo@vanuatu.gov.vu" class="contact-card-email">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             rbaereleo@vanuatu.gov.vu
           </a>
         </div>
         <div class="about-contact-card">
-          <div class="contact-card-name">David Launder</div>
-          <div class="contact-card-title">Senior Environment Officer, DEPC</div>
+          <div class="contact-card-name">Dean Wotlolan</div>
+          <div class="contact-card-title">Senior Biodiversity &amp; Conservation Officer, DEPC</div>
           <a href="mailto:dlaunder@vanuatu.gov.vu" class="contact-card-email">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
             dlaunder@vanuatu.gov.vu
