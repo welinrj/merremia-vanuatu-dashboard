@@ -181,10 +181,6 @@ const ProtectedAreas: FC = () => {
   })
 
   // Dashboard stats
-  const totalCCA = areas.filter((a) => a.type === 'cca').length
-  const totalMPA = areas.filter((a) => a.type === 'mpa').length
-  const totalActive = areas.filter((a) => a.status === 'active' || a.status === 'designated').length
-  const totalAreaHa = areas.reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
   const totalTerrestrialHa = areas.filter((a) => a.type === 'cca').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
   const totalMarineHa = areas.filter((a) => a.type === 'mpa').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
 
