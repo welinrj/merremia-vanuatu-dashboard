@@ -2,6 +2,7 @@
  * Standard schema definitions for layers and features.
  * All features stored in the portal conform to this schema.
  */
+import { CATEGORIES } from '../config/categories.js';
 
 /**
  * Required standard properties on every GeoJSON feature.
@@ -50,7 +51,7 @@ export function createLayerMetadata(opts = {}) {
     originalFilename: opts.originalFilename || '',
     category: opts.category || 'OTHER',
     targets: opts.targets || [],
-    realm: opts.realm || 'terrestrial',
+    realm: opts.realm || (CATEGORIES[opts.category]?.defaultRealm) || 'terrestrial',
     countsToward30x30: opts.countsToward30x30 || false,
     isReference: opts.isReference || false,
     uploadTimestamp: opts.uploadTimestamp || new Date().toISOString(),

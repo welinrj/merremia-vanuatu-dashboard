@@ -447,7 +447,7 @@ function renderStep2(body) {
     ? getExpectedLayerName(el)
     : (wizardState.opts.originalFilename || '').replace(/\.(zip|kml|csv|geojson|json)$/i, '');
   const defaultCategory = el ? el.category : CATEGORY_KEYS[0];
-  const defaultRealm = el ? el.realm : 'terrestrial';
+  const defaultRealm = el ? el.realm : (CATEGORIES[defaultCategory]?.defaultRealm || 'terrestrial');
   const defaultTarget = el ? el.target : null;
   const default30x30 = el ? el.countsToward30x30 : false;
 

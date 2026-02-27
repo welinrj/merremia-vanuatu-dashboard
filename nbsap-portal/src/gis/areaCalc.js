@@ -13,6 +13,22 @@
  */
 import * as turf from '@turf/turf';
 import ENV from '../config/env.js';
+import { CATEGORIES } from '../config/categories.js';
+
+/**
+ * Resolves the effective realm for a feature.
+ * Uses the category's defaultRealm as fallback when neither the feature
+ * properties nor the layer metadata explicitly specify a non-terrestrial realm.
+ * This fixes marine layers (MPA, EEZ, LMMA, etc.) that were uploaded before
+ * the realm default was corrected.
+ */
+function _resolveRealm(featureProps, layerMeta) {
+  if (featureProps.realm) return featureProps.realm;
+  if (layerMeta.realm && layerMeta.realm !== 'terrestrial') return layerMeta.realm;
+  const cat = layerMeta.category ? CATEGORIES[layerMeta.category] : null;
+  if (cat && cat.defaultRealm) return cat.defaultRealm;
+  return layerMeta.realm || 'terrestrial';
+}
 
 /** Official Vanuatu provinces — exclude "Unassigned" and foreign names from breakdowns */
 const VALID_PROVINCES = new Set(['Torba', 'Sanma', 'Penama', 'Malampa', 'Shefa', 'Tafea']);
@@ -216,7 +232,7 @@ export function compute30x30Metrics(layers, filters = {}) {
 
     for (const f of features) {
       const areaHa = f.properties.area_ha || 0;
-      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      const realm = _resolveRealm(f.properties, meta);
 
       if (realm === 'marine') {
         marineFeatures.push(f);
@@ -352,7 +368,8 @@ export function computeTarget1Metrics(layers, filters = {}) {
     if (taggedT1 && !T1_TERRESTRIAL_CATEGORIES.has(meta.category)) continue;
 
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
-    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+    const layerRealm = _resolveRealm({}, meta);
+    if (filters.realm && filters.realm !== 'All' && layerRealm !== filters.realm) continue;
 
     layerCount++;
     const cat = meta.category || 'OTHER';
@@ -366,7 +383,7 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
     for (const f of features) {
       const areaHa = f.properties.area_ha || 0;
-      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      const realm = _resolveRealm(f.properties, meta);
       totalFeatures++;
 
       if (realm !== 'terrestrial') continue;
@@ -493,7 +510,8 @@ export function computeTarget2Metrics(layers, filters = {}) {
     if (meta.isReference) continue;
     if (!meta.targets || !meta.targets.includes('T2')) continue;
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
-    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+    const t2LayerRealm = _resolveRealm({}, meta);
+    if (filters.realm && filters.realm !== 'All' && t2LayerRealm !== filters.realm) continue;
 
     layerCount++;
     const cat = meta.category || 'OTHER';
@@ -509,7 +527,7 @@ export function computeTarget2Metrics(layers, filters = {}) {
 
     for (const f of features) {
       const areaHa = f.properties.area_ha || 0;
-      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      const realm = _resolveRealm(f.properties, meta);
       totalFeatures++;
 
       if (isDegraded) {
@@ -659,7 +677,7 @@ export function computeGeneralMetrics(layers, filters = {}) {
       const cat = meta.category || 'OTHER';
       categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
 
-      const realm = f.properties.realm || 'terrestrial';
+      const realm = _resolveRealm(f.properties, meta);
       realmCounts[realm] = (realmCounts[realm] || 0) + 1;
     }
   }
@@ -719,7 +737,8 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     if (meta.isReference) continue;
     if (!meta.targets || !meta.targets.includes(targetCode)) continue;
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
-    if (filters.realm && filters.realm !== 'All' && meta.realm !== filters.realm) continue;
+    const estRealm = _resolveRealm({}, meta);
+    if (filters.realm && filters.realm !== 'All' && estRealm !== filters.realm) continue;
     estimatedFeatures += layer.geojson?.features?.length || 0;
   }
   const tooLarge = estimatedFeatures > DISSOLVE_MAX_POLYGONS;
@@ -737,7 +756,8 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
       if (meta.category !== filters.category) continue;
     }
     if (filters.realm && filters.realm !== 'All') {
-      if (meta.realm !== filters.realm) continue;
+      const lr = _resolveRealm({}, meta);
+      if (lr !== filters.realm) continue;
     }
 
     layerCount++;
@@ -756,7 +776,7 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
 
     for (const f of features) {
       const areaHa = f.properties.area_ha || 0;
-      const realm = f.properties.realm || meta.realm || 'terrestrial';
+      const realm = _resolveRealm(f.properties, meta);
 
       totalFeatures++;
       grossAreaHa += areaHa;
