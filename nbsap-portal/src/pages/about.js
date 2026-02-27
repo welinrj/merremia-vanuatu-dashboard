@@ -165,10 +165,6 @@ export function initAbout() {
       <h3>Version</h3>
       <p>v2.0.0 &mdash; Built for the Department of Environmental Protection and Conservation (DEPC), Vanuatu.</p>
 
-      <div style="margin-top:32px;padding:20px;background:var(--gray-50);border:1px solid var(--border);border-radius:var(--radius-md);font-size:12px;color:var(--text-secondary)">
-        <p><strong style="color:var(--text)">Disclaimer:</strong> This is a monitoring tool. Data accuracy depends on the quality of uploaded layers.
-        Always verify against official sources before using in formal reports.</p>
-      </div>
     </div>
   `;
 }
