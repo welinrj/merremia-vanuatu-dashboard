@@ -9,7 +9,7 @@ import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
 import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpeciesMaps } from '../ui/components/printMap.js';
-import { compute30x30Metrics, computeTargetMetrics } from '../gis/areaCalc.js';
+import { compute30x30Metrics, computeTargetMetrics, computeTarget1Metrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
 import { isAdmin } from '../services/auth/index.js';
@@ -237,7 +237,9 @@ export function refreshDashboard() {
     // Compute metrics once and reuse for province table, chart, and category breakdown
     const metrics = targetCode === 'T3'
       ? compute30x30Metrics(dashLayers, filters)
-      : computeTargetMetrics(dashLayers, targetCode, filters);
+      : targetCode === 'T1'
+        ? computeTarget1Metrics(dashLayers, filters)
+        : computeTargetMetrics(dashLayers, targetCode, filters);
 
     if (tableContainer) renderProvinceTable(tableContainer, metrics.provinceBreakdown);
     if (chartContainer) renderProvinceChart(chartContainer, metrics.provinceBreakdown);
