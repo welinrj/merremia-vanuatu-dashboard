@@ -40,6 +40,13 @@ export function initDashboard() {
       <div class="dashboard-sidebar">
         <div id="filter-panel-container"></div>
         <div id="kpi-container"></div>
+        <div class="sidebar-section-title" style="margin-top:4px">Last Updated</div>
+        <div id="last-updated-container" style="margin-bottom:8px">
+          <span class="last-updated-badge" title="Data last refreshed from Firestore">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.58-4.7"/></svg>
+            <span id="last-updated-text">Syncing&hellip;</span>
+          </span>
+        </div>
         <div class="sidebar-section-title">Export</div>
         <div class="export-toolbar">
           <button class="btn btn-sm btn-outline" id="btn-export-csv" title="${isAdmin() ? 'Export filtered data as CSV' : 'Request data access'}" style="position:relative">
@@ -99,6 +106,12 @@ export function initDashboard() {
           </div>
           <div id="category-breakdown-container" style="margin-top:20px"></div>
         </div>
+        <div class="dashboard-gbf-note">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+          Aligned with the
+          <a href="https://www.cbd.int/gbf/targets/" target="_blank" rel="noopener">Kunming-Montreal Global Biodiversity Framework</a>
+          &mdash; DEPC Vanuatu &copy; ${new Date().getFullYear()}. Area calculations use geodesic methods (WGS84).
+        </div>
       </div>
     </div>
   `;
@@ -148,6 +161,17 @@ export function initDashboard() {
 export function refreshDashboard() {
   _dashboardDirty = false;
   const state = getAppState();
+
+  // Update last-updated timestamp
+  const lastUpdatedEl = document.getElementById('last-updated-text');
+  if (lastUpdatedEl) {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString([], { day: 'numeric', month: 'short' });
+    lastUpdatedEl.textContent = `${dateStr}, ${timeStr}`;
+    const badge = lastUpdatedEl.closest('.last-updated-badge');
+    if (badge) badge.classList.add('synced');
+  }
 
   // Re-render filter panel
   const filterContainer = document.getElementById('filter-panel-container');
