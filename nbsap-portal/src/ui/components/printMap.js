@@ -2698,7 +2698,9 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
   let totalDataFeatures = 0;
   for (const features of Object.values(groupPolygons)) totalDataFeatures += features.length;
   for (const features of Object.values(pointsByCat)) totalDataFeatures += features.length;
-  const needsCap = totalDataFeatures > PRINT_MAP_TOTAL_CAP;
+  // Only cap when rendering province-by-province (multiple Leaflet instances in sequence).
+  // The national map is a single instance so all features can render safely.
+  const needsCap = !!provinceFilter && totalDataFeatures > PRINT_MAP_TOTAL_CAP;
   // Budget remaining for data features after reference layers
   let featureBudget = PRINT_MAP_TOTAL_CAP;
 
@@ -2760,9 +2762,17 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
   setTimeout(() => {
     printMap.invalidateSize();
     if (provinceFilter && provinceBoundsLayer) {
+      // Province view: zoom to the selected province boundary
       const provBounds = provinceBoundsLayer.getBounds();
       if (provBounds.isValid()) {
         printMap.fitBounds(provBounds, { padding: [30, 30], maxZoom: 12 });
+      }
+    } else if (provincesGeojson) {
+      // National view: always fit to the full country extent so all islands are visible,
+      // even if some feature groups were not rendered or are concentrated in one region
+      const nationalBounds = L.geoJSON(provincesGeojson).getBounds();
+      if (nationalBounds.isValid()) {
+        printMap.fitBounds(nationalBounds, { padding: [40, 40], maxZoom: 10 });
       }
     } else if (featureGroup.getLayers().length > 0) {
       const bounds = featureGroup.getBounds();
