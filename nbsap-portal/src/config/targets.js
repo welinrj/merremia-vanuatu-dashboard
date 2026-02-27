@@ -5,9 +5,9 @@ export default {
       "name": "Target 1: Biodiversity Spatial Planning",
       "icon": "\u{1F5FA}",
       "color": "#1565C0",
-      "description": "Percentage of land and sea area covered by biodiversity-inclusive spatial plans (CCA, KBA, MPA, LMMA, Spatial Plans, Inland Water).",
+      "description": "Percentage of land and sea area covered by biodiversity-inclusive spatial plans (CCA, Inland Water, MPA, LMMA).",
       "isMetricTarget": true,
-      "recommendedCategories": ["SPATIAL_PLAN", "KBA", "CCA", "INLAND_WATER", "MPA", "LMMA"]
+      "recommendedCategories": ["CCA", "INLAND_WATER", "MPA", "LMMA"]
     },
     {
       "code": "T2",

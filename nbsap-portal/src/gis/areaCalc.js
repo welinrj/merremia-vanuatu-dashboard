@@ -320,10 +320,10 @@ const T1_EXCLUDED_CATEGORIES = new Set(['EEZ', 'ADMIN_BOUNDARY']);
 
 /**
  * Categories that count toward T1 spatial planning calculation.
- * T1 covers biodiversity-inclusive spatial plans across both terrestrial
- * and marine realms: CCA, KBA, SPATIAL_PLAN, INLAND_WATER, MPA, LMMA.
+ * Terrestrial: CCA + Inland Water.
+ * Marine: MPA + LMMA.
  */
-const T1_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'SPATIAL_PLAN', 'KBA', 'MPA', 'LMMA']);
+const T1_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'MPA', 'LMMA']);
 
 /**
  * Computes Target 1 metrics (terrestrial and marine spatial planning).
@@ -331,8 +331,11 @@ const T1_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'SPATIAL_PLAN', 'KBA', 'MP
  * T1 measures the percentage of land and sea area covered by biodiversity-
  * inclusive spatial plans.
  *
- * Terrestrial coverage = dissolved T1 terrestrial features / national terrestrial baseline.
- * Marine coverage = dissolved T1 marine features / national marine baseline.
+ * Terrestrial coverage = (CCA + Inland Water) / total terrestrial area × 100.
+ * Marine coverage = (MPA + LMMA) / (EEZ − national boundary) × 100.
+ *
+ * The marine baseline is (EEZ − national boundary) to exclude land area
+ * from the EEZ polygon, giving the actual ocean area.
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters
@@ -430,7 +433,9 @@ export function computeTarget1Metrics(layers, filters = {}) {
   const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : grossMarine;
 
   const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
-  const mPct = baselines.marine_ha > 0 ? (netMarine / baselines.marine_ha) * 100 : 0;
+  // Marine baseline = EEZ − national boundary (land area) = actual ocean area
+  const marineBaseline = baselines.marine_ha - baselines.terrestrial_ha;
+  const mPct = marineBaseline > 0 ? (netMarine / marineBaseline) * 100 : 0;
 
   // Province breakdown — dissolve per-province for net area
   const provinceBreakdown = Object.entries(provinceGross)
@@ -468,10 +473,11 @@ export function computeTarget1Metrics(layers, filters = {}) {
     terrestrial_ha: round2(netTerrestrial),
     terrestrial_pct: round3(tPct),
     gross_terrestrial_ha: round2(grossTerrestrial),
-    // Marine coverage
+    // Marine coverage — baseline is (EEZ − national boundary)
     marine_ha: round2(netMarine),
     marine_pct: round3(mPct),
     gross_marine_ha: round2(grossMarine),
+    marineBaseline: round2(marineBaseline),
     // General
     totalFeatures,
     layerCount,
