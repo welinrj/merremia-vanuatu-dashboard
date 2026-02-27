@@ -185,6 +185,28 @@ const ProtectedAreas: FC = () => {
   const totalMPA = areas.filter((a) => a.type === 'mpa').length
   const totalActive = areas.filter((a) => a.status === 'active' || a.status === 'designated').length
   const totalAreaHa = areas.reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
+  const totalTerrestrialHa = areas.filter((a) => a.type === 'cca').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
+  const totalMarineHa = areas.filter((a) => a.type === 'mpa').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
+
+  // Vanuatu reference areas for coverage calculation
+  const VANUATU_LAND_AREA_HA = 1_219_000 // ~12,190 km²
+  const VANUATU_MARINE_AREA_HA = 66_300_000 // ~663,000 km² EEZ
+  const terrestrialCoverage = VANUATU_LAND_AREA_HA > 0 ? (totalTerrestrialHa / VANUATU_LAND_AREA_HA) * 100 : 0
+  const marineCoverage = VANUATU_MARINE_AREA_HA > 0 ? (totalMarineHa / VANUATU_MARINE_AREA_HA) * 100 : 0
+
+  // Province summary
+  const provinceSummary = PROVINCES.map((province) => {
+    const provinceAreas = areas.filter((a) => a.province === province)
+    const terrestrial = provinceAreas.filter((a) => a.type === 'cca').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
+    const marine = provinceAreas.filter((a) => a.type === 'mpa').reduce((sum, a) => sum + (a.areaHa ?? 0), 0)
+    return {
+      province,
+      terrestrial,
+      marine,
+      total: terrestrial + marine,
+      features: provinceAreas.length,
+    }
+  }).filter((p) => p.features > 0)
 
   if (loading) {
     return (
@@ -220,20 +242,28 @@ const ProtectedAreas: FC = () => {
         {/* Dashboard stats */}
         <div className="db-stats-grid">
           <div className="db-stat-card">
-            <span className="db-stat-value">{totalCCA}</span>
-            <span className="db-stat-label">Community Conservation Areas</span>
+            <span className="db-stat-value">{formatArea(totalTerrestrialHa)}</span>
+            <span className="db-stat-label">Terrestrial (CCA)</span>
           </div>
           <div className="db-stat-card">
-            <span className="db-stat-value">{totalMPA}</span>
-            <span className="db-stat-label">Marine Protected Areas</span>
+            <span className="db-stat-value">{formatArea(totalMarineHa)}</span>
+            <span className="db-stat-label">Marine (MPA)</span>
           </div>
           <div className="db-stat-card">
-            <span className="db-stat-value">{totalActive}</span>
-            <span className="db-stat-label">Active / Designated</span>
+            <span className="db-stat-value">{areas.length}</span>
+            <span className="db-stat-label">Data Records</span>
           </div>
           <div className="db-stat-card">
-            <span className="db-stat-value">{formatArea(totalAreaHa)}</span>
-            <span className="db-stat-label">Total Area</span>
+            <span className="db-stat-value">{terrestrialCoverage.toFixed(2)}%</span>
+            <span className="db-stat-label">Terrestrial Coverage</span>
+          </div>
+          <div className="db-stat-card">
+            <span className="db-stat-value">{marineCoverage.toFixed(2)}%</span>
+            <span className="db-stat-label">Marine Coverage</span>
+          </div>
+          <div className="db-stat-card">
+            <span className="db-stat-value">{new Set(areas.map((a) => a.province).filter(Boolean)).size}</span>
+            <span className="db-stat-label">Provinces</span>
           </div>
         </div>
 
@@ -300,6 +330,35 @@ const ProtectedAreas: FC = () => {
             <span className="pa-filter-count">
               Showing {filtered.length} of {areas.length}
             </span>
+          </div>
+        )}
+
+        {/* Province Summary */}
+        {provinceSummary.length > 0 && (
+          <div className="table-container" style={{ marginBottom: '1.5rem' }}>
+            <h3>Province Summary</h3>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Province</th>
+                  <th>Terrestrial (ha)</th>
+                  <th>Marine (ha)</th>
+                  <th>Total (ha)</th>
+                  <th>Features</th>
+                </tr>
+              </thead>
+              <tbody>
+                {provinceSummary.map((p) => (
+                  <tr key={p.province}>
+                    <td>{p.province}</td>
+                    <td>{formatArea(p.terrestrial > 0 ? p.terrestrial : null)}</td>
+                    <td>{formatArea(p.marine > 0 ? p.marine : null)}</td>
+                    <td>{formatArea(p.total > 0 ? p.total : null)}</td>
+                    <td>{p.features}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
 
