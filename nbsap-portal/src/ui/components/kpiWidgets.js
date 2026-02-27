@@ -71,8 +71,8 @@ export function renderKPIWidgets(container) {
  * Renders Target 1 (Biodiversity Spatial Planning) KPIs.
  *
  * Shows terrestrial and marine spatial planning coverage.
- * Terrestrial = dissolved T1 terrestrial features / national terrestrial baseline.
- * Marine = dissolved T1 marine features (MPA, LMMA) / national marine baseline.
+ * Terrestrial = (CCA + Inland Water) / total terrestrial area × 100.
+ * Marine = (EEZ − national boundary) / EEZ × 100.
  */
 function renderTarget1KPIs(container, layers, filters) {
   const m = computeTarget1Metrics(layers, filters);
@@ -82,6 +82,8 @@ function renderTarget1KPIs(container, layers, filters) {
   const tPctClamped = Math.min(tPct, 100);
   const mPct = m.marine_pct;
   const mPctClamped = Math.min(mPct, 100);
+  const totalPct = m.total_pct;
+  const totalPctClamped = Math.min(totalPct, 100);
 
   // Category badges
   const catBadges = m.categoryBreakdown.map(c => {
@@ -96,12 +98,12 @@ function renderTarget1KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">CCA, KBA, Spatial Plans (dissolved)</div>
+        <div class="kpi-sublabel">CCA + Inland Water (dissolved)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
         <div class="kpi-label">Marine (ha)</div>
-        <div class="kpi-sublabel">MPA, LMMA (dissolved)</div>
+        <div class="kpi-sublabel">EEZ minus National Boundary</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
@@ -123,7 +125,7 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(m.terrestrial_ha)} ha of ${formatNumber(baselines.terrestrial_ha)} ha total terrestrial
+          (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha total terrestrial = ${formatNumber(m.terrestrial_ha)} ha
         </div>
       </div>
 
@@ -136,14 +138,30 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          ${formatNumber(m.marine_ha)} ha of ${formatNumber(baselines.marine_ha)} ha total marine
+          (EEZ ${formatNumber(m.eez_ha)} ha &minus; Boundary ${formatNumber(m.boundary_ha)} ha) / EEZ ${formatNumber(m.eez_ha)} ha
+        </div>
+      </div>
+
+      <div class="kpi-card wide" style="background:var(--surface-alt, #f0fdf4);border:1px solid #bbf7d0">
+        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:8px">
+          Total Coverage: ${totalPct.toFixed(2)}% of Vanuatu's land and sea area
+        </div>
+        <div class="progress-bar-container" style="height:20px">
+          <div class="progress-bar-fill terrestrial"
+               style="width: ${Math.min(totalPctClamped, 100).toFixed(1)}%;background:linear-gradient(90deg, #065f46, #0ea5e9)">
+            ${totalPct >= 0.5 ? totalPct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-secondary)">
+          <span>${formatNumber(m.total_covered_ha)} ha covered of ${formatNumber(m.total_area_ha)} ha</span>
+          <span>Land: ${tPct.toFixed(1)}% | Sea: ${mPct.toFixed(1)}%</span>
         </div>
       </div>
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
     <div class="kpi-methodology-note">
-      Terrestrial = (CCA + KBA + Spatial Plans + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
-      Marine = (MPA + LMMA) / ${formatNumber(baselines.marine_ha)} ha &times; 100.
+      Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
+      Marine = (EEZ &minus; National Boundary) / EEZ &times; 100.
     </div>
   `;
 }
