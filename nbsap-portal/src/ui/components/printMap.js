@@ -36,11 +36,64 @@ import {
   printExtinctPolygonStyle,
   printExtinctPointStyle
 } from '../../config/symbology.js';
-import { getAppState, getDashboardLayers } from '../state.js';
+import { getAppState, getDashboardLayers, ensureGeoJSONForTargets } from '../state.js';
 import { getLayerOrder } from './mapView.js';
-import { compute30x30Metrics, computeTargetMetrics, dissolveFeatures } from '../../gis/areaCalc.js';
+import { compute30x30Metrics, computeTarget1Metrics, computeTarget2Metrics, computeTargetMetrics, clearMetricsCache, dissolveFeatures } from '../../gis/areaCalc.js';
 
 const OVERLAY_ID = 'print-map-overlay';
+
+/**
+ * Computes target metrics using the correct target-specific function.
+ * Routes to specialised functions for T1/T2/T3 to match the dashboard KPI
+ * computations, and normalises the output to the format expected by the
+ * print page templates.
+ *
+ * @param {Array} allLayers - All dashboard layers (not pre-filtered)
+ * @param {string} targetCode
+ * @param {object} filters
+ * @returns {object} Normalised metrics
+ */
+function computePrintMetrics(allLayers, targetCode, filters) {
+  if (targetCode === 'T3') {
+    return compute30x30Metrics(allLayers, filters);
+  }
+
+  if (targetCode === 'T1') {
+    const t1 = computeTarget1Metrics(allLayers, filters);
+    return {
+      ...t1,
+      totalAreaHa: t1.terrestrial_ha,
+      grossAreaHa: t1.gross_terrestrial_ha,
+      realmTotals: {
+        terrestrial_ha: t1.terrestrial_ha,
+        marine_ha: 0,
+        gross_terrestrial_ha: t1.gross_terrestrial_ha,
+        gross_marine_ha: 0
+      },
+      typeBreakdown: []
+    };
+  }
+
+  if (targetCode === 'T2') {
+    const t2 = computeTarget2Metrics(allLayers, filters);
+    const netT = (t2.realmTotals?.degraded_terrestrial_ha || 0) + (t2.realmTotals?.restoration_terrestrial_ha || 0);
+    const netM = (t2.realmTotals?.degraded_marine_ha || 0) + (t2.realmTotals?.restoration_marine_ha || 0);
+    return {
+      ...t2,
+      totalAreaHa: t2.degraded_ha + t2.restoration_ha,
+      grossAreaHa: t2.gross_degraded_ha + t2.gross_restoration_ha,
+      realmTotals: {
+        terrestrial_ha: netT,
+        marine_ha: netM,
+        gross_terrestrial_ha: netT,
+        gross_marine_ha: netM
+      },
+      typeBreakdown: []
+    };
+  }
+
+  return computeTargetMetrics(allLayers, targetCode, filters);
+}
 
 /** Vanuatu flag SVG for print headers (from flag-icons project) */
 const FLAG_SVG = `<svg width="48" height="36" viewBox="0 0 640 480" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" style="border:0.5px solid #ccc;border-radius:2px;flex-shrink:0"><defs><clipPath id="vu-a"><path d="M0 0v475l420-195h480v-85H420Z"/></clipPath></defs><path fill="#009543" d="M0 0h640v480H0z"/><path fill="#d21034" d="M0 0h640v240H0z"/><g clip-path="url(#vu-a)" transform="scale(.71111 1.01053)"><path stroke="#fdce12" stroke-width="110" d="m0 0 420 195h480v85H420L0 475"/><path fill="none" stroke="#000" stroke-width="60" d="m0 0 420 195h480m0 85H420L0 475"/></g><g fill="#fdce12" transform="translate(-22)scale(1.01053)"><path d="M106.9 283v27c23.5 0 69.7-18 69.7-76.1s-49.3-68.9-64-68.9-60.3 10.6-60.3 58c0 47.6 44.7 52 53.5 52s41.8-8 38-43.6a35.5 35.5 0 0 1-35.4 31.5c-24 0-39-17.8-39-35.4s14.6-41.2 39.9-41.2 43.8 22.5 43.8 45.1-17.8 51.5-46.2 51.5z"/><g id="vu-b"><path stroke="#fdce12" stroke-width=".8" d="m86.2 247.7 1.4 1s11.2-25.5 41.1-43.6c-3.8 2-23.8 12-42.5 42.6z"/><path d="M89.1 243.3s-3.4-7-.4-10.2 1.7 8.3 1.7 8.3l1.3-1.9s-2-8.6.2-10.4 1.2 8.3 1.2 8.3l1.4-1.8s-1.5-8.4.7-10 .9 8 .9 8l1.6-2s-1.2-8 1.5-9.9.3 7.6.3 7.6l1.8-2s-.8-7.3 1.5-9c2.3-1.6.4 7 .4 7l1.6-1.8s-.5-6.8 1.7-8.4.2 6.5.2 6.5l1.7-1.6s-.4-6.9 2.4-8.2-.5 6.4-.5 6.4l2-1.6s.5-8 2.9-8.7c2.4-.8-1 7-1 7l1.7-1.4s.9-6.8 3.5-7.6c2.7-.9-1.6 6.2-1.6 6.2l1.7-1.3s1.9-6.8 4.4-7.6c2.4-.7-2.6 6.5-2.6 6.5l1.7-1.2s2.7-6.2 5-6.6c2.1-.4-2.6 5.1-2.6 5.1l2.1-1.2s3.5-6.4 4.8-4.5-5 4.9-5 4.9l-2 1.2s7.5-3.6 8.4-1.8-10.3 3-10.3 3l-1.8 1.2s7.5-2 6.6-.1-8.4 1.5-8.4 1.5l-1.7 1.2s7.5-1.8 6.5 0c-1 1.6-8.3 1.5-8.3 1.5l-1.8 1.5s7.3-2 6.2.3-9.4 2.1-9.4 2.1l-2 2s7.7-2.7 7-.6c-.6 2-9.4 3-9.4 3l-2 2s8.3-2.7 5.8-.2c-2.4 2.6-8.5 3.2-8.5 3.2l-2.3 3s8.2-5 7-2.2-9.2 4.7-9.2 4.7l-1.6 2s7.4-4.3 6.6-2c-.7 2.5-8.6 5-8.6 5l-1.3 1.8s8.7-5.2 8-2.5c-.8 2.6-9.1 4.5-9.1 4.5l-1 1.7s8-4.7 8-2.4c.2 2.2-9.4 4.4-9.4 4.4z"/></g><use xlink:href="#vu-b" width="100%" height="100%" transform="matrix(-1 0 0 1 220 0)"/></g></svg>`;
@@ -102,10 +155,14 @@ function buildLegendHtml(layers, showProvince) {
 /**
  * Opens the print view for a single target.
  */
-export function openPrintMap(targetCode) {
+export async function openPrintMap(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode);
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode]);
+  clearMetricsCache();
 
   const overlay = buildOverlay([targetCode]);
   document.body.appendChild(overlay);
@@ -126,10 +183,14 @@ export function openPrintMap(targetCode) {
  * initializing before the next province starts, preventing browser crashes
  * on large datasets like T10.
  */
-export function openPrintProvinceMaps(targetCode) {
+export async function openPrintProvinceMaps(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode);
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode]);
+  clearMetricsCache();
 
   const state = getAppState();
   const provinces = state.provinces || [];
@@ -181,10 +242,14 @@ const T4_SPECIES = [
  * Each page shows the species distribution across all provinces,
  * with resident vs extinct/possibly extinct areas differentiated.
  */
-export function openPrintSpeciesMaps(targetCode) {
+export async function openPrintSpeciesMaps(targetCode) {
   closePrintOverlay();
   const target = getTargetConfig(targetCode || 'T4');
   if (!target) return;
+
+  // Ensure GeoJSON is loaded for this target before rendering
+  await ensureGeoJSONForTargets([targetCode || 'T4']);
+  clearMetricsCache();
 
   const state = getAppState();
   const layers = getTargetLayers(targetCode || 'T4');
@@ -563,25 +628,16 @@ function buildProvinceSharedContext(targetCode, layers, provinces) {
   const legendHtml = buildLegendHtml(layers, true);
 
   // Cache national metrics (called once instead of 6 times)
-  const isT3 = targetCode === 'T3';
+  const allDashLayers = getDashboardLayers();
   const allFilter = { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' };
-  let nationalMetrics;
-  if (isT3) {
-    nationalMetrics = compute30x30Metrics(layers, allFilter);
-  } else {
-    nationalMetrics = computeTargetMetrics(layers, targetCode, allFilter);
-  }
+  const nationalMetrics = computePrintMetrics(allDashLayers, targetCode, allFilter);
 
   // Pre-compute per-province metrics so renderProvincePage doesn't call
   // computeTargetMetrics 6 times (each of which iterates all features)
   const provinceMetrics = {};
   for (const prov of provinces) {
     const provFilter = { targets: [targetCode], province: prov, category: 'All', realm: 'All', year: 'All' };
-    if (isT3) {
-      provinceMetrics[prov] = compute30x30Metrics(layers, provFilter);
-    } else {
-      provinceMetrics[prov] = computeTargetMetrics(layers, targetCode, provFilter);
-    }
+    provinceMetrics[prov] = computePrintMetrics(allDashLayers, targetCode, provFilter);
   }
 
   const expected = getExpectedForTarget(targetCode);
@@ -592,10 +648,15 @@ function buildProvinceSharedContext(targetCode, layers, provinces) {
 /**
  * Opens the print view for all targets (one map page per target).
  */
-export function openPrintAllMaps() {
+export async function openPrintAllMaps() {
   closePrintOverlay();
 
   const targetCodes = targetsConfig.targets.map(t => t.code);
+
+  // Ensure GeoJSON is loaded for ALL targets before rendering
+  await ensureGeoJSONForTargets(targetCodes);
+  clearMetricsCache();
+
   const overlay = buildOverlay(targetCodes);
   document.body.appendChild(overlay);
   document.body.classList.add('print-mode');
@@ -661,17 +722,13 @@ function buildOverlay(targetCodes, customLabel) {
  */
 function renderTargetPage(container, targetCode, target) {
   const state = getAppState();
+  const allLayers = getDashboardLayers();
   const layers = getTargetLayers(targetCode);
   const expected = getExpectedForTarget(targetCode);
   const baselines = ENV.nationalBaselines;
 
-  // Compute metrics (now includes dissolution)
-  let metrics;
-  if (targetCode === 'T3') {
-    metrics = compute30x30Metrics(layers, { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' });
-  } else {
-    metrics = computeTargetMetrics(layers, targetCode, { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' });
-  }
+  // Compute metrics using target-specific functions (matches dashboard KPIs)
+  const metrics = computePrintMetrics(allLayers, targetCode, { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' });
 
   // Count features (excluding reference layers)
   let totalFeatures = 0;
@@ -875,7 +932,7 @@ function renderProvincePage(container, targetCode, target, provinceName, sharedC
   // Use pre-computed province metrics if available, else compute on the fly
   const isT3 = targetCode === 'T3';
   const metrics = sharedCtx?.provinceMetrics?.[provinceName] || (
-    isT3 ? compute30x30Metrics(layers, provinceFilter) : computeTargetMetrics(layers, targetCode, provinceFilter)
+    computePrintMetrics(getDashboardLayers(), targetCode, provinceFilter)
   );
 
   // Use pre-indexed province features if available, else filter on the fly
@@ -1454,7 +1511,7 @@ function generateProvinceAnalysis(targetCode, layers, metrics, expected, baselin
   // National-level metrics for comparison — use cached version if available
   const nationalMetrics = cachedNationalMetrics || (() => {
     const allFilter = { targets: [targetCode], province: 'All', category: 'All', realm: 'All', year: 'All' };
-    return isT3 ? compute30x30Metrics(layers, allFilter) : computeTargetMetrics(layers, targetCode, allFilter);
+    return computePrintMetrics(getDashboardLayers(), targetCode, allFilter);
   })();
   const nationalNetArea = isT3
     ? ((nationalMetrics.terrestrial_ha || 0) + (nationalMetrics.marine_ha || 0))
