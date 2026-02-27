@@ -30,8 +30,8 @@ export function initAbout() {
           <div class="target-doc-code">T1</div>
           <div class="target-doc-body">
             <strong>Biodiversity Spatial Planning</strong>
-            <p>Percentage of land area covered by biodiversity-inclusive spatial plans &mdash; provincial/municipal physical plans and CCA boundary zones.</p>
-            <div class="target-doc-layers">Layers: Biodiversity Spatial Plans, Key Biodiversity Areas</div>
+            <p>Percentage of land and sea area covered by biodiversity-inclusive spatial plans &mdash; CCA, KBA, MPA, LMMA, Spatial Plans, and Inland Water.</p>
+            <div class="target-doc-layers">Layers: Biodiversity Spatial Plans, Key Biodiversity Areas, Marine Protected Areas, Locally Managed Marine Areas, Community Conserved Areas, Inland Water</div>
           </div>
         </div>
 

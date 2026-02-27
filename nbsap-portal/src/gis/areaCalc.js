@@ -316,22 +316,23 @@ export function compute30x30Metrics(layers, filters = {}) {
 // ─── TARGET 1 METRICS (Biodiversity Spatial Planning) ────────────────────────
 
 /** Categories excluded from T1 feature calculations */
-const T1_EXCLUDED_CATEGORIES = new Set(['MPA', 'LMMA', 'EEZ', 'ADMIN_BOUNDARY']);
+const T1_EXCLUDED_CATEGORIES = new Set(['EEZ', 'ADMIN_BOUNDARY']);
 
 /**
- * Categories that count toward T1 terrestrial calculation.
- * T1 = terrestrial-only spatial planning coverage.
+ * Categories that count toward T1 spatial planning calculation.
+ * T1 covers biodiversity-inclusive spatial plans across both terrestrial
+ * and marine realms: CCA, KBA, SPATIAL_PLAN, INLAND_WATER, MPA, LMMA.
  */
-const T1_TERRESTRIAL_CATEGORIES = new Set(['CCA', 'INLAND_WATER']);
+const T1_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'SPATIAL_PLAN', 'KBA', 'MPA', 'LMMA']);
 
 /**
- * Computes Target 1 metrics (terrestrial only).
+ * Computes Target 1 metrics (terrestrial and marine spatial planning).
  *
- * T1 measures the percentage of land area covered by biodiversity-inclusive
- * spatial plans: ((CCA + Inland Water) / total terrestrial baseline) * 100.
+ * T1 measures the percentage of land and sea area covered by biodiversity-
+ * inclusive spatial plans.
  *
- * T1 has only terrestrial Biodiversity Spatial Plans — no marine component.
- * Marine protected area calculations belong to T3 (30x30 Conservation).
+ * Terrestrial coverage = dissolved T1 terrestrial features / national terrestrial baseline.
+ * Marine coverage = dissolved T1 marine features / national marine baseline.
  *
  * @param {Array<{ metadata: object, geojson: object }>} layers
  * @param {object} filters
@@ -344,9 +345,11 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
   const baselines = ENV.nationalBaselines;
 
-  // ── Terrestrial: CCA + Inland Water only ──────────────────────────
+  // ── Collect terrestrial and marine features ──────────────────────────
   const terrestrialFeatures = [];
+  const marineFeatures = [];
   let grossTerrestrial = 0;
+  let grossMarine = 0;
   let totalFeatures = 0;
   let layerCount = 0;
   const provinceGross = {};
@@ -359,13 +362,13 @@ export function computeTarget1Metrics(layers, filters = {}) {
     if (meta.isReference) continue;
     if (T1_EXCLUDED_CATEGORIES.has(meta.category)) continue;
 
-    // Only include CCA and INLAND_WATER categories (tagged T1 or auto-category)
+    // Include layers tagged T1 or with a T1-relevant category
     const taggedT1 = meta.targets && meta.targets.includes('T1');
-    const autoCategory = T1_TERRESTRIAL_CATEGORIES.has(meta.category);
+    const autoCategory = T1_CATEGORIES.has(meta.category);
     if (!taggedT1 && !autoCategory) continue;
 
-    // Even T1-tagged layers must be CCA or INLAND_WATER to count toward terrestrial
-    if (taggedT1 && !T1_TERRESTRIAL_CATEGORIES.has(meta.category)) continue;
+    // T1-tagged layers must also belong to a recognized T1 category
+    if (taggedT1 && !T1_CATEGORIES.has(meta.category)) continue;
 
     if (filters.category && filters.category !== 'All' && meta.category !== filters.category) continue;
     const layerRealm = _resolveRealm({}, meta);
@@ -386,17 +389,29 @@ export function computeTarget1Metrics(layers, filters = {}) {
       const realm = _resolveRealm(f.properties, meta);
       totalFeatures++;
 
-      if (realm !== 'terrestrial') continue;
-
-      terrestrialFeatures.push(f);
-      grossTerrestrial += areaHa;
+      if (realm === 'marine') {
+        marineFeatures.push(f);
+        grossMarine += areaHa;
+      } else {
+        terrestrialFeatures.push(f);
+        grossTerrestrial += areaHa;
+      }
 
       const prov = f.properties.province || 'Unassigned';
-      if (!provinceGross[prov]) provinceGross[prov] = { terrestrial: 0, tCount: 0 };
-      provinceGross[prov].terrestrial += areaHa;
-      provinceGross[prov].tCount++;
-      if (!provinceFeatures[prov]) provinceFeatures[prov] = [];
-      provinceFeatures[prov].push(f);
+      if (!provinceGross[prov]) provinceGross[prov] = { terrestrial: 0, marine: 0, tCount: 0, mCount: 0 };
+      if (realm === 'marine') {
+        provinceGross[prov].marine += areaHa;
+        provinceGross[prov].mCount++;
+      } else {
+        provinceGross[prov].terrestrial += areaHa;
+        provinceGross[prov].tCount++;
+      }
+      if (!provinceFeatures[prov]) provinceFeatures[prov] = { terrestrial: [], marine: [] };
+      if (realm === 'marine') {
+        provinceFeatures[prov].marine.push(f);
+      } else {
+        provinceFeatures[prov].terrestrial.push(f);
+      }
 
       if (!categoryGross[cat]) categoryGross[cat] = { area: 0, count: 0 };
       categoryGross[cat].area += areaHa;
@@ -406,24 +421,32 @@ export function computeTarget1Metrics(layers, filters = {}) {
     }
   }
 
-  // Dissolve terrestrial features for net area (removes overlaps between CCA + INLAND_WATER)
+  // Dissolve terrestrial features for net area
   const dissolvedTerrestrial = dissolveFeatures(terrestrialFeatures);
   const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
 
-  const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  // Dissolve marine features for net area
+  const dissolvedMarine = dissolveFeatures(marineFeatures);
+  const netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : grossMarine;
 
-  // Province breakdown (terrestrial only) — dissolve per-province for net area
+  const tPct = baselines.terrestrial_ha > 0 ? (netTerrestrial / baselines.terrestrial_ha) * 100 : 0;
+  const mPct = baselines.marine_ha > 0 ? (netMarine / baselines.marine_ha) * 100 : 0;
+
+  // Province breakdown — dissolve per-province for net area
   const provinceBreakdown = Object.entries(provinceGross)
     .filter(([name]) => VALID_PROVINCES.has(name))
     .map(([name, data]) => {
       const pf = provinceFeatures[name];
-      const dissolved = pf ? dissolveFeatures(pf) : null;
-      const tNet = dissolved ? computeAreaHa(dissolved) : data.terrestrial;
+      const tDissolved = pf ? dissolveFeatures(pf.terrestrial) : null;
+      const mDissolved = pf ? dissolveFeatures(pf.marine) : null;
+      const tNet = tDissolved ? computeAreaHa(tDissolved) : data.terrestrial;
+      const mNet = mDissolved ? computeAreaHa(mDissolved) : data.marine;
       return {
         province: name,
         terrestrial_ha: round2(tNet),
-        total_ha: round2(tNet),
-        features: data.tCount
+        marine_ha: round2(mNet),
+        total_ha: round2(tNet + mNet),
+        features: data.tCount + data.mCount
       };
     }).sort((a, b) => b.total_ha - a.total_ha);
 
@@ -441,17 +464,22 @@ export function computeTarget1Metrics(layers, filters = {}) {
 
   const result = {
     targetCode: 'T1',
-    // Terrestrial: (CCA + Inland Water) / total terrestrial
+    // Terrestrial coverage
     terrestrial_ha: round2(netTerrestrial),
     terrestrial_pct: round3(tPct),
     gross_terrestrial_ha: round2(grossTerrestrial),
+    // Marine coverage
+    marine_ha: round2(netMarine),
+    marine_pct: round3(mPct),
+    gross_marine_ha: round2(grossMarine),
     // General
     totalFeatures,
     layerCount,
     provinceBreakdown,
     categoryBreakdown,
     baselines,
-    dissolvedTerrestrial
+    dissolvedTerrestrial,
+    dissolvedMarine
   };
   _metricsCache.set(key, result);
   return result;

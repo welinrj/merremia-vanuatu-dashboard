@@ -62,13 +62,13 @@ function computePrintMetrics(allLayers, targetCode, filters) {
     const t1 = computeTarget1Metrics(allLayers, filters);
     return {
       ...t1,
-      totalAreaHa: t1.terrestrial_ha,
-      grossAreaHa: t1.gross_terrestrial_ha,
+      totalAreaHa: t1.terrestrial_ha + t1.marine_ha,
+      grossAreaHa: t1.gross_terrestrial_ha + t1.gross_marine_ha,
       realmTotals: {
         terrestrial_ha: t1.terrestrial_ha,
-        marine_ha: 0,
+        marine_ha: t1.marine_ha,
         gross_terrestrial_ha: t1.gross_terrestrial_ha,
-        gross_marine_ha: 0
+        gross_marine_ha: t1.gross_marine_ha
       },
       typeBreakdown: []
     };
@@ -1100,7 +1100,7 @@ function renderProvincePage(container, targetCode, target, provinceName, sharedC
 /** GBF target thresholds — target-specific goals where applicable */
 const TARGET_THRESHOLDS = {
   T3: { terrestrial: 30, marine: 30, label: '30% by 2030 (GBF Target 3)' },
-  T1: { terrestrial: 100, marine: null, label: '100% terrestrial spatial plan coverage' },
+  T1: { terrestrial: 100, marine: 100, label: '100% spatial plan coverage (terrestrial & marine)' },
   T2: { terrestrial: null, marine: null, label: 'Map all degraded areas' }
 };
 
