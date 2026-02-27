@@ -16,7 +16,7 @@ import ENV from '../../config/env.js';
 
 /** Target display metadata — labels, colours, and units */
 const TARGET_META = {
-  T1:  { label: 'Biodiversity Spatial Planning (Terrestrial)', color: '#1565C0', unit: 'ha planned' },
+  T1:  { label: 'Biodiversity Spatial Planning', color: '#1565C0', unit: 'ha planned' },
   T2:  { label: 'Degraded Areas & Restoration',  color: '#D84315', unit: 'ha mapped' },
   T3:  { label: '30x30 Conservation',            color: '#2E7D32', unit: 'ha conserved' },
   T4:  { label: 'Species & Biodiversity',        color: '#7E57C2', unit: 'species records' },
@@ -70,9 +70,9 @@ export function renderKPIWidgets(container) {
 /**
  * Renders Target 1 (Biodiversity Spatial Planning) KPIs.
  *
- * T1 is terrestrial only — no marine component.
- * Terrestrial coverage = dissolved T1 feature area / national terrestrial baseline.
- * Marine spatial planning is handled by T3 (30x30 Conservation).
+ * Shows terrestrial and marine spatial planning coverage.
+ * Terrestrial = dissolved T1 terrestrial features / national terrestrial baseline.
+ * Marine = dissolved T1 marine features (MPA, LMMA) / national marine baseline.
  */
 function renderTarget1KPIs(container, layers, filters) {
   const m = computeTarget1Metrics(layers, filters);
@@ -80,8 +80,10 @@ function renderTarget1KPIs(container, layers, filters) {
 
   const tPct = m.terrestrial_pct;
   const tPctClamped = Math.min(tPct, 100);
+  const mPct = m.marine_pct;
+  const mPctClamped = Math.min(mPct, 100);
 
-  // Category badges (terrestrial feature layers only)
+  // Category badges
   const catBadges = m.categoryBreakdown.map(c => {
     const catDef = CATEGORIES[c.category] || { label: c.category, color: '#95a5a6' };
     return `<span class="cat-badge" style="background:${catDef.color}20;color:${catDef.color};border:1px solid ${catDef.color}40">
@@ -94,12 +96,22 @@ function renderTarget1KPIs(container, layers, filters) {
       <div class="kpi-card">
         <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
         <div class="kpi-label">Terrestrial (ha)</div>
-        <div class="kpi-sublabel">CCA + Inland Water (dissolved)</div>
+        <div class="kpi-sublabel">CCA, KBA, Spatial Plans (dissolved)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
+        <div class="kpi-label">Marine (ha)</div>
+        <div class="kpi-sublabel">MPA, LMMA (dissolved)</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value">${m.totalFeatures}</div>
         <div class="kpi-label">Data Records</div>
         <div class="kpi-sublabel">${m.layerCount} dataset${m.layerCount !== 1 ? 's' : ''}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-value">${m.provinceBreakdown.length}</div>
+        <div class="kpi-label">Provinces</div>
+        <div class="kpi-sublabel">With spatial plans</div>
       </div>
 
       <div class="kpi-card wide">
@@ -111,19 +123,27 @@ function renderTarget1KPIs(container, layers, filters) {
           </div>
         </div>
         <div class="kpi-sublabel" style="margin-top:4px">
-          (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha total terrestrial = ${formatNumber(m.terrestrial_ha)} ha
+          ${formatNumber(m.terrestrial_ha)} ha of ${formatNumber(baselines.terrestrial_ha)} ha total terrestrial
         </div>
       </div>
 
-      <div class="kpi-card">
-        <div class="kpi-value">${m.provinceBreakdown.length}</div>
-        <div class="kpi-label">Provinces</div>
-        <div class="kpi-sublabel">With spatial plans</div>
+      <div class="kpi-card wide">
+        <div class="kpi-label" style="margin-bottom:6px">Marine coverage: ${mPct.toFixed(2)}%</div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill marine"
+               style="width: ${Math.min(mPctClamped, 100).toFixed(1)}%">
+            ${mPct >= 1 ? mPct.toFixed(1) + '%' : ''}
+          </div>
+        </div>
+        <div class="kpi-sublabel" style="margin-top:4px">
+          ${formatNumber(m.marine_ha)} ha of ${formatNumber(baselines.marine_ha)} ha total marine
+        </div>
       </div>
     </div>
     ${catBadges ? `<div class="kpi-cat-badges">${catBadges}</div>` : ''}
     <div class="kpi-methodology-note">
-      Terrestrial = (CCA + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
+      Terrestrial = (CCA + KBA + Spatial Plans + Inland Water) / ${formatNumber(baselines.terrestrial_ha)} ha &times; 100.
+      Marine = (MPA + LMMA) / ${formatNumber(baselines.marine_ha)} ha &times; 100.
     </div>
   `;
 }

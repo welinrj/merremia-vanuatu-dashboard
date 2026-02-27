@@ -4,7 +4,7 @@
  * The tracker in the admin page shows which have been submitted.
  */
 const EXPECTED_LAYERS = [
-  // Target 1: Biodiversity Spatial Planning (terrestrial only)
+  // Target 1: Biodiversity Spatial Planning (terrestrial + marine)
   {
     id: 'spatial-plans',
     name: 'Biodiversity Spatial Plans',
@@ -22,6 +22,24 @@ const EXPECTED_LAYERS = [
     realm: 'terrestrial',
     countsToward30x30: false,
     description: 'Sites of global importance for biodiversity (BirdLife / KBA Partnership)'
+  },
+  {
+    id: 'mpa-spatial-plan',
+    name: 'Marine Protected Areas (Spatial Planning)',
+    category: 'MPA',
+    target: 'T1',
+    realm: 'marine',
+    countsToward30x30: false,
+    description: 'Marine protected areas included in biodiversity spatial planning'
+  },
+  {
+    id: 'lmma-spatial-plan',
+    name: 'Locally Managed Marine Areas (Spatial Planning)',
+    category: 'LMMA',
+    target: 'T1',
+    realm: 'marine',
+    countsToward30x30: false,
+    description: 'Community-managed marine areas included in biodiversity spatial planning'
   },
   // Target 2: Degraded Areas & Restoration
   {
