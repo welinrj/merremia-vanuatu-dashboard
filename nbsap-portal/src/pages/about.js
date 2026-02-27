@@ -232,8 +232,8 @@ export function initAbout() {
       <div class="about-partner-grid">
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:var(--primary-lighter);color:var(--primary)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/depc-logo.png" alt="DEPC logo">
           </div>
           <div class="partner-card-name">DEPC</div>
           <div class="partner-card-fullname">Department of Environmental Protection &amp; Conservation, Vanuatu</div>
@@ -241,8 +241,8 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:#e8f4fc;color:#0072BC">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10"/><path d="M2 12h20"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/cbd-logo.png" alt="CBD logo">
           </div>
           <div class="partner-card-name">CBD</div>
           <div class="partner-card-fullname">Convention on Biological Diversity</div>
@@ -250,8 +250,8 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:#e8f4fc;color:#0072BC">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/undp-logo.svg" alt="UNDP logo">
           </div>
           <div class="partner-card-name">UNDP</div>
           <div class="partner-card-fullname">United Nations Development Programme</div>
@@ -259,8 +259,8 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:#fff3cd;color:#856404">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/gef-logo.png" alt="GEF logo">
           </div>
           <div class="partner-card-name">GEF</div>
           <div class="partner-card-fullname">Global Environment Facility</div>
@@ -268,8 +268,8 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:var(--primary-lighter);color:var(--primary)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/vanuatu-coat-of-arms.svg" alt="Vanuatu coat of arms">
           </div>
           <div class="partner-card-name">Govt of Vanuatu</div>
           <div class="partner-card-fullname">Ministry of Climate Change, Meteorology, Geo-Hazards, Environment, Energy &amp; Disaster Management</div>
@@ -277,8 +277,8 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-icon" style="background:#f3e8ff;color:#7E57C2">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          <div class="partner-card-logo">
+            <img src="logos/vss-logo.jpeg" alt="Vanua Spatial Solutions logo">
           </div>
           <div class="partner-card-name">Vanua Spatial</div>
           <div class="partner-card-fullname">Vanua Spatial Solutions</div>
