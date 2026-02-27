@@ -67,8 +67,8 @@ export function initDataPortal() {
           </div>
           <div class="card-body" style="font-size:13px">
             <p style="margin:0 0 8px;color:var(--text-secondary)">To download CSV or GeoJSON files, please contact:</p>
-            <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">rbaereleo@vanuatu.gov.vu</a></div>
-            <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">dlaunder@vanuatu.gov.vu</a></div>
+            <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">Rolenas Baereleo</a></div>
+            <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">Dean Wotlolan</a></div>
           </div>
         </div>` : ''}
       </div>
@@ -439,8 +439,8 @@ function renderLayerDetails(layerId) {
       </div>
       <div class="card-body" style="font-size:13px">
         <p style="margin:0 0 8px;color:var(--text-secondary)">To download CSV or GeoJSON files, please contact:</p>
-        <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">rbaereleo@vanuatu.gov.vu</a></div>
-        <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">dlaunder@vanuatu.gov.vu</a></div>
+        <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">Rolenas Baereleo</a></div>
+        <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">Dean Wotlolan</a></div>
       </div>
     </div>` : ''}
 
