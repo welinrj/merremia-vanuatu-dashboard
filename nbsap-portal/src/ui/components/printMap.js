@@ -584,15 +584,16 @@ function initPrintSpeciesMap(containerId, species, provincesGeojson) {
 
   featureGroup.addTo(printMap);
 
-  // Fit bounds
-  if (featureGroup.getLayers().length > 0) {
-    const bounds = featureGroup.getBounds();
-    if (bounds.isValid()) {
-      printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+  // Fit bounds after invalidating size so the container is correctly measured first
+  setTimeout(() => {
+    printMap.invalidateSize();
+    if (featureGroup.getLayers().length > 0) {
+      const bounds = featureGroup.getBounds();
+      if (bounds.isValid()) {
+        printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+      }
     }
-  }
-
-  setTimeout(() => printMap.invalidateSize(), 200);
+  }, 200);
 }
 
 /**
@@ -2755,18 +2756,19 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
 
   featureGroup.addTo(printMap);
 
-  // Fit map bounds
-  if (provinceFilter && provinceBoundsLayer) {
-    const provBounds = provinceBoundsLayer.getBounds();
-    if (provBounds.isValid()) {
-      printMap.fitBounds(provBounds, { padding: [30, 30], maxZoom: 12 });
+  // Fit map bounds after invalidating size so the container is correctly measured first
+  setTimeout(() => {
+    printMap.invalidateSize();
+    if (provinceFilter && provinceBoundsLayer) {
+      const provBounds = provinceBoundsLayer.getBounds();
+      if (provBounds.isValid()) {
+        printMap.fitBounds(provBounds, { padding: [30, 30], maxZoom: 12 });
+      }
+    } else if (featureGroup.getLayers().length > 0) {
+      const bounds = featureGroup.getBounds();
+      if (bounds.isValid()) {
+        printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
+      }
     }
-  } else if (featureGroup.getLayers().length > 0) {
-    const bounds = featureGroup.getBounds();
-    if (bounds.isValid()) {
-      printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
-    }
-  }
-
-  setTimeout(() => printMap.invalidateSize(), 200);
+  }, 200);
 }
