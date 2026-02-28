@@ -45,6 +45,14 @@ function renderLoginForm(page) {
     <div class="admin-layout">
       <div class="login-container">
         <div class="login-card">
+          <div class="login-card-header">
+            <div class="login-official-banner">
+              <img src="${base}vanuatu-coat-of-arms.svg"
+                   alt="Republic of Vanuatu Coat of Arms"
+                   width="48" height="48"
+                   style="filter:brightness(1.1)">
+            </div>
+          </div>
           <div class="login-card-body">
             <div class="form-group">
               <label for="admin-passphrase">Passphrase</label>
