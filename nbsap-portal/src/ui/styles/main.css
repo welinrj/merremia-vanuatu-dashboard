@@ -2074,9 +2074,9 @@ a:focus-visible {
 
 /* ── Footer ─────────────────────────────────────────────── */
 .app-footer {
-  border-top: 2px solid var(--border);
-  background: var(--primary-gradient);
-  color: var(--gray-400);
+  border-top: 2px solid rgba(255,255,255,0.1);
+  background: #002B1F;
+  color: var(--gray-300);
   flex-shrink: 0;
 }
 
@@ -2085,7 +2085,7 @@ a:focus-visible {
   align-items: flex-start;
   gap: 32px;
   padding: 16px 24px;
-  max-width: 1600px;
+  max-width: 1000px;
   margin: 0 auto;
   flex-wrap: wrap;
 }
@@ -2119,13 +2119,13 @@ a:focus-visible {
 
 .footer-org {
   font-size: 11px;
-  color: var(--gray-500);
+  color: var(--gray-400);
   margin-bottom: 4px;
 }
 
 .footer-legal {
   font-size: 10px;
-  color: var(--gray-600);
+  color: var(--gray-500);
   line-height: 1.5;
   max-width: 480px;
 }
@@ -2141,7 +2141,7 @@ a:focus-visible {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
-  color: var(--gray-600);
+  color: var(--gray-400);
   font-weight: 600;
 }
 
