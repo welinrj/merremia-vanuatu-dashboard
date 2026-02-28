@@ -22,6 +22,7 @@
     .logo-group{display:flex;align-items:center;gap:0.75rem;flex-shrink:0}
     .logo-dept-name{font-size:0.72rem;font-weight:700;color:rgba(236,253,245,0.9);line-height:1.3;letter-spacing:0.04em;max-width:200px;text-transform:uppercase}
     .config-bar{display:flex;align-items:center;gap:0.75rem;padding:0.75rem 2rem;background:#f8fafc;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+    .admin-only{display:none}
     .config-bar button{padding:0.4rem 1rem;background:#065f46;color:#ecfdf5;border:1px solid rgba(16,185,129,0.4);border-radius:0.4rem;font-size:0.78rem;font-weight:600;cursor:pointer;transition:all 0.2s}
     .config-bar button:hover{background:#047857;box-shadow:0 2px 8px rgba(16,185,129,0.2)}
     .status-msg{font-size:0.8rem;color:#64748b;margin-left:auto;display:flex;align-items:center;gap:0.4rem}
@@ -202,7 +203,7 @@
     </span>
   </div>
 
-  <div class="config-bar" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
+  <div id="diagnostics-bar" class="config-bar admin-only" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
     <details>
       <summary style="cursor:pointer;font-size:0.75rem;color:#64748b;user-select:none;font-weight:600">
         📊 Connection Diagnostics
@@ -217,7 +218,7 @@
     </details>
   </div>
 
-  <div class="config-bar" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
+  <div id="token-config-bar" class="config-bar admin-only" style="background:#f1f5f9;border-top:1px solid #cbd5e1;padding:0.5rem 1rem">
     <details id="token-config-details">
       <summary style="cursor:pointer;font-size:0.75rem;color:#64748b;user-select:none;font-weight:600">
         🔒 Admin: GitHub Token Configuration
@@ -426,7 +427,7 @@
     var lastUpdateTime = null;
     var checkCount = 0;
     var isAdmin = false;
-    var ADMIN_HASH = '6b67fa59cd4ed945bdc9d748fb6fbd4909618fb4828af3a9a9a98ef3617438fa';
+    var ADMIN_HASH = 'b7a1ff636e6b4c740793306ac6c86cf11e063b3ff80a692c954048995766951e';
     var pendingDeleteId = null;
 
     // Load saved config
@@ -1301,6 +1302,8 @@
         isAdmin = false;
         document.getElementById('btn-admin').textContent = 'Admin Login';
         document.getElementById('btn-admin').classList.remove('logged-in');
+        document.getElementById('diagnostics-bar').style.display = 'none';
+        document.getElementById('token-config-bar').style.display = 'none';
         renderForTab();
         return;
       }
@@ -1333,6 +1336,8 @@
       closeAdminModal();
       document.getElementById('btn-admin').textContent = 'Admin (Logout)';
       document.getElementById('btn-admin').classList.add('logged-in');
+      document.getElementById('diagnostics-bar').style.display = '';
+      document.getElementById('token-config-bar').style.display = '';
       renderForTab();
     }
 
