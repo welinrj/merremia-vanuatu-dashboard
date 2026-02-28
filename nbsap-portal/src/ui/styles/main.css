@@ -133,6 +133,7 @@ html, body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh; /* Dynamic viewport height — accounts for iOS Safari browser chrome */
 }
 
 /* ── Header Bar ──────────────────────────────────────────── */
@@ -2072,7 +2073,7 @@ a:focus-visible {
   flex-shrink: 0;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .header-partners { display: none; }
   .access-level-badge { display: none; }
 }
@@ -2207,11 +2208,20 @@ a:focus-visible {
   color: var(--gray-500);
 }
 
+@media (max-width: 1024px) {
+  .footer-inner {
+    padding: 10px 16px;
+    gap: 16px;
+  }
+  .footer-partners { display: none; }
+  .footer-right { display: none; }
+}
+
 @media (max-width: 768px) {
   .footer-inner {
     flex-direction: column;
-    gap: 16px;
-    padding: 16px;
+    gap: 8px;
+    padding: 8px 16px;
   }
   .footer-right { display: none; }
 }
