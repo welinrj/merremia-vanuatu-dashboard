@@ -42,7 +42,7 @@ export function renderAdminPage() {
 function renderLoginForm(page) {
   const base = getBaseUrl();
   page.innerHTML = `
-    <div class="admin-layout">
+    <div class="admin-layout" style="display:flex;align-items:center;justify-content:center">
       <div class="login-container">
         <div class="login-card">
           <div class="login-card-header">

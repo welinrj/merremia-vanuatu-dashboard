@@ -267,32 +267,6 @@ export function initAbout() {
 
       <div class="about-section-divider"></div>
 
-      <!-- ── Data Sources ────────────────────────────────────── -->
-      <h3>Primary Data Sources</h3>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px;margin-bottom:24px">
-        ${[
-          ['Protected Areas', 'WDPA — World Database on Protected Areas (UNEP-WCMC / IUCN)'],
-          ['Community Conserved Areas', 'DEPC Vanuatu records, Custom Tabu Areas, village surveys'],
-          ['Marine Protected Areas', 'National marine management plans, DEPC registers'],
-          ['LMMAs', 'Locally Managed Marine Areas Network (LMMA Network)'],
-          ['Key Biodiversity Areas', 'BirdLife International / KBA Partnership'],
-          ['Invasive Species', 'DEPC IAS surveys, remote sensing imagery, GPS field surveys'],
-          ['Land Cover', 'Satellite imagery classification, national forestry surveys'],
-          ['Species Distribution', 'DEPC biodiversity surveys, BirdLife Vanuatu records'],
-          ['Province Boundaries', 'Vanuatu National Statistics Office (VNSO)'],
-        ].map(([src, desc]) => `
-          <div style="display:flex;gap:10px;padding:10px 12px;background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-sm)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" style="flex-shrink:0;margin-top:1px"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            <div>
-              <div style="font-size:12px;font-weight:600;color:var(--text)">${src}</div>
-              <div style="font-size:11px;color:var(--text-secondary)">${desc}</div>
-            </div>
-          </div>
-        `).join('')}
-      </div>
-
-      <div class="about-section-divider"></div>
-
       <!-- ── Data Governance ────────────────────────────────── -->
       <h3>Data Governance &amp; Attribution</h3>
       <div class="about-governance-box">
@@ -360,32 +334,6 @@ export function initAbout() {
             </div>
           </div>
         `).join('')}
-      </div>
-
-      <div class="about-section-divider"></div>
-
-      <!-- ── Technical Notes ────────────────────────────────── -->
-      <h3>Technical Specifications</h3>
-      <div style="background:var(--bg-white);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:20px">
-        <table style="width:100%;border-collapse:collapse;font-size:13px">
-          ${[
-            ['Storage', 'Google Firestore (real-time sync across all devices)'],
-            ['Map Engine', 'Leaflet.js v1.9.4 with OpenStreetMap / Esri base tiles'],
-            ['GIS Library', 'Turf.js v7.1.0 for spatial operations and area calculation'],
-            ['Projection', 'Web display: EPSG:3857 (Web Mercator) | Data: EPSG:4326 (WGS84)'],
-            ['CRS Support', 'Automatic reprojection via proj4js for uploaded data'],
-            ['Upload Format', '.zip containing .shp, .dbf, .shx, .prj — up to 50 MB'],
-            ['Area Method', 'Geodesic (turf.area) with union/dissolve to prevent double-counting'],
-            ['Print Export', 'A4 landscape cartographic maps via Leaflet print plugin'],
-            ['Authentication', 'Local passphrase with bcrypt hashing; session-only storage'],
-            ['Browser Support', 'Chrome, Firefox, Edge, Safari (ES2020+ required)'],
-          ].map(([k, v]) => `
-            <tr style="border-bottom:1px solid var(--border-light)">
-              <td style="padding:10px 16px;font-weight:600;color:var(--text-secondary);width:35%;font-size:12px;background:var(--gray-50)">${k}</td>
-              <td style="padding:10px 16px;color:var(--text);font-size:12px">${v}</td>
-            </tr>
-          `).join('')}
-        </table>
       </div>
 
       <div class="about-section-divider"></div>
