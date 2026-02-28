@@ -235,7 +235,6 @@ export function initAbout() {
           <div class="partner-card-logo">
             <img src="logos/depc-logo.png" alt="DEPC logo">
           </div>
-          <div class="partner-card-name">DEPC</div>
           <div class="partner-card-fullname">Department of Environmental Protection &amp; Conservation, Vanuatu</div>
           <div class="partner-card-role">Lead implementing agency &amp; data custodian</div>
         </div>
@@ -244,34 +243,14 @@ export function initAbout() {
           <div class="partner-card-logo">
             <img src="logos/cbd-logo.png" alt="CBD logo">
           </div>
-          <div class="partner-card-name">CBD</div>
           <div class="partner-card-fullname">Convention on Biological Diversity</div>
           <div class="partner-card-role">Kunming-Montreal GBF framework &amp; reporting standards</div>
         </div>
 
         <div class="about-partner-card">
           <div class="partner-card-logo">
-            <img src="logos/undp-logo.svg" alt="UNDP logo">
-          </div>
-          <div class="partner-card-name">UNDP</div>
-          <div class="partner-card-fullname">United Nations Development Programme</div>
-          <div class="partner-card-role">Technical support &amp; capacity development</div>
-        </div>
-
-        <div class="about-partner-card">
-          <div class="partner-card-logo">
-            <img src="logos/gef-logo.png" alt="GEF logo">
-          </div>
-          <div class="partner-card-name">GEF</div>
-          <div class="partner-card-fullname">Global Environment Facility</div>
-          <div class="partner-card-role">Biodiversity project financing</div>
-        </div>
-
-        <div class="about-partner-card">
-          <div class="partner-card-logo">
             <img src="logos/vanuatu-coat-of-arms.svg" alt="Vanuatu coat of arms">
           </div>
-          <div class="partner-card-name">Govt of Vanuatu</div>
           <div class="partner-card-fullname">Ministry of Climate Change, Meteorology, Geo-Hazards, Environment, Energy &amp; Disaster Management</div>
           <div class="partner-card-role">Policy ownership &amp; national mandate</div>
         </div>
@@ -280,7 +259,6 @@ export function initAbout() {
           <div class="partner-card-logo">
             <img src="logos/vss-logo.jpeg" alt="Vanua Spatial Solutions logo">
           </div>
-          <div class="partner-card-name">Vanua Spatial</div>
           <div class="partner-card-fullname">Vanua Spatial Solutions</div>
           <div class="partner-card-role">GIS system design, development &amp; technical implementation</div>
         </div>
