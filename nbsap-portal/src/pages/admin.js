@@ -52,8 +52,6 @@ function renderLoginForm(page) {
                    width="48" height="48"
                    style="filter:brightness(1.1)">
             </div>
-            <h3 style="margin-top:4px">Restricted Access</h3>
-            <p>Enter your administrator passphrase to access data management features</p>
           </div>
           <div class="login-card-body">
             <div class="form-group">
@@ -65,14 +63,6 @@ function renderLoginForm(page) {
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               Login
             </button>
-            <div class="admin-system-info" style="margin-top:16px">
-              <table>
-                <tr><td>Portal</td><td>Vanuatu NBSAP GIS v2.0.0</td></tr>
-                <tr><td>Operator</td><td>DEPC, Republic of Vanuatu</td></tr>
-                <tr><td>Framework</td><td>Kunming-Montreal GBF 2024&ndash;2030</td></tr>
-                <tr><td>Access</td><td>Authorised personnel only</td></tr>
-              </table>
-            </div>
           </div>
         </div>
       </div>
