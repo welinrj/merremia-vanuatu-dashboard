@@ -212,7 +212,6 @@
       <label>Survey Category</label>
       <select id="f-category" onchange="switchCategory()">
         <option value="merremia">Merremia Vine Monitoring</option>
-        <option value="landcover">Land Cover Classification</option>
         <option value="degraded">Degraded Areas</option>
         <option value="restoration">Areas Under Restoration</option>
         <option value="threatened">Threatened Species</option>
@@ -247,6 +246,80 @@
 
     <!-- ── MERREMIA FIELDS ── -->
     <div class="cat-fields active" id="fields-merremia">
+      <div class="class-tip">
+        <strong>Field guide:</strong> Stand in the middle of a uniform area (10–15 steps from edge). For Big Lif Rop, flip a leaf to check purple veins on back. Take photos showing leaves, flowers, and coverage.
+      </div>
+      <div class="field-group">
+        <label>Class <span style="color:#dc2626">*</span></label>
+        <div class="class-options" id="lc-class-options">
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="0">
+            <div>
+              <div class="class-name">0 — Big Lif Rop: Thick &amp; Heavy Cover</div>
+              <div class="class-desc">Real problem Merremia. Covers 50%+ of area — thick vines climbing high, smothering everything underneath (trees look buried or dying under green blanket). Big round/heart-shaped leaves, dark green and shiny, with purple lines underneath. Often has white or yellow trumpet flowers. Choose this when it's really taking over.</div>
+            </div>
+          </label>
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="1">
+            <div>
+              <div class="class-name">1 — Big Lif Rop: Light or Scattered</div>
+              <div class="class-desc">Still Big Lif Rop, but not as bad yet. Covers less than 30–40% of area. Patches or single vines climbing on edges of forest, roadsides, or gardens — not fully smothering trees. Same big leaves and purple veins, but easier to see the ground or other plants through it.</div>
+            </div>
+          </label>
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="2">
+            <div>
+              <div class="class-name">2 — Healthy Closed Forest (No Big Lif Rop)</div>
+              <div class="class-desc">Thick, natural bush or forest where trees and plants grow close together with full green canopy overhead. No visible Big Lif Rop vines climbing or covering. Everything looks healthy and untouched by this vine.</div>
+            </div>
+          </label>
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="3">
+            <div>
+              <div class="class-name">3 — Open or Damaged Forest / Old Garden Area</div>
+              <div class="class-desc">Forest partly cleared, damaged by cyclone, or old garden land growing back. Trees spaced out, some open sky, maybe young regrowth or small bushes. Might have some weeds, but not thick Big Lif Rop vines smothering things.</div>
+            </div>
+          </label>
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="4">
+            <div>
+              <div class="class-name">4 — Grass, Garden, Farm Land, or Open Ground</div>
+              <div class="class-desc">Mostly grass, food gardens (taro, yam, etc.), coconut plantations, bare soil after clearing, or open grassy areas. No forest canopy, and no thick vine cover like Big Lif Rop.</div>
+            </div>
+          </label>
+          <label class="class-option" onclick="selectLCClass(this)">
+            <input type="radio" name="lc-class" value="5">
+            <div>
+              <div class="class-name">5 — Something Else (Bare, Road, Building, Water…)</div>
+              <div class="class-desc">Anything that doesn't fit above — dirt road, village area, rocky bare land, river/water, or shadows. Use this only if nothing else matches.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="row">
+        <div class="field-group">
+          <label>Density / Cover</label>
+          <select id="f-lc-density">
+            <option value="">Select (optional)</option>
+            <option value="high">High (&gt;50% cover)</option>
+            <option value="medium">Medium (20–50%)</option>
+            <option value="low">Low (&lt;20%)</option>
+            <option value="na">Not applicable</option>
+          </select>
+        </div>
+        <div class="field-group">
+          <label>Province</label>
+          <select id="f-lc-province">
+            <option value="">Select (optional)</option>
+            <option>Torba</option>
+            <option>Sanma</option>
+            <option>Penama</option>
+            <option>Malampa</option>
+            <option>Shefa</option>
+            <option>Tafea</option>
+          </select>
+        </div>
+      </div>
       <div class="row">
         <div class="field-group">
           <label>Species</label>
@@ -502,84 +575,6 @@
       </div>
     </div>
 
-    <!-- ── LAND COVER CLASSIFICATION FIELDS ── -->
-    <div class="cat-fields" id="fields-landcover">
-      <div class="class-tip">
-        <strong>Field guide:</strong> Stand in the middle of a uniform area (10–15 steps from edge). For Big Lif Rop, flip a leaf to check purple veins on back. Take photos showing leaves, flowers, and coverage.
-      </div>
-      <div class="field-group">
-        <label>Class <span style="color:#dc2626">*</span></label>
-        <div class="class-options" id="lc-class-options">
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="0">
-            <div>
-              <div class="class-name">0 — Big Lif Rop: Thick &amp; Heavy Cover</div>
-              <div class="class-desc">Real problem Merremia. Covers 50%+ of area — thick vines climbing high, smothering everything underneath (trees look buried or dying under green blanket). Big round/heart-shaped leaves, dark green and shiny, with purple lines underneath. Often has white or yellow trumpet flowers. Choose this when it's really taking over.</div>
-            </div>
-          </label>
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="1">
-            <div>
-              <div class="class-name">1 — Big Lif Rop: Light or Scattered</div>
-              <div class="class-desc">Still Big Lif Rop, but not as bad yet. Covers less than 30–40% of area. Patches or single vines climbing on edges of forest, roadsides, or gardens — not fully smothering trees. Same big leaves and purple veins, but easier to see the ground or other plants through it.</div>
-            </div>
-          </label>
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="2">
-            <div>
-              <div class="class-name">2 — Healthy Closed Forest (No Big Lif Rop)</div>
-              <div class="class-desc">Thick, natural bush or forest where trees and plants grow close together with full green canopy overhead. No visible Big Lif Rop vines climbing or covering. Everything looks healthy and untouched by this vine.</div>
-            </div>
-          </label>
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="3">
-            <div>
-              <div class="class-name">3 — Open or Damaged Forest / Old Garden Area</div>
-              <div class="class-desc">Forest partly cleared, damaged by cyclone, or old garden land growing back. Trees spaced out, some open sky, maybe young regrowth or small bushes. Might have some weeds, but not thick Big Lif Rop vines smothering things.</div>
-            </div>
-          </label>
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="4">
-            <div>
-              <div class="class-name">4 — Grass, Garden, Farm Land, or Open Ground</div>
-              <div class="class-desc">Mostly grass, food gardens (taro, yam, etc.), coconut plantations, bare soil after clearing, or open grassy areas. No forest canopy, and no thick vine cover like Big Lif Rop.</div>
-            </div>
-          </label>
-          <label class="class-option" onclick="selectLCClass(this)">
-            <input type="radio" name="lc-class" value="5">
-            <div>
-              <div class="class-name">5 — Something Else (Bare, Road, Building, Water…)</div>
-              <div class="class-desc">Anything that doesn't fit above — dirt road, village area, rocky bare land, river/water, or shadows. Use this only if nothing else matches.</div>
-            </div>
-          </label>
-        </div>
-      </div>
-      <div class="row">
-        <div class="field-group">
-          <label>Density / Cover</label>
-          <select id="f-lc-density">
-            <option value="">Select (optional)</option>
-            <option value="high">High (&gt;50% cover)</option>
-            <option value="medium">Medium (20–50%)</option>
-            <option value="low">Low (&lt;20%)</option>
-            <option value="na">Not applicable</option>
-          </select>
-        </div>
-        <div class="field-group">
-          <label>Province</label>
-          <select id="f-lc-province">
-            <option value="">Select (optional)</option>
-            <option>Torba</option>
-            <option>Sanma</option>
-            <option>Penama</option>
-            <option>Malampa</option>
-            <option>Shefa</option>
-            <option>Tafea</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
     <div class="field-group">
       <label>Observer Name</label>
       <input id="f-observer" placeholder="Your name">
@@ -750,7 +745,7 @@
     var polyMapInitialized = false;
 
     // ── Category labels ──
-    var CAT_LABELS = { merremia: 'Merremia', landcover: 'Land Cover', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
+    var CAT_LABELS = { merremia: 'Merremia', degraded: 'Degraded', restoration: 'Restoration', threatened: 'Threatened' };
     var LC_CLASS_NAMES = ['Big Lif Rop Heavy', 'Big Lif Rop Light', 'Healthy Forest', 'Open/Damaged Forest', 'Grass/Garden', 'Other'];
 
     // ── Toast Notifications ──
@@ -1248,14 +1243,13 @@
       currentPhotos = r.photos || [];
       renderPhotoPreview();
       // Set category-specific fields
-      if (r.category === 'landcover') {
+      if (r.category === 'merremia' || !r.category) {
         if (r.landCoverClass != null) {
           var radioInput = document.querySelector('#lc-class-options input[value="' + r.landCoverClass + '"]');
           if (radioInput) { radioInput.checked = true; radioInput.closest('.class-option').classList.add('selected'); }
         }
         if (r.density) document.getElementById('f-lc-density').value = r.density;
         if (r.province) document.getElementById('f-lc-province').value = r.province;
-      } else if (r.category === 'merremia' || !r.category) {
         if (r.species) document.getElementById('f-species').value = r.species;
         if (r.count) document.getElementById('f-count').value = r.count;
         if (r.threatLevel) document.getElementById('f-threat').value = r.threatLevel;
@@ -1313,7 +1307,7 @@
       var category = document.getElementById('f-category').value;
       var island = document.getElementById('f-island').value;
 
-      if (!island && category !== 'landcover') { showToast('Please select an island.', 'warn'); return; }
+      if (!island) { showToast('Please select an island.', 'warn'); return; }
 
       // Validation depends on geometry type
       if (currentGeometryType === 'polygon') {
@@ -1374,13 +1368,12 @@
       }
 
       // Category-specific fields and validation
-      if (category === 'landcover') {
+      if (category === 'merremia') {
         var classRadio = document.querySelector('#lc-class-options input[type=radio]:checked');
         if (!classRadio) { showToast('Please select a Class (0\u20135).', 'warn'); return; }
         record.landCoverClass = parseInt(classRadio.value);
         record.density = document.getElementById('f-lc-density').value;
         record.province = document.getElementById('f-lc-province').value;
-      } else if (category === 'merremia') {
         var speciesVal = document.getElementById('f-species').value;
         var countVal = parseInt(document.getElementById('f-count').value);
         var areaVal = parseFloat(document.getElementById('f-area').value);
@@ -1388,8 +1381,6 @@
         record.count = (!isNaN(countVal) && countVal > 0) ? countVal : 1;
         record.threatLevel = document.getElementById('f-threat').value || 'Low';
         record.coverageArea = (!isNaN(areaVal) && areaVal >= 0) ? areaVal : 0;
-        if (!speciesVal) { showToast('Please select a Species.', 'warn'); return; }
-        if (!document.getElementById('f-threat').value) { showToast('Please select a Threat Level.', 'warn'); return; }
         if (!isNaN(countVal) && (countVal < 1 || countVal > 100000)) { showToast('Count must be between 1 and 100,000.', 'warn'); return; }
         if (!isNaN(areaVal) && (areaVal < 0 || areaVal > 50000)) { showToast('Area must be between 0 and 50,000 hectares.', 'warn'); return; }
       } else if (category === 'degraded') {
@@ -1467,8 +1458,7 @@
     // ── Record helpers ──
     function getRecordTitle(r) {
       var cat = r.category || 'merremia';
-      if (cat === 'merremia') return r.species || 'Merremia';
-      if (cat === 'landcover') return 'Class ' + (r.landCoverClass != null ? r.landCoverClass : '?') + ' \u2014 ' + (r.landCoverClass != null ? LC_CLASS_NAMES[r.landCoverClass] : 'Land Cover');
+      if (cat === 'merremia') return (r.landCoverClass != null ? 'Class ' + r.landCoverClass + ' \u2014 ' + LC_CLASS_NAMES[r.landCoverClass] : (r.species || 'Merremia'));
       if (cat === 'degraded') return (r.degradationType || 'Degraded Area');
       if (cat === 'restoration') return (r.restorationType || 'Restoration');
       if (cat === 'threatened') return (r.speciesName || 'Threatened Species');
@@ -1477,10 +1467,9 @@
 
     function getRecordMeta(r) {
       var cat = r.category || 'merremia';
-      if (cat === 'merremia') return 'Count: ' + (r.count || 1) + ' | Threat: ' + (r.threatLevel || '-');
-      if (cat === 'landcover') {
+      if (cat === 'merremia') {
         var densityLabels = { high: '>50%', medium: '20\u201350%', low: '<20%', na: 'N/A' };
-        var s = 'Class: ' + (r.landCoverClass != null ? r.landCoverClass : '-');
+        var s = r.landCoverClass != null ? 'Class: ' + r.landCoverClass : ('Count: ' + (r.count || 1) + ' | Threat: ' + (r.threatLevel || '-'));
         if (r.density) s += ' | Density: ' + (densityLabels[r.density] || r.density);
         if (r.province) s += ' | ' + r.province;
         return s;
@@ -1493,8 +1482,7 @@
 
     function getCommitLabel(r) {
       var cat = r.category || 'merremia';
-      if (cat === 'merremia') return (r.species || 'Merremia') + ' at ' + r.island;
-      if (cat === 'landcover') return 'Land cover class ' + (r.landCoverClass != null ? r.landCoverClass : '?') + (r.island ? ' at ' + r.island : '');
+      if (cat === 'merremia') return (r.landCoverClass != null ? 'Class ' + r.landCoverClass : (r.species || 'Merremia')) + ' at ' + r.island;
       if (cat === 'degraded') return 'Degraded area at ' + r.island;
       if (cat === 'restoration') return 'Restoration site at ' + r.island;
       if (cat === 'threatened') return (r.speciesName || 'Threatened species') + ' at ' + r.island;
