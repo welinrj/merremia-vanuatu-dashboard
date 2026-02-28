@@ -51,10 +51,6 @@ function renderLoginForm(page) {
                    alt="Republic of Vanuatu Coat of Arms"
                    width="48" height="48"
                    style="filter:brightness(1.1)">
-              <div>
-                <div class="login-official-text">Republic of Vanuatu</div>
-                <div style="font-size:11px;opacity:0.8;font-weight:500">DEPC &mdash; NBSAP GIS Portal</div>
-              </div>
             </div>
             <h3 style="margin-top:4px">Restricted Access</h3>
             <p>Enter your administrator passphrase to access data management features</p>
