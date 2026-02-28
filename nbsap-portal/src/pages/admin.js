@@ -42,29 +42,59 @@ export function renderAdminPage() {
 function renderLoginForm(page) {
   const base = getBaseUrl();
   page.innerHTML = `
-    <div class="admin-layout" style="display:flex;align-items:center;justify-content:center">
-      <div class="login-container">
-        <div class="login-card">
-          <div class="login-card-header">
-            <div class="login-official-banner">
-              <img src="${base}vanuatu-coat-of-arms.svg"
-                   alt="Republic of Vanuatu Coat of Arms"
-                   width="100" height="100"
-                   style="filter:brightness(1.1)">
-            </div>
+    <div class="lcp-outer">
+      <div class="lcp-card">
+
+        <!-- Seal / Branding header -->
+        <div class="lcp-header">
+          <div class="lcp-seal-ring">
+            <img src="${base}vanuatu-coat-of-arms.svg"
+                 alt="Republic of Vanuatu Coat of Arms"
+                 width="96" height="96"
+                 class="lcp-seal-img">
           </div>
-          <div class="login-card-body">
-            <div class="form-group">
-              <label for="admin-passphrase">Passphrase</label>
-              <input type="password" id="admin-passphrase" placeholder="Enter admin passphrase" autocomplete="current-password">
-            </div>
-            <div id="login-error" style="color:var(--danger);font-size:13px;margin-bottom:12px;display:none;padding:8px 12px;background:var(--danger-light);border-radius:var(--radius-sm)" role="alert"></div>
-            <button class="btn btn-primary" id="btn-admin-login" style="width:100%;justify-content:center;padding:10px">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-              Login
-            </button>
+          <div class="lcp-titles">
+            <span class="lcp-republic">Republic of Vanuatu</span>
+            <h1 class="lcp-portal-name">NBSAP GIS Portal</h1>
+            <span class="lcp-dept">Dept. of Environmental Protection &amp; Conservation</span>
           </div>
         </div>
+
+        <!-- Divider -->
+        <div class="lcp-divider"><span>Administrator Access</span></div>
+
+        <!-- Form -->
+        <div class="lcp-form">
+          <div class="lcp-input-wrap">
+            <span class="lcp-input-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            </span>
+            <input type="password" id="admin-passphrase" class="lcp-input"
+                   placeholder="Enter passphrase" autocomplete="current-password"
+                   aria-label="Admin passphrase">
+            <button type="button" class="lcp-pw-toggle" id="btn-toggle-pw" aria-label="Show passphrase">
+              <svg class="icon-eye" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              <svg class="icon-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            </button>
+          </div>
+
+          <div id="login-error" class="lcp-error" role="alert" style="display:none">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <span id="login-error-text"></span>
+          </div>
+
+          <button class="lcp-btn-signin" id="btn-admin-login">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            Sign In to Admin Panel
+          </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="lcp-footer">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Secure Access &nbsp;&middot;&nbsp; Encrypted &nbsp;&middot;&nbsp; Official Use Only
+        </div>
+
       </div>
     </div>
   `;
@@ -72,16 +102,32 @@ function renderLoginForm(page) {
   const input = page.querySelector('#admin-passphrase');
   const btn = page.querySelector('#btn-admin-login');
   const errorEl = page.querySelector('#login-error');
+  const errorText = page.querySelector('#login-error-text');
+  const toggleBtn = page.querySelector('#btn-toggle-pw');
+  const eyeOpen = toggleBtn.querySelector('.icon-eye');
+  const eyeOff = toggleBtn.querySelector('.icon-eye-off');
+
+  toggleBtn.addEventListener('click', () => {
+    const isPassword = input.type === 'password';
+    input.type = isPassword ? 'text' : 'password';
+    eyeOpen.style.display = isPassword ? 'none' : '';
+    eyeOff.style.display = isPassword ? '' : 'none';
+    toggleBtn.setAttribute('aria-label', isPassword ? 'Hide passphrase' : 'Show passphrase');
+  });
 
   const doLogin = async () => {
+    btn.disabled = true;
+    errorEl.style.display = 'none';
     const result = await login(input.value);
     if (result.success) {
       setAdminState(true);
       renderAdminPage();
       updateNavAuthBadge(true);
     } else {
-      errorEl.textContent = result.error || 'Login failed';
+      errorText.textContent = result.error || 'Login failed';
       errorEl.style.display = '';
+      btn.disabled = false;
+      input.focus();
     }
   };
 
