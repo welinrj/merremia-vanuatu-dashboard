@@ -85,6 +85,12 @@
     .badge-high,.badge-severe,.badge-cr{background:#fee2e2;color:#991b1b}
     .badge-moderate,.badge-en{background:#fef3c7;color:#92400e}
     .badge-low,.badge-mild,.badge-vu{background:#d1fae5;color:#065f46}
+    .badge-class-0{background:#fee2e2;color:#991b1b}
+    .badge-class-1{background:#fef3c7;color:#92400e}
+    .badge-class-2{background:#d1fae5;color:#065f46}
+    .badge-class-3{background:#d9f99d;color:#365314}
+    .badge-class-4{background:#fef9c3;color:#713f12}
+    .badge-class-5{background:#f1f5f9;color:#64748b}
     .badge-nt{background:#dbeafe;color:#1e40af}
     .badge-dd{background:#f1f5f9;color:#64748b}
     .badge-planning,.badge-early{background:#e0e7ff;color:#3730a3}
@@ -416,6 +422,20 @@
       document.getElementById('bm-' + type).classList.add('active');
     }
 
+    // ── Land Cover Classification constants ──
+    var LC_LABELS = [
+      '0: Big Lif Rop Heavy',
+      '1: Big Lif Rop Light',
+      '2: Healthy Forest',
+      '3: Open/Damaged Forest',
+      '4: Grass / Garden',
+      '5: Other / Non-veg'
+    ];
+    var LC_COLORS = ['#ef4444','#f59e0b','#10b981','#84cc16','#fbbf24','#94a3b8'];
+    var LC_DENSITY_LABELS = { high: 'High (>50%)', medium: 'Medium (20–50%)', low: 'Low (<20%)', na: 'Not Applicable', '': 'Not Recorded' };
+    var LC_DENSITY_COLORS = { high: '#ef4444', medium: '#f59e0b', low: '#10b981', na: '#94a3b8', '': '#e2e8f0' };
+    var LC_PROVINCE_COLORS = { Torba:'#818cf8', Sanma:'#3b82f6', Penama:'#10b981', Malampa:'#f59e0b', Shefa:'#ef4444', Tafea:'#a855f7' };
+
     // ── State ──
     var activeTab = 'merremia';
     var allRecordsData = [];
@@ -610,7 +630,8 @@
       var weekAgo = new Date(); weekAgo.setDate(weekAgo.getDate() - 7);
       var urgent = [];
       if (activeTab === 'merremia') {
-        urgent = records.filter(function(r) { return r.threatLevel === 'high' && new Date(r.timestamp) > weekAgo; });
+        urgent = records.filter(function(r) { return r.landCoverClass === 0 && new Date(r.timestamp) > weekAgo; });
+        if (!urgent.length) urgent = records.filter(function(r) { return (r.threatLevel||'').toLowerCase() === 'high' && new Date(r.timestamp) > weekAgo; });
       } else if (activeTab === 'degraded') {
         urgent = records.filter(function(r) { return (r.severity || '').toLowerCase() === 'severe' && new Date(r.timestamp) > weekAgo; });
       } else if (activeTab === 'threatened') {
@@ -619,7 +640,7 @@
       if (urgent.length > 0) {
         var islands = [];
         urgent.forEach(function(r) { if (r.island && islands.indexOf(r.island) < 0) islands.push(r.island); });
-        var label = activeTab === 'merremia' ? 'high-threat' : activeTab === 'degraded' ? 'severe degradation' : 'critically endangered';
+        var label = activeTab === 'merremia' ? 'heavy Big Lif Rop infestation (Class 0)' : activeTab === 'degraded' ? 'severe degradation' : 'critically endangered';
         text.textContent = urgent.length + ' ' + label + ' record' + (urgent.length > 1 ? 's' : '') + ' in the last 7 days \u2014 ' + islands.join(', ');
         banner.style.display = 'flex';
       } else {
@@ -636,9 +657,13 @@
       var latestDate = latest ? new Date(latest.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short' }) : '--';
 
       if (activeTab === 'merremia') {
-        var totalCount = 0, totalArea = 0;
-        records.forEach(function(r) { totalCount += (r.count || 1); totalArea += (r.coverageArea || 0); });
-        setStats('Field Records', records.length, 'observations', 'Total Count', totalCount.toLocaleString(), 'individual sightings', 'Area Surveyed', totalArea.toLocaleString(), 'hectares', 'Islands', islandCount, 'with data', latestDate, latest ? ((latest.species||[]).join(', ') + ' at ' + (latest.island||'')) : '');
+        var blrCount = 0, heavyCount = 0;
+        records.forEach(function(r) {
+          if (r.landCoverClass === 0) { blrCount++; heavyCount++; }
+          else if (r.landCoverClass === 1) blrCount++;
+        });
+        var latestSub = latest ? (latest.landCoverClass != null ? LC_LABELS[latest.landCoverClass].split(':')[1].trim() + ' at ' + (latest.island||'') : ((latest.species||'') + ' at ' + (latest.island||''))) : '';
+        setStats('Field Points', records.length, 'observations collected', 'Big Lif Rop Sites', blrCount, 'class 0+1 (vine present)', 'Heavy Infestations', heavyCount, 'class 0 (>50% cover)', 'Islands Covered', islandCount, 'with field data', latestDate, latestSub);
       } else if (activeTab === 'degraded') {
         var totalArea = 0, severe = 0;
         records.forEach(function(r) { totalArea += (r.estimatedArea || 0); if ((r.severity||'').toLowerCase() === 'severe') severe++; });
@@ -680,7 +705,10 @@
 
     function getMarkerColor(r) {
       var cat = r.category || 'merremia';
-      if (cat === 'merremia') { var t = (r.threatLevel||'low').toLowerCase(); return t === 'high' ? '#ef4444' : t === 'moderate' ? '#f59e0b' : '#10b981'; }
+      if (cat === 'merremia') {
+        if (r.landCoverClass != null && r.landCoverClass >= 0 && r.landCoverClass <= 5) return LC_COLORS[r.landCoverClass];
+        var t = (r.threatLevel||'low').toLowerCase(); return t === 'high' ? '#ef4444' : t === 'moderate' ? '#f59e0b' : '#10b981';
+      }
       if (cat === 'degraded') { var s = (r.severity||'').toLowerCase(); return s === 'severe' ? '#ef4444' : s === 'moderate' ? '#f59e0b' : '#fbbf24'; }
       if (cat === 'restoration') { var st = (r.restorationStage||'').toLowerCase(); return st.indexOf('mature') >= 0 || st.indexOf('established') >= 0 ? '#10b981' : st.indexOf('mid') >= 0 ? '#3b82f6' : '#818cf8'; }
       if (cat === 'threatened') { var i = (r.iucnStatus||'').toLowerCase(); return i.indexOf('critical') >= 0 ? '#ef4444' : i.indexOf('endangered') >= 0 ? '#f59e0b' : i.indexOf('vulnerable') >= 0 ? '#a855f7' : '#818cf8'; }
@@ -721,7 +749,7 @@
     function getPopupHTML(r) {
       var cat = r.category || 'merremia';
       var title = '';
-      if (cat === 'merremia') title = r.species || 'Merremia';
+      if (cat === 'merremia') title = r.landCoverClass != null ? LC_LABELS[r.landCoverClass] : (r.species || 'Merremia');
       else if (cat === 'degraded') title = r.degradationType || 'Degraded Area';
       else if (cat === 'restoration') title = r.restorationType || 'Restoration';
       else if (cat === 'threatened') title = r.speciesName || 'Threatened Species';
@@ -730,7 +758,8 @@
         html += '<span class="popup-polygon-badge">Polygon</span>';
         if (r.polygonAreaHa) html += '<div class="popup-meta">Area: ~' + Number(r.polygonAreaHa).toFixed(2) + ' ha</div>';
       }
-      html += '<div class="popup-meta">' + (r.island || '') + (r.siteName ? ' — ' + r.siteName : '') + '</div>';
+      html += '<div class="popup-meta">' + (r.island || '') + (r.province ? ' · ' + r.province : '') + (r.siteName ? ' — ' + r.siteName : '') + '</div>';
+      if (cat === 'merremia' && r.density) html += '<div class="popup-meta">Density: ' + (LC_DENSITY_LABELS[r.density] || r.density) + '</div>';
       html += getPhotoHTML(r.id, r.photoCount);
       return html;
     }
@@ -863,13 +892,13 @@
       records.forEach(function(r) { if (r.island) islands[r.island] = true; });
 
       if (activeTab === 'merremia') {
-        var threats = {}, species = {};
+        var classKeys = [], provinces = {};
         records.forEach(function(r) {
-          var t = (r.threatLevel||'low'); threats[t.charAt(0).toUpperCase()+t.slice(1)] = true;
-          var sp = Array.isArray(r.species) ? r.species : [r.species||'']; sp.forEach(function(s) { if (s) species[s] = true; });
+          if (r.landCoverClass != null) classKeys['Class ' + r.landCoverClass] = true;
+          if (r.province) provinces[r.province] = true;
         });
-        fillSelect(f1, 'All Threats', Object.keys(threats).sort());
-        fillSelect(f2, 'All Species', Object.keys(species).sort());
+        fillSelect(f1, 'All Classes', Object.keys(classKeys).sort());
+        fillSelect(f2, 'All Provinces', Object.keys(provinces).sort());
       } else if (activeTab === 'degraded') {
         var types = {}, sevs = {};
         records.forEach(function(r) { if (r.degradationType) types[r.degradationType] = true; if (r.severity) sevs[r.severity] = true; });
@@ -908,8 +937,8 @@
         if (dateFrom && r.timestamp && r.timestamp.slice(0,10) < dateFrom) return false;
         if (dateTo && r.timestamp && r.timestamp.slice(0,10) > dateTo) return false;
         if (activeTab === 'merremia') {
-          if (v1 && (r.threatLevel||'low').toLowerCase() !== v1.toLowerCase()) return false;
-          if (v2) { var sp = Array.isArray(r.species) ? r.species : [r.species||'']; if (sp.indexOf(v2) < 0) return false; }
+          if (v1 && v1.startsWith('Class ') && r.landCoverClass !== parseInt(v1.replace('Class ', ''))) return false;
+          if (v2 && r.province !== v2) return false;
         } else if (activeTab === 'degraded') {
           if (v1 && r.severity !== v1) return false;
           if (v2 && r.degradationType !== v2) return false;
@@ -948,7 +977,7 @@
 
     function buildHeaders() {
       var del = isAdmin ? '<th style="width:70px">Delete</th>' : '';
-      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>Count</th><th>Threat</th><th>Area (ha)</th><th>Observer</th>' + del;
+      if (activeTab === 'merremia') return '<th>Date</th><th>Island</th><th>Province</th><th>Class</th><th>Density</th><th>Species</th><th>Observer</th>' + del;
       if (activeTab === 'degraded') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Severity</th><th>Area (ha)</th><th>Land Use</th><th>Observer</th>' + del;
       if (activeTab === 'restoration') return '<th>Date</th><th>Island</th><th>Site</th><th>Type</th><th>Stage</th><th>Area (ha)</th><th>Project</th><th>Observer</th>' + del;
       if (activeTab === 'threatened') return '<th>Date</th><th>Island</th><th>Site</th><th>Species</th><th>IUCN</th><th>Pop.</th><th>Habitat</th><th>Observer</th>' + del;
@@ -959,10 +988,10 @@
       var d = new Date(r.timestamp).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
       var del = isAdmin ? '<td><button class="btn-row-delete" onclick="promptDeleteRecord(\'' + r.id + '\')">Delete</button></td>' : '';
       if (activeTab === 'merremia') {
-        var t = (r.threatLevel||'low').toLowerCase();
-        var bc = t === 'high' ? 'badge-high' : t === 'moderate' ? 'badge-moderate' : 'badge-low';
+        var classBadge = r.landCoverClass != null ? '<span class="badge badge-class-' + r.landCoverClass + '">Class ' + r.landCoverClass + '</span>' : '-';
+        var densityShort = { high: 'High', medium: 'Med', low: 'Low', na: 'N/A' };
         var sp = Array.isArray(r.species) ? r.species.join(', ') : (r.species || '-');
-        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.siteName||'-') + '</td><td><em>' + sp + '</em></td><td>' + (r.count||1) + '</td><td><span class="badge ' + bc + '">' + (r.threatLevel||'Low') + '</span></td><td>' + (r.coverageArea||'-') + '</td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
+        return '<tr><td>' + d + '</td><td>' + (r.island||'-') + '</td><td>' + (r.province||'-') + '</td><td>' + classBadge + '</td><td>' + (r.density ? (densityShort[r.density]||r.density) : '-') + '</td><td><em>' + sp + '</em></td><td>' + (r.observer||'-') + '</td>' + del + '</tr>';
       }
       if (activeTab === 'degraded') {
         var sv = (r.severity||'').toLowerCase();
@@ -1042,47 +1071,81 @@
     }
 
     function renderMerremiaCharts(records) {
-      // 1: Observations by Island
-      document.getElementById('chart1-title').textContent = 'Observations by Island';
-      var byIsland = {};
-      records.forEach(function(r) { var k = r.island || 'Unknown'; byIsland[k] = (byIsland[k] || 0) + (r.count || 1); });
-      var si = Object.entries(byIsland).sort(function(a, b) { return b[1] - a[1]; });
+      // 1: Land Cover Classification breakdown
+      document.getElementById('chart1-title').textContent = 'Land Cover Classification';
+      var classCounts = [0, 0, 0, 0, 0, 0];
+      records.forEach(function(r) {
+        if (r.landCoverClass != null && r.landCoverClass >= 0 && r.landCoverClass <= 5) classCounts[r.landCoverClass]++;
+      });
       chart1 = new Chart(document.getElementById('chart1').getContext('2d'), {
         type: 'bar',
-        data: { labels: si.map(function(e) { return e[0]; }), datasets: [{ data: si.map(function(e) { return e[1]; }), backgroundColor: '#10b981', borderRadius: 4 }] },
-        options: barOpts()
-      });
-
-      // 2: Threat Breakdown
-      document.getElementById('chart2-title').textContent = 'Threat Level Breakdown';
-      var threats = { High: 0, Moderate: 0, Low: 0 };
-      records.forEach(function(r) { var t = (r.threatLevel || 'low').toLowerCase(); if (t === 'high') threats.High++; else if (t === 'moderate') threats.Moderate++; else threats.Low++; });
-      chart2 = new Chart(document.getElementById('chart2').getContext('2d'), {
-        type: 'doughnut',
-        data: { labels: Object.keys(threats), datasets: [{ data: Object.values(threats), backgroundColor: ['#ef4444', '#f59e0b', '#10b981'] }] },
-        options: doughnutOpts
-      });
-
-      // 3: Species Distribution
-      document.getElementById('chart3-title').textContent = 'Species Distribution';
-      var sp = {};
-      records.forEach(function(r) { var arr = Array.isArray(r.species) ? r.species : [r.species || 'Unknown']; arr.forEach(function(s) { sp[s] = (sp[s] || 0) + (r.count || 1); }); });
-      var ss = Object.entries(sp).sort(function(a, b) { return b[1] - a[1]; });
-      chart3 = new Chart(document.getElementById('chart3').getContext('2d'), {
-        type: 'bar',
-        data: { labels: ss.map(function(e) { return e[0]; }), datasets: [{ data: ss.map(function(e) { return e[1]; }), backgroundColor: chartPalette.slice(0, ss.length), borderRadius: 4 }] },
+        data: {
+          labels: LC_LABELS.map(function(l) { return l.split(':')[1].trim(); }),
+          datasets: [{ data: classCounts, backgroundColor: LC_COLORS, borderRadius: 4 }]
+        },
         options: barOpts(true)
       });
 
-      // 4: Collection Timeline
-      document.getElementById('chart4-title').textContent = 'Collection Timeline';
-      var tl = {};
-      records.forEach(function(r) { var d = new Date(r.timestamp); var k = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); tl[k] = (tl[k] || 0) + 1; });
-      var st = Object.entries(tl).sort(function(a, b) { return a[0].localeCompare(b[0]); });
+      // 2: Big Lif Rop (class 0+1) by Island — stacked
+      document.getElementById('chart2-title').textContent = 'Big Lif Rop Presence by Island';
+      var heavyByIsland = {}, lightByIsland = {}, allBLRIslands = {};
+      records.forEach(function(r) {
+        var k = r.island || 'Unknown';
+        if (r.landCoverClass === 0) { heavyByIsland[k] = (heavyByIsland[k] || 0) + 1; allBLRIslands[k] = true; }
+        if (r.landCoverClass === 1) { lightByIsland[k] = (lightByIsland[k] || 0) + 1; allBLRIslands[k] = true; }
+      });
+      var blrIslands = Object.keys(allBLRIslands).sort(function(a, b) {
+        return ((heavyByIsland[b]||0) + (lightByIsland[b]||0)) - ((heavyByIsland[a]||0) + (lightByIsland[a]||0));
+      });
+      chart2 = new Chart(document.getElementById('chart2').getContext('2d'), {
+        type: 'bar',
+        data: {
+          labels: blrIslands.length ? blrIslands : ['No Big Lif Rop records'],
+          datasets: [
+            { label: 'Heavy — Class 0', data: blrIslands.map(function(i) { return heavyByIsland[i] || 0; }), backgroundColor: '#ef4444', borderRadius: 2 },
+            { label: 'Light — Class 1', data: blrIslands.map(function(i) { return lightByIsland[i] || 0; }), backgroundColor: '#f59e0b', borderRadius: 2 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: true, labels: { color: '#94a3b8', font: { size: 10 }, boxWidth: 12 } } },
+          scales: {
+            x: { stacked: true, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { color: '#94a3b8', font: { size: 10 } } },
+            y: { stacked: true, grid: { color: 'rgba(51,65,85,0.5)' }, ticks: { color: '#94a3b8', font: { size: 10 } }, beginAtZero: true }
+          }
+        }
+      });
+
+      // 3: Density / Cover Breakdown
+      document.getElementById('chart3-title').textContent = 'Density / Cover Distribution';
+      var densityCounts = {};
+      records.forEach(function(r) { var k = r.density || ''; densityCounts[k] = (densityCounts[k] || 0) + 1; });
+      var densityEntries = Object.entries(densityCounts).sort(function(a, b) {
+        var order = ['high','medium','low','na',''];
+        return order.indexOf(a[0]) - order.indexOf(b[0]);
+      });
+      chart3 = new Chart(document.getElementById('chart3').getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: densityEntries.map(function(e) { return LC_DENSITY_LABELS[e[0]] || e[0]; }),
+          datasets: [{ data: densityEntries.map(function(e) { return e[1]; }), backgroundColor: densityEntries.map(function(e) { return LC_DENSITY_COLORS[e[0]] || '#94a3b8'; }) }]
+        },
+        options: doughnutOpts
+      });
+
+      // 4: Records by Province
+      document.getElementById('chart4-title').textContent = 'Records by Province';
+      var provCounts = {}, noProvince = 0;
+      records.forEach(function(r) { if (r.province) provCounts[r.province] = (provCounts[r.province] || 0) + 1; else noProvince++; });
+      if (noProvince > 0) provCounts['Not specified'] = noProvince;
+      var provEntries = Object.entries(provCounts).sort(function(a, b) { return b[1] - a[1]; });
       chart4 = new Chart(document.getElementById('chart4').getContext('2d'), {
-        type: 'line',
-        data: { labels: st.map(function(e) { return e[0]; }), datasets: [{ data: st.map(function(e) { return e[1]; }), borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', fill: true, tension: 0.3, pointBackgroundColor: '#10b981', pointRadius: 4, borderWidth: 2 }] },
-        options: lineOpts()
+        type: 'bar',
+        data: {
+          labels: provEntries.map(function(e) { return e[0]; }),
+          datasets: [{ data: provEntries.map(function(e) { return e[1]; }), backgroundColor: provEntries.map(function(e) { return LC_PROVINCE_COLORS[e[0]] || '#94a3b8'; }), borderRadius: 4 }]
+        },
+        options: barOpts()
       });
     }
 
@@ -1277,7 +1340,7 @@
     }
 
     function recordsToCSV(records) {
-      var headers = ['id','timestamp','category','geometryType','island','siteName','observer','latitude','longitude','accuracy','notes','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved','polygonAreaHa','polygonCoordinates'];
+      var headers = ['id','timestamp','category','geometryType','island','province','siteName','observer','latitude','longitude','accuracy','notes','landCoverClass','density','species','count','threatLevel','coverageArea','degradationType','severity','estimatedArea','landUseType','vegetationCover','erosionEvidence','cause','waterNearby','restorationType','restorationStage','yearsSinceStarted','projectName','survivalRate','speciesName','speciesType','iucnStatus','populationEstimate','habitatType','breedingEvidence','threatsObserved','polygonAreaHa','polygonCoordinates'];
       var rows = records.map(function(r) {
         return headers.map(function(h) {
           var v = r[h] != null ? String(r[h]) : '';
