@@ -49,7 +49,7 @@ function renderLoginForm(page) {
             <div class="login-official-banner">
               <img src="${base}vanuatu-coat-of-arms.svg"
                    alt="Republic of Vanuatu Coat of Arms"
-                   width="48" height="48"
+                   width="100" height="100"
                    style="filter:brightness(1.1)">
             </div>
           </div>
