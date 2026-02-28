@@ -2174,6 +2174,12 @@ a:focus-visible {
   opacity: 0.7;
 }
 
+.footer-partner-logo {
+  height: 16px;
+  width: auto;
+  object-fit: contain;
+}
+
 .footer-right {
   display: flex;
   align-items: center;
