@@ -3269,6 +3269,18 @@ body.print-mode {
   height: 48px;
   object-fit: contain;
 }
+.partner-card-logo--large {
+  height: 90px;
+}
+.partner-card-logo--large img {
+  width: 130px;
+  height: 80px;
+}
+.partner-card-fullname--large {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
 .partner-card-icon {
   width: 40px;
   height: 40px;

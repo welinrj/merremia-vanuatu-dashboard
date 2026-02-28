@@ -256,10 +256,10 @@ export function initAbout() {
         </div>
 
         <div class="about-partner-card">
-          <div class="partner-card-logo">
+          <div class="partner-card-logo partner-card-logo--large">
             <img src="logos/vss-logo.jpeg" alt="Vanua Spatial Solutions logo">
           </div>
-          <div class="partner-card-fullname">Vanua Spatial Solutions</div>
+          <div class="partner-card-fullname partner-card-fullname--large">Vanua Spatial Solutions</div>
           <div class="partner-card-role">GIS system design, development &amp; technical implementation</div>
         </div>
 
