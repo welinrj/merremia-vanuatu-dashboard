@@ -1,12 +1,11 @@
 /**
  * Filter Panel component.
- * Renders target, province, category, realm, and year filters.
+ * Renders target, province, realm filters.
  * Dispatches filter change events to update map, KPIs, tables, and exports.
  */
 import targetsConfig from '../../config/targets.js';
-import { CATEGORIES } from '../../config/categories.js';
 import { targetIcon } from '../../config/icons.js';
-import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
+import { getAppState, updateFilters } from '../state.js';
 
 /**
  * Renders the filter panel into a container element.
@@ -51,16 +50,6 @@ export function renderFilterPanel(container) {
       </div>
 
       <div class="filter-group">
-        <label>Category</label>
-        <select id="filter-category">
-          <option value="All">All Categories</option>
-          ${Object.entries(CATEGORIES).map(([key, val]) => `
-            <option value="${key}" ${state.filters.category === key ? 'selected' : ''}>${val.label}</option>
-          `).join('')}
-        </select>
-      </div>
-
-      <div class="filter-group">
         <label>Realm</label>
         <select id="filter-realm">
           <option value="All" ${state.filters.realm === 'All' ? 'selected' : ''}>All</option>
@@ -69,12 +58,6 @@ export function renderFilterPanel(container) {
         </select>
       </div>
 
-      <div class="filter-group">
-        <label>Year</label>
-        <select id="filter-year">
-          <option value="All">All Years</option>
-        </select>
-      </div>
     </div>
   `;
 
@@ -92,61 +75,13 @@ export function renderFilterPanel(container) {
     updateFilters({ province: e.target.value });
   });
 
-  // Category filter
-  container.querySelector('#filter-category').addEventListener('change', (e) => {
-    updateFilters({ category: e.target.value });
-  });
-
   // Realm filter
   container.querySelector('#filter-realm').addEventListener('change', (e) => {
     updateFilters({ realm: e.target.value });
-  });
-
-  // Year filter
-  container.querySelector('#filter-year').addEventListener('change', (e) => {
-    updateFilters({ year: e.target.value });
   });
 
   // Clear button
   container.querySelector('#btn-clear-filters').addEventListener('click', () => {
     updateFilters({ targets: ['T3'], province: 'All', category: 'All', realm: 'All', year: 'All' });
   });
-
-  // Populate year dropdown from loaded layers
-  populateYearFilter(container.querySelector('#filter-year'), state);
-}
-
-/** Cached year set — invalidated when layers change (new render cycle). */
-let _yearCache = null;
-let _yearCacheLayerCount = -1;
-
-function populateYearFilter(select, state) {
-  const layers = getDashboardLayers();
-
-  // Only rescan features when the layer count changes
-  if (!_yearCache || _yearCacheLayerCount !== layers.length) {
-    const years = new Set();
-    for (const layer of layers) {
-      // Check metadata year first (cheap)
-      if (layer.metadata?.year) years.add(layer.metadata.year);
-      // Only scan features if year set is still small (avoid full scan for large layers)
-      const feats = layer.geojson?.features;
-      if (!feats) continue;
-      // Sample up to 200 features per layer to discover years — avoids scanning 50K+ features
-      const limit = Math.min(feats.length, 200);
-      for (let i = 0; i < limit; i++) {
-        if (feats[i].properties.year) years.add(feats[i].properties.year);
-      }
-    }
-    _yearCache = [...years].sort((a, b) => b - a);
-    _yearCacheLayerCount = layers.length;
-  }
-
-  for (const y of _yearCache) {
-    const opt = document.createElement('option');
-    opt.value = y;
-    opt.textContent = y;
-    if (state.filters.year === String(y)) opt.selected = true;
-    select.appendChild(opt);
-  }
 }

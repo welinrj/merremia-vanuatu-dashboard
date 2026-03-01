@@ -15,6 +15,7 @@ import { CATEGORIES } from '../config/categories.js';
 import { isAdmin } from '../services/auth/index.js';
 import { showAlert } from '../ui/components/dialog.js';
 import { renderExecutiveSummary } from '../ui/components/executiveSummary.js';
+import { renderPriorityTargets, renderLatestActivity } from '../ui/components/sidebarWidgets.js';
 
 const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.vu'];
 
@@ -41,6 +42,8 @@ export function initDashboard() {
       <div class="dashboard-sidebar">
         <div id="filter-panel-container"></div>
         <div id="kpi-container"></div>
+        <div id="priority-targets-container"></div>
+        <div id="latest-activity-container"></div>
         <div class="sidebar-section-title" style="margin-top:4px">Last Updated</div>
         <div id="last-updated-container" style="margin-bottom:8px">
           <span class="last-updated-badge" title="Data last refreshed from Firestore">
@@ -176,6 +179,12 @@ export function refreshDashboard() {
   // Re-render filter panel
   const filterContainer = document.getElementById('filter-panel-container');
   if (filterContainer) renderFilterPanel(filterContainer);
+
+  // Render priority targets and latest activity widgets
+  const priorityContainer = document.getElementById('priority-targets-container');
+  if (priorityContainer) renderPriorityTargets(priorityContainer);
+  const activityContainer = document.getElementById('latest-activity-container');
+  if (activityContainer) renderLatestActivity(activityContainer);
 
   // Re-render KPIs with smooth transition: fade-out → spinner → compute → fade-in
   const kpiContainer = document.getElementById('kpi-container');
