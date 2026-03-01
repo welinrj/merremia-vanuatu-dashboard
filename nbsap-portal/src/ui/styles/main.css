@@ -506,10 +506,11 @@ html, body {
 }
 
 .kpi-card {
-  background: var(--bg-white);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 14px;
+  background: white;
+  border: none;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
   text-align: center;
   transition: all var(--transition-fast);
   position: relative;
@@ -525,8 +526,7 @@ html, body {
 .kpi-card:nth-child(6) { animation-delay: 0.3s; }
 
 .kpi-card:hover {
-  box-shadow: var(--shadow-lg);
-  border-color: var(--gray-300);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.13);
   transform: translateY(-2px);
 }
 
