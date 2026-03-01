@@ -437,12 +437,12 @@ function renderTarget3KPIs(container, layers, filters) {
 
 /** Species categories for T4 dashboard */
 const T4_SPECIES = [
-  { key: 'MEGAPODE', name: 'Vanuatu Megapode', scientific: 'Megapodius layardi', taxa: 'Bird' },
-  { key: 'STARLING', name: 'Vanuatu Mountain Starling', scientific: 'Aplonis santovestris', taxa: 'Bird' },
-  { key: 'FANTAIL', name: 'Vanuatu Streaked Fantail', scientific: 'Rhipidura spilodera', taxa: 'Bird' },
-  { key: 'KINGFISHER', name: 'Vanuatu Kingfisher', scientific: 'Todiramphus farquhari', taxa: 'Bird' },
-  { key: 'FLYING_FOX', name: 'Vanuatu Flying Fox', scientific: 'Pteropus anetianus', taxa: 'Mammal' },
-  { key: 'PLERANDRA', name: 'Plerandra vanuatuensis', scientific: 'Plerandra vanuatuensis', taxa: 'Plant' }
+  { key: 'MEGAPODE', name: 'Vanuatu Megapode', scientific: 'Megapodius layardi', taxa: 'Bird', photo: 'species-photos/megapode.jpg', credit: 'Euan Moore / iNaturalist (CC BY)' },
+  { key: 'STARLING', name: 'Vanuatu Mountain Starling', scientific: 'Aplonis santovestris', taxa: 'Bird', photo: null, credit: null },
+  { key: 'FANTAIL', name: 'Vanuatu Streaked Fantail', scientific: 'Rhipidura spilodera', taxa: 'Bird', photo: 'species-photos/fantail.jpg', credit: 'iNaturalist (CC BY-NC)' },
+  { key: 'KINGFISHER', name: 'Vanuatu Kingfisher', scientific: 'Todiramphus farquhari', taxa: 'Bird', photo: 'species-photos/kingfisher.jpg', credit: 'Andrew Toara Morris / iNaturalist (CC BY-NC)' },
+  { key: 'FLYING_FOX', name: 'Vanuatu Flying Fox', scientific: 'Pteropus anetianus', taxa: 'Mammal', photo: 'species-photos/flying-fox.jpg', credit: 'craigjhowe / iNaturalist (CC BY-NC)' },
+  { key: 'PLERANDRA', name: 'Plerandra vanuatuensis', scientific: 'Plerandra vanuatuensis', taxa: 'Plant', photo: null, credit: null }
 ];
 
 /**
@@ -463,19 +463,26 @@ function renderSpeciesKPIs(container, layers, filters) {
     const cat = m.categoryBreakdown.find(c => c.category === sp.key);
     const catDef = CATEGORIES[sp.key] || { color: '#95a5a6' };
     const hasData = cat && cat.features > 0;
+    const photoHtml = sp.photo
+      ? `<div class="species-photo" style="background-image:url('${sp.photo}')" title="${sp.credit || ''}"></div>`
+      : `<div class="species-photo species-photo-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="${catDef.color}" stroke-width="1.5" opacity="0.4"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg></div>`;
     return `
       <div class="species-card ${hasData ? '' : 'species-no-data'}" style="border-left:4px solid ${catDef.color}">
-        <div class="species-card-header">
-          <span class="species-common-name">${sp.name}</span>
-          <span class="species-taxa-badge">${sp.taxa}</span>
+        ${photoHtml}
+        <div class="species-card-body">
+          <div class="species-card-header">
+            <span class="species-common-name">${sp.name}</span>
+            <span class="species-taxa-badge">${sp.taxa}</span>
+          </div>
+          <div class="species-scientific"><i>${sp.scientific}</i></div>
+          ${hasData
+            ? `<div class="species-stats">
+                <span class="species-stat-value">${formatNumber(cat.area_ha)} ha</span>
+                <span class="species-stat-label">${cat.features} record${cat.features !== 1 ? 's' : ''}</span>
+              </div>`
+            : '<div class="species-no-data-label">No data uploaded</div>'}
+          ${sp.credit ? `<div class="species-photo-credit">${sp.credit}</div>` : ''}
         </div>
-        <div class="species-scientific"><i>${sp.scientific}</i></div>
-        ${hasData
-          ? `<div class="species-stats">
-              <span class="species-stat-value">${formatNumber(cat.area_ha)} ha</span>
-              <span class="species-stat-label">${cat.features} record${cat.features !== 1 ? 's' : ''}</span>
-            </div>`
-          : '<div class="species-no-data-label">No data uploaded</div>'}
       </div>
     `;
   }).join('');
