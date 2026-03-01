@@ -748,6 +748,42 @@ function formatNumber(n) {
 }
 
 /**
+ * Animates all .kpi-value numbers in a container from 0 to their final value.
+ * Skips complex values like "5 / 6" (species ratio) or non-numeric text.
+ * Uses ease-out cubic easing over 650ms.
+ *
+ * @param {HTMLElement} container
+ */
+export function animateKPINumbers(container) {
+  const DURATION = 650;
+  container.querySelectorAll('.kpi-value').forEach(el => {
+    const original = el.textContent.trim();
+    // Match simple numeric values with optional K/M/% suffix — skip "5 / 6", "N/A", etc.
+    const match = original.match(/^([\d.]+)([KM%]?)$/);
+    if (!match) return;
+    const rawNum = parseFloat(match[1]);
+    const suffix = match[2];
+    if (isNaN(rawNum) || rawNum === 0) return;
+    const decimals = (match[1].split('.')[1] || '').length;
+    const startTime = performance.now();
+    el.setAttribute('data-counting', '1');
+    el.textContent = '0' + (decimals > 0 ? '.' + '0'.repeat(decimals) : '') + suffix;
+    const tick = (now) => {
+      const t = Math.min((now - startTime) / DURATION, 1);
+      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      el.textContent = (rawNum * eased).toFixed(decimals) + suffix;
+      if (t < 1) {
+        requestAnimationFrame(tick);
+      } else {
+        el.textContent = original; // restore exact final value
+        el.removeAttribute('data-counting');
+      }
+    };
+    requestAnimationFrame(tick);
+  });
+}
+
+/**
  * Renders a clear "no data" empty state for a target with a data gap.
  * Decision makers see this when a target has no GIS layers uploaded yet.
  */

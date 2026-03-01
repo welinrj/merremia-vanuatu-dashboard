@@ -99,6 +99,15 @@
   100% { background-position: 200% 0; }
 }
 
+@keyframes ripple {
+  to { transform: scale(4); opacity: 0; }
+}
+
+@keyframes kpiCount {
+  from { opacity: 0.4; }
+  to   { opacity: 1; }
+}
+
 @keyframes pulseGlow {
   0%, 100% { box-shadow: 0 0 0 0 rgba(0,107,63,0.2); }
   50%      { box-shadow: 0 0 0 6px rgba(0,107,63,0); }
@@ -484,8 +493,9 @@ html, body {
 .kpi-card:nth-child(6) { animation-delay: 0.3s; }
 
 .kpi-card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
   border-color: var(--gray-300);
+  transform: translateY(-2px);
 }
 
 .kpi-card::before {
@@ -657,6 +667,8 @@ html, body {
 .btn {
   display: inline-flex;
   align-items: center;
+  position: relative;
+  overflow: hidden;
   justify-content: center;
   gap: 6px;
   padding: 8px 16px;
@@ -714,6 +726,16 @@ html, body {
 .btn:active:not(:disabled) {
   transform: translateY(0) scale(0.97);
   transition-duration: 80ms;
+}
+
+/* Button ripple wave */
+.btn-ripple-wave {
+  position: absolute;
+  border-radius: 50%;
+  transform: scale(0);
+  animation: ripple 500ms cubic-bezier(0.4, 0, 0.2, 1);
+  background: rgba(255, 255, 255, 0.28);
+  pointer-events: none;
 }
 
 .btn-ghost {
@@ -788,7 +810,8 @@ html, body {
 }
 
 .card:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
 .card-header {
@@ -1631,6 +1654,27 @@ html, body {
   }
 }
 
+/* ── KPI Refresh Transition ────────────────────────────── */
+#kpi-container {
+  transition: opacity 120ms ease;
+}
+
+/* Inline spinner shown while metrics recompute */
+.kpi-computing {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 28px 16px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+/* Animated KPI value on first render */
+.kpi-value[data-counting] {
+  animation: kpiCount 600ms ease-out;
+}
+
 /* ── Loading State ─────────────────────────────────────── */
 .loading-state {
   display: flex;
@@ -1711,8 +1755,9 @@ html, body {
 }
 
 .t2-province-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   border-color: var(--gray-300);
+  transform: translateY(-1px);
 }
 
 .t2-province-header {
@@ -1849,7 +1894,8 @@ html, body {
 .portal-target-group:nth-child(5) { animation-delay: 0.25s; }
 
 .portal-target-group:hover {
-  box-shadow: var(--shadow-md);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 
 .portal-group-header {
@@ -1890,7 +1936,8 @@ html, body {
 }
 
 .target-doc-card:hover {
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 
 .target-doc-code {

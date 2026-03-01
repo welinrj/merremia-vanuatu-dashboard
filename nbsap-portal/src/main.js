@@ -520,6 +520,19 @@ function updateNavAuthBadge() {
   }
 }
 
+// Button ripple effect — delegated so it works on dynamically rendered buttons
+document.body.addEventListener('click', (e) => {
+  const btn = e.target.closest('.btn');
+  if (!btn || btn.disabled) return;
+  const rect = btn.getBoundingClientRect();
+  const size = Math.max(rect.width, rect.height);
+  const wave = document.createElement('span');
+  wave.className = 'btn-ripple-wave';
+  wave.style.cssText = `width:${size}px;height:${size}px;left:${e.clientX - rect.left - size / 2}px;top:${e.clientY - rect.top - size / 2}px`;
+  btn.appendChild(wave);
+  wave.addEventListener('animationend', () => wave.remove(), { once: true });
+}, true);
+
 // Start the app
 init().catch(err => {
   console.error('App initialization failed:', err);
