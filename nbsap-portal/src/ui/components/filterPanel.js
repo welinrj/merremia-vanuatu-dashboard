@@ -5,7 +5,7 @@
  */
 import targetsConfig from '../../config/targets.js';
 import { CATEGORIES } from '../../config/categories.js';
-import { colorfulTargetIcon } from '../../config/icons.js';
+import { targetIcon } from '../../config/icons.js';
 import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
 
 /**
@@ -26,18 +26,15 @@ export function renderFilterPanel(container) {
       <div class="filter-group">
         <label>NBSAP Target</label>
         <div class="target-checkboxes" id="target-filter-checkboxes">
-          ${targetsConfig.targets.map((t, i) => {
+          ${targetsConfig.targets.map(t => {
             const sel = state.filters.targets.includes(t.code);
+            const selStyle = sel ? `background:${t.color};border-color:${t.color};color:#fff` : '';
             return `
-            <label class="target-tab ${sel ? 'selected' : ''}"
-                   data-code="${t.code}"
-                   data-color="${t.color}"
-                   data-idx="${i}"
-                   title="${t.name}\n\n${t.description}"
-                   style="--tab-color:${t.color};animation-delay:${i * 55}ms">
+            <label class="target-checkbox ${sel ? 'selected' : ''}"
+                   data-code="${t.code}" title="${t.description}"
+                   style="${selStyle}">
               <input type="radio" name="nbsap-target" value="${t.code}" ${sel ? 'checked' : ''}>
-              <span class="target-tab-icon">${colorfulTargetIcon(t.code, 22)}</span>
-              <span class="target-tab-code">${t.code}</span>
+              <span class="target-pill-icon">${targetIcon(t.code, 14)}</span>${t.code}
             </label>`;
           }).join('')}
         </div>
@@ -82,13 +79,10 @@ export function renderFilterPanel(container) {
   `;
 
   // Bind target selection events (single target at a time)
-  container.querySelectorAll('.target-tab').forEach(el => {
+  container.querySelectorAll('.target-checkbox').forEach(el => {
     el.addEventListener('click', (e) => {
       e.preventDefault();
       const code = el.dataset.code;
-      // Ripple animation
-      el.classList.add('tab-click');
-      setTimeout(() => el.classList.remove('tab-click'), 350);
       updateFilters({ targets: [code] });
     });
   });
