@@ -5,12 +5,25 @@ import targetsConfig from '../../config/targets.js';
 import { getDashboardLayers, updateFilters } from '../state.js';
 import { getAuditLog } from '../../services/storage/index.js';
 
+let _priorityRendered = false;
+let _priorityLayerCount = -1;
+
+/** Reset so widgets re-render on next refresh (call after layer changes). */
+export function invalidatePriorityCache() {
+  _priorityRendered = false;
+  _priorityLayerCount = -1;
+}
+
 /**
  * Renders "Priority Targets" — targets ranked by data gap.
- * Targets with no data appear first, then those with fewest datasets.
+ * Skips re-rendering unless layer count changes.
  */
 export function renderPriorityTargets(container) {
   const layers = getDashboardLayers();
+
+  // Skip if already rendered and layer count unchanged
+  if (_priorityRendered && layers.length === _priorityLayerCount) return;
+  _priorityLayerCount = layers.length;
 
   // Count layers per target
   const targetStats = targetsConfig.targets.map(t => {
@@ -54,13 +67,29 @@ export function renderPriorityTargets(container) {
       updateFilters({ targets: [el.dataset.target] });
     });
   });
+
+  _priorityRendered = true;
+}
+
+/** Cached activity entries — only fetched once, refreshed on layer changes. */
+let _activityCache = null;
+let _activityRendered = false;
+
+/** Call this to invalidate the activity cache (e.g. after upload). */
+export function invalidateActivityCache() {
+  _activityCache = null;
+  _activityRendered = false;
 }
 
 /**
  * Renders "Latest Activity" — most recent audit log entries.
+ * Skips re-rendering if already populated (global data, not filter-dependent).
  */
-export async function renderLatestActivity(container) {
-  // Show placeholder while loading
+export function renderLatestActivity(container) {
+  // Skip if already rendered and cache is valid
+  if (_activityRendered) return;
+
+  // Show placeholder
   container.innerHTML = `
     <div class="sidebar-section-title" style="margin-top:8px">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -69,37 +98,49 @@ export async function renderLatestActivity(container) {
     <div class="activity-list"><span class="activity-loading">Loading&hellip;</span></div>
   `;
 
-  let entries = [];
-  try {
-    const log = await getAuditLog();
-    entries = (log || []).slice(0, 5);
-  } catch (_) {
-    // Firestore may be unavailable
+  // Fetch async but don't block the refresh cycle
+  _fetchAndRenderActivity(container);
+}
+
+async function _fetchAndRenderActivity(container) {
+  let entries = _activityCache;
+
+  if (!entries) {
+    try {
+      const log = await getAuditLog();
+      entries = (log || []).slice(0, 5);
+    } catch (_) {
+      entries = [];
+    }
+
+    // Fallback to layer upload timestamps
+    if (entries.length === 0) {
+      const layers = getDashboardLayers();
+      entries = layers
+        .filter(l => l.metadata?.uploadTimestamp)
+        .map(l => ({
+          action: 'upload',
+          timestamp: l.metadata.uploadTimestamp,
+          filename: l.metadata.originalFilename || l.metadata.name,
+          category: l.metadata.category
+        }))
+        .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+        .slice(0, 5);
+    }
+
+    _activityCache = entries;
   }
 
-  // Also gather recent uploads from layers as fallback
-  if (entries.length === 0) {
-    const layers = getDashboardLayers();
-    const layerEntries = layers
-      .filter(l => l.metadata?.uploadTimestamp)
-      .map(l => ({
-        action: 'upload',
-        timestamp: l.metadata.uploadTimestamp,
-        filename: l.metadata.originalFilename || l.metadata.name,
-        category: l.metadata.category
-      }))
-      .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-      .slice(0, 5);
-    entries = layerEntries;
-  }
+  const listEl = container.querySelector('.activity-list');
+  if (!listEl) return;
 
   if (entries.length === 0) {
-    container.querySelector('.activity-list').innerHTML =
-      '<div class="activity-empty">No activity recorded yet</div>';
+    listEl.innerHTML = '<div class="activity-empty">No activity recorded yet</div>';
+    _activityRendered = true;
     return;
   }
 
-  const items = entries.map(e => {
+  listEl.innerHTML = entries.map(e => {
     const actionInfo = ACTION_LABELS[e.action] || ACTION_LABELS.default;
     const timeStr = formatRelativeTime(e.timestamp);
     const detail = e.filename || e.category || '';
@@ -114,7 +155,7 @@ export async function renderLatestActivity(container) {
       </div>`;
   }).join('');
 
-  container.querySelector('.activity-list').innerHTML = items;
+  _activityRendered = true;
 }
 
 const ACTION_LABELS = {

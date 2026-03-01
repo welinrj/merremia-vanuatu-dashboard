@@ -439,6 +439,8 @@ html, body {
   user-select: none;
   color: var(--text-secondary);
   background: var(--bg-white);
+  position: relative;
+  overflow: hidden;
 }
 
 .target-checkbox:hover {
@@ -464,6 +466,36 @@ html, body {
 
 .target-pill-icon svg {
   flex-shrink: 0;
+}
+
+.target-pill-label {
+  position: relative;
+  z-index: 1;
+}
+
+.target-pill-pct {
+  position: relative;
+  z-index: 1;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-left: auto;
+  padding-left: 4px;
+  font-weight: 600;
+}
+
+.target-pill-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 20px;
+  opacity: 0.18;
+  z-index: 0;
+  transition: width 0.3s ease;
+}
+
+.target-checkbox.selected .target-pill-bar {
+  opacity: 0.3;
 }
 
 /* ── KPI Widgets ─────────────────────────────────────────── */
