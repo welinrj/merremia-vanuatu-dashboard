@@ -85,68 +85,84 @@ export function initAbout() {
 
       <!-- ── GBF Target Alignment ───────────────────────────── -->
       <h3>GBF Target Alignment &mdash; NBSAP Targets Tracked</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin:-4px 0 12px">
+        Vanuatu tracks 9 of the 23 Kunming-Montreal GBF 2030 Targets, spanning two of the three GBF goal areas.
+        Targets are grouped below by their official GBF category.
+      </p>
       <table class="about-targets-table">
         <thead>
           <tr>
             <th style="width:52px">Target</th>
             <th style="width:200px">Name</th>
-            <th>Description</th>
+            <th>GBF Objective &amp; Vanuatu Implementation</th>
             <th>Primary Layers</th>
           </tr>
         </thead>
         <tbody>
+          <!-- ── Category A: Reducing Threats to Biodiversity (T1–T8) ── -->
+          <tr>
+            <td colspan="4" style="background:var(--surface-2);padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)">
+              A &mdash; Reducing Threats to Biodiversity
+            </td>
+          </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#1565C0">T1</span></td>
             <td><strong>Biodiversity Spatial Planning</strong></td>
-            <td>% of land and sea area covered by biodiversity-inclusive spatial plans.</td>
+            <td>Plan and manage all areas through participatory spatial planning to reduce biodiversity loss from land and sea-use change. Vanuatu tracks % of land and sea area covered by biodiversity-inclusive spatial plans.</td>
             <td class="spec-layers">Spatial Plans, KBAs, MPAs, LMMAs, CCAs, Inland Water</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#D84315">T2</span></td>
-            <td><strong>Degraded Area &amp; Restoration</strong></td>
-            <td>Mapping of degraded terrestrial, inland water, marine, and coastal ecosystems; active and planned restoration sites.</td>
+            <td><strong>Ecosystem Restoration</strong></td>
+            <td>Restore at least 30% of degraded terrestrial, freshwater, marine and coastal ecosystems by 2030. Vanuatu maps degraded areas and active restoration sites to track progress toward this goal.</td>
             <td class="spec-layers">Degraded Terrestrial, Degraded Marine/Coastal, Restoration Sites</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#2E7D32">T3</span></td>
             <td><strong>30×30 Conservation</strong></td>
-            <td>Conserve ≥ 30% terrestrial and marine areas by 2030 via PAs, CCAs, MPAs, LMMAs, OECMs. Primary dashboard target. Baselines: 1,219,000 ha terrestrial / 66,300,000 ha marine.</td>
+            <td>Conserve and effectively manage ≥30% of terrestrial, inland water, and marine areas by 2030 through protected areas and OECMs. Primary dashboard target. Baselines: 1,219,000 ha terrestrial / 66,300,000 ha marine.</td>
             <td class="spec-layers">CCAs, MPAs, LMMAs, Protected Areas (WDPA), OECMs</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#7E57C2">T4</span></td>
-            <td><strong>Species Distribution</strong></td>
-            <td>Distribution maps for 6 significant species: Megapode, Mountain Starling, Streaked Fantail, Kingfisher, Flying Fox, Plerandra.</td>
+            <td><strong>Species Recovery &amp; Biodiversity</strong></td>
+            <td>Halt human-induced species extinction and support recovery of threatened species while maintaining genetic diversity. Vanuatu maps distribution of 6 significant endemic and threatened species and Key Biodiversity Areas.</td>
             <td class="spec-layers">Significant Species Distribution, Key Biodiversity Areas</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#C62828">T6</span></td>
             <td><strong>Invasive Alien Species</strong></td>
-            <td>Coverage and distribution of key IAS: <em>Merremia peltata</em>, Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle.</td>
+            <td>Reduce IAS introductions by at least 50% and minimize their ecological impacts on ecosystems and species. Vanuatu maps coverage and distribution of key IAS: <em>Merremia peltata</em>, Fire Ants, African Snail, Crown-of-Thorns, Mile-a-Minute, Sako, Coconut Beetle.</td>
             <td class="spec-layers">Merremia peltata Detection, Other IAS</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#8E24AA">T7</span></td>
-            <td><strong>Pesticide &amp; Herbicide</strong></td>
-            <td>Spatial mapping of pesticide and herbicide use in large-scale and small-scale commercial farming across Vanuatu.</td>
+            <td><strong>Pollution Reduction</strong></td>
+            <td>Reduce pollution from all sources to levels not harmful to biodiversity, including halving excess nutrients and pesticide risks. Vanuatu maps pesticide and herbicide use in large-scale and small-scale commercial farming.</td>
             <td class="spec-layers">Pesticide &amp; Herbicide Use Areas</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#00838F">T8</span></td>
-            <td><strong>Coastal Eutrophication</strong></td>
-            <td>Mapping of coastal eutrophication zones and nutrient-impacted marine areas around Vanuatu's islands.</td>
+            <td><strong>Climate &amp; Ocean Impacts</strong></td>
+            <td>Minimize climate change and ocean acidification impacts on biodiversity through mitigation, adaptation and nature-based solutions. Vanuatu maps coastal eutrophication and nutrient-impacted marine zones as indicators of cumulative environmental pressures.</td>
             <td class="spec-layers">Coastal Eutrophication Zones</td>
+          </tr>
+          <!-- ── Category B: Meeting People's Needs (T9–T13) ── -->
+          <tr>
+            <td colspan="4" style="background:var(--surface-2);padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-secondary)">
+              B &mdash; Meeting People&rsquo;s Needs through Sustainable Use and Benefit-Sharing
+            </td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#795548">T10</span></td>
-            <td><strong>Agriculture &amp; Land Cover</strong></td>
-            <td>Land cover change for agriculture, livestock, fisheries, and forestry; tracking conversion from natural ecosystems.</td>
+            <td><strong>Sustainable Land Use</strong></td>
+            <td>Implement sustainable biodiversity-compatible management practices across agriculture, aquaculture, fisheries and forestry. Vanuatu maps land cover change to track ecosystem conversion and promote biodiversity-compatible production.</td>
             <td class="spec-layers">Land Cover / Land Use Change</td>
           </tr>
           <tr>
             <td><span class="about-target-badge" style="background:#388E3C">T12</span></td>
-            <td><strong>Blue &amp; Green Spaces</strong></td>
-            <td>Urban and peri-urban blue and green spaces — parks, botanical gardens, and coastal blue spaces in provincial/municipal areas.</td>
+            <td><strong>Urban Green &amp; Blue Spaces</strong></td>
+            <td>Increase and enhance urban and peri-urban green and blue spaces to improve biodiversity, ecological connectivity, and human well-being. Vanuatu maps parks, botanical gardens and coastal blue spaces across provincial and municipal areas.</td>
             <td class="spec-layers">Blue &amp; Green Spaces</td>
           </tr>
         </tbody>
@@ -280,9 +296,9 @@ export function initAbout() {
         <div class="about-contact-card" style="border-left-color:var(--secondary)">
           <div class="contact-card-name">Vanua Spatial Solutions</div>
           <div class="contact-card-title">GIS Technical Implementation Partner</div>
-          <a href="mailto:support@vanuaspatial.vu" class="contact-card-email">
+          <a href="mailto:vanua.spatialsolutions@gmail.com" class="contact-card-email">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-            support@vanuaspatial.vu
+            vanua.spatialsolutions@gmail.com
           </a>
           <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">For portal bugs, data issues, or feature requests</div>
         </div>
@@ -295,9 +311,7 @@ export function initAbout() {
       <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:28px">
         ${[
           ['CBD GBF Targets', 'https://www.cbd.int/gbf/targets/'],
-          ['Protected Planet / WDPA', 'https://www.protectedplanet.net/'],
           ['Key Biodiversity Areas', 'https://www.keybiodiversityareas.org/'],
-          ['LMMA Network', 'https://lmmanetwork.org/'],
           ['Vanuatu DEPC', 'https://depc.gov.vu/'],
         ].map(([label, url]) => `
           <a href="${url}" target="_blank" rel="noopener noreferrer"

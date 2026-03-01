@@ -4,7 +4,7 @@
  * Shows target-specific breakdowns when a single target is selected.
  */
 import { renderFilterPanel } from '../ui/components/filterPanel.js';
-import { renderKPIWidgets } from '../ui/components/kpiWidgets.js';
+import { renderKPIWidgets, animateKPINumbers } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
@@ -20,15 +20,15 @@ const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.v
 
 /** Target descriptions for the dashboard header */
 const TARGET_HEADERS = {
-  T1: { title: 'Target 1: Biodiversity Spatial Planning', desc: 'Percentage of land and sea area covered by biodiversity-inclusive spatial plans' },
-  T2: { title: 'Target 2: Degraded Areas & Restoration', desc: 'Mapping of degraded areas and active restoration sites' },
-  T3: { title: 'Target 3: 30x30 Conservation', desc: 'Conserve 30% of terrestrial and 30% of marine areas by 2030' },
-  T4: { title: 'Target 4: Species & Biodiversity', desc: 'Distribution maps of significant species and key biodiversity areas' },
-  T6: { title: 'Target 6: Invasive Alien Species', desc: 'Coverage and distribution of key IAS — Merremia, Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle' },
-  T7: { title: 'Target 7: Pesticide & Herbicide', desc: 'Areas of pesticide and herbicide use in commercial farming' },
-  T8: { title: 'Target 8: Coastal Eutrophication', desc: 'Coastal eutrophication and nutrient-impacted zones' },
-  T10: { title: 'Target 10: Land Cover Change', desc: 'Land cover change mapping for agriculture, livestock, fisheries and forestry' },
-  T12: { title: 'Target 12: Blue & Green Spaces', desc: 'Parks within provincial and municipal areas, and botanical gardens' }
+  T1:  { title: 'Target 1: Biodiversity Spatial Planning',   desc: 'Participatory spatial planning to reduce biodiversity loss — tracking % of land and sea area covered by biodiversity-inclusive plans' },
+  T2:  { title: 'Target 2: Ecosystem Restoration',           desc: 'Restore ≥30% of degraded terrestrial, inland water, marine and coastal ecosystems by 2030' },
+  T3:  { title: 'Target 3: 30×30 Conservation',              desc: 'Conserve ≥30% of terrestrial, inland water, and marine areas by 2030 through protected areas and other effective area-based conservation measures' },
+  T4:  { title: 'Target 4: Species Recovery & Biodiversity', desc: 'Halt human-induced extinction and support recovery of threatened species — distribution maps of significant Vanuatu species and Key Biodiversity Areas' },
+  T6:  { title: 'Target 6: Invasive Alien Species',          desc: 'Reduce IAS introductions by ≥50% and minimize ecological impacts — coverage and distribution of Merremia, Fire Ants, African Snail, Crown-of-Thorns, Sako, Coconut Beetle' },
+  T7:  { title: 'Target 7: Pollution Reduction',             desc: 'Reduce pollution to non-harmful levels — spatial mapping of pesticide and herbicide use in commercial farming across Vanuatu' },
+  T8:  { title: 'Target 8: Climate & Ocean Impacts',         desc: 'Minimize climate change and ocean acidification impacts on biodiversity — mapping coastal eutrophication and nutrient-impacted zones' },
+  T10: { title: 'Target 10: Sustainable Land Use',           desc: 'Sustainable biodiversity practices across agriculture, aquaculture, fisheries and forestry — land cover change mapping' },
+  T12: { title: 'Target 12: Urban Green & Blue Spaces',      desc: 'Increase and enhance urban and peri-urban green and blue spaces for biodiversity, connectivity and human well-being' }
 };
 
 /**
@@ -177,9 +177,28 @@ export function refreshDashboard() {
   const filterContainer = document.getElementById('filter-panel-container');
   if (filterContainer) renderFilterPanel(filterContainer);
 
-  // Re-render KPIs
+  // Re-render KPIs with smooth transition: fade-out → spinner → compute → fade-in
   const kpiContainer = document.getElementById('kpi-container');
-  if (kpiContainer) renderKPIWidgets(kpiContainer);
+  if (kpiContainer) {
+    kpiContainer.style.opacity = '0';
+    kpiContainer.style.pointerEvents = 'none';
+    setTimeout(() => {
+      kpiContainer.innerHTML = `
+        <div class="kpi-computing">
+          <div class="loading-spinner" style="width:20px;height:20px;border-width:2px"></div>
+          <span>Recalculating&hellip;</span>
+        </div>`;
+      kpiContainer.style.opacity = '1';
+      // Yield one frame so the spinner paints, then compute synchronously
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          renderKPIWidgets(kpiContainer);
+          animateKPINumbers(kpiContainer);
+          kpiContainer.style.pointerEvents = '';
+        }, 0);
+      });
+    }, 120);
+  }
 
   // Update map layers
   updateMapLayers();
