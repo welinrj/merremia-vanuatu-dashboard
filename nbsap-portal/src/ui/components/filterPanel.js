@@ -5,7 +5,9 @@
  */
 import targetsConfig from '../../config/targets.js';
 import { targetIcon } from '../../config/icons.js';
-import { getAppState, updateFilters } from '../state.js';
+import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
+import { compute30x30Metrics, computeTarget1Metrics, computeTarget2Metrics, computeTargetMetrics } from '../../gis/areaCalc.js';
+import ENV from '../../config/env.js';
 
 /**
  * Renders the filter panel into a container element.
@@ -14,6 +16,7 @@ import { getAppState, updateFilters } from '../state.js';
 export function renderFilterPanel(container) {
   const state = getAppState();
   const provinces = state.provinces || [];
+  const progress = _getTargetProgress();
 
   container.innerHTML = `
     <div class="filter-panel">
@@ -28,12 +31,19 @@ export function renderFilterPanel(container) {
           ${targetsConfig.targets.map(t => {
             const sel = state.filters.targets.includes(t.code);
             const selStyle = sel ? `background:${t.color};border-color:${t.color};color:#fff` : '';
+            const p = progress[t.code];
+            const pctText = p != null ? `${p.toFixed(1)}%` : '—';
+            const barColor = sel ? 'rgba(255,255,255,0.4)' : t.color;
+            const barWidth = p != null ? Math.min(p, 100) : 0;
             return `
             <label class="target-checkbox ${sel ? 'selected' : ''}"
                    data-code="${t.code}" title="${t.description}"
                    style="${selStyle}">
               <input type="radio" name="nbsap-target" value="${t.code}" ${sel ? 'checked' : ''}>
-              <span class="target-pill-icon">${targetIcon(t.code, 14)}</span>${t.code}
+              <span class="target-pill-icon">${targetIcon(t.code, 14)}</span>
+              <span class="target-pill-label">${t.code}</span>
+              <span class="target-pill-pct">${pctText}</span>
+              <span class="target-pill-bar" style="width:${barWidth}%;background:${barColor}"></span>
             </label>`;
           }).join('')}
         </div>
@@ -84,4 +94,63 @@ export function renderFilterPanel(container) {
   container.querySelector('#btn-clear-filters').addEventListener('click', () => {
     updateFilters({ targets: ['T3'], province: 'All', category: 'All', realm: 'All', year: 'All' });
   });
+}
+
+/* ── Target progress cache ─────────────────────────────────────────── */
+let _progressCache = null;
+let _progressLayerCount = -1;
+
+const ALL_FILTER = { targets: [], province: 'All', category: 'All', realm: 'All', year: 'All' };
+
+const T4_SPECIES_KEYS = ['MEGAPODE', 'STARLING', 'FANTAIL', 'KINGFISHER', 'FLYING_FOX', 'PLERANDRA'];
+
+/**
+ * Returns { [targetCode]: number|null } — percentage achieved per target.
+ * Cached until layer count changes.
+ */
+function _getTargetProgress() {
+  const layers = getDashboardLayers();
+  if (_progressCache && layers.length === _progressLayerCount) return _progressCache;
+  _progressLayerCount = layers.length;
+
+  const baselines = ENV.nationalBaselines;
+  const progress = {};
+
+  for (const t of targetsConfig.targets) {
+    const hasLayers = layers.some(l => l.metadata?.targets?.includes(t.code));
+    if (!hasLayers) { progress[t.code] = null; continue; }
+
+    try {
+      if (t.code === 'T3') {
+        const m = compute30x30Metrics(layers, ALL_FILTER);
+        const combined = baselines.terrestrial_ha + baselines.marine_ha;
+        progress.T3 = combined > 0
+          ? ((m.terrestrial_ha + m.marine_ha) / combined) * 100
+          : 0;
+      } else if (t.code === 'T1') {
+        const m = computeTarget1Metrics(layers, ALL_FILTER);
+        progress.T1 = m.total_pct || 0;
+      } else if (t.code === 'T2') {
+        const m = computeTarget2Metrics(layers, ALL_FILTER);
+        progress.T2 = m.restoration_pct || 0;
+      } else if (t.code === 'T4') {
+        // Species mapped / total species
+        const m = computeTargetMetrics(layers, 'T4', ALL_FILTER);
+        const mapped = T4_SPECIES_KEYS.filter(k =>
+          m.categoryBreakdown.some(c => c.category === k && c.features > 0)
+        ).length;
+        progress.T4 = (mapped / T4_SPECIES_KEYS.length) * 100;
+      } else {
+        // Targets without explicit goals: show province coverage (X/6 provinces)
+        const m = computeTargetMetrics(layers, t.code, ALL_FILTER);
+        const totalProvinces = 6;
+        progress[t.code] = (m.provinceBreakdown.length / totalProvinces) * 100;
+      }
+    } catch (_) {
+      progress[t.code] = null;
+    }
+  }
+
+  _progressCache = progress;
+  return progress;
 }
