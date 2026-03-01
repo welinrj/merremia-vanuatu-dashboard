@@ -409,52 +409,148 @@ html, body {
   box-shadow: 0 0 0 3px rgba(0,107,63,0.1);
 }
 
-/* Target checkboxes */
+/* ── Target Tabs ─────────────────────────────────────────── */
+@keyframes tabEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.92); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes tabPop {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(0.88); }
+  70%  { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+@keyframes iconSpin {
+  from { transform: rotate(0deg) scale(1); }
+  50%  { transform: rotate(8deg)  scale(1.15); }
+  to   { transform: rotate(0deg) scale(1); }
+}
+
+@keyframes selectedPulse {
+  0%   { box-shadow: 0 0 0 0   color-mix(in srgb, var(--tab-color) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 8px color-mix(in srgb, var(--tab-color) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0   color-mix(in srgb, var(--tab-color) 0%, transparent); }
+}
+
 .target-checkboxes {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 2px 0;
+}
+
+.target-tab {
   display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.target-checkbox {
-  display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 4px 10px;
-  border: 1px solid var(--border);
-  border-radius: 20px;
+  gap: 3px;
+  padding: 8px 4px 6px;
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
   cursor: pointer;
-  transition: all var(--transition-fast);
   user-select: none;
-  color: var(--text-secondary);
   background: var(--bg-white);
+  position: relative;
+  overflow: hidden;
+  /* staggered entrance */
+  animation: tabEnter 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  transition:
+    border-color 180ms ease,
+    background   180ms ease,
+    box-shadow   180ms ease,
+    transform    180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  will-change: transform;
 }
 
-.target-checkbox:hover {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-lighter);
+.target-tab::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--tab-color) 8%, transparent);
+  opacity: 0;
+  transition: opacity 180ms ease;
 }
 
-.target-checkbox.selected {
-  background: var(--primary);
-  color: white;
-  border-color: var(--primary);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+.target-tab:hover {
+  border-color: var(--tab-color);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--tab-color) 30%, transparent);
+  transform: translateY(-2px) scale(1.03);
 }
 
-.target-checkbox input { display: none; }
+.target-tab:hover::before {
+  opacity: 1;
+}
 
-.target-pill-icon {
-  display: inline-flex;
+.target-tab:hover .target-tab-icon {
+  animation: iconSpin 0.4s ease;
+}
+
+.target-tab:active,
+.target-tab.tab-click {
+  animation: tabPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.target-tab.selected {
+  background: color-mix(in srgb, var(--tab-color) 12%, white);
+  border-color: var(--tab-color);
+  border-width: 2px;
+  box-shadow:
+    0 2px 8px  color-mix(in srgb, var(--tab-color) 35%, transparent),
+    inset 0 1px 0 rgba(255,255,255,0.6);
+  animation: selectedPulse 0.55s ease-out;
+}
+
+.target-tab.selected::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 15%;
+  right: 15%;
+  height: 3px;
+  border-radius: 2px 2px 0 0;
+  background: var(--tab-color);
+}
+
+.target-tab.selected .target-tab-code {
+  color: var(--tab-color);
+  font-weight: 700;
+}
+
+.target-tab input { display: none; }
+
+.target-tab-icon {
+  display: flex;
   align-items: center;
-  line-height: 0;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tab-color) 10%, white);
+  transition: background 180ms ease;
+  flex-shrink: 0;
 }
 
-.target-pill-icon svg {
+.target-tab:hover .target-tab-icon,
+.target-tab.selected .target-tab-icon {
+  background: color-mix(in srgb, var(--tab-color) 18%, white);
+}
+
+.target-tab-icon svg {
+  display: block;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.12));
+}
+
+.target-tab-code {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: var(--text-secondary);
+  line-height: 1;
+  transition: color 180ms ease;
 }
 
 /* ── KPI Widgets ─────────────────────────────────────────── */

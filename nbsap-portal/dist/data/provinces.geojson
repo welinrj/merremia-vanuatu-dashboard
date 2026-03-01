@@ -1,0 +1,53 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "name": "Torba", "code": "TOB" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[166.0, -13.0], [168.3, -13.0], [168.3, -14.45], [166.0, -14.45], [166.0, -13.0]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Sanma", "code": "SAM" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[166.0, -14.45], [167.55, -14.45], [167.55, -15.85], [166.0, -15.85], [166.0, -14.45]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Penama", "code": "PNM" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[167.55, -14.45], [168.6, -14.45], [168.6, -16.15], [167.55, -16.15], [167.55, -14.45]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Malampa", "code": "MLP" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[166.8, -15.85], [167.55, -15.85], [167.55, -16.15], [168.6, -16.15], [168.6, -16.55], [166.8, -16.55], [166.8, -15.85]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Shefa", "code": "SHF" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[166.8, -16.55], [168.8, -16.55], [168.8, -18.25], [166.8, -18.25], [166.8, -16.55]]]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": { "name": "Tafea", "code": "TAF" },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[[168.3, -18.25], [170.4, -18.25], [170.4, -20.5], [168.3, -20.5], [168.3, -18.25]]]
+      }
+    }
+  ]
+}

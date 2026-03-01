@@ -6,12 +6,148 @@
  *
  * Each icon is a function returning an inline SVG string at a given size.
  * Default size 16px; stroke inherits currentColor for easy theming.
+ *
+ * Colorful target icons are hand-crafted, thematic SVGs with fills + strokes.
  */
 
 const S = 'xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"';
 
 function svg(size, inner) {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" ${S}>${inner}</svg>`;
+}
+
+// ── Colorful Target Icons ────────────────────────────────────────────
+// Each icon uses explicit fills + strokes matching the target's theme color.
+
+const COLORFUL_TARGET_ICONS = {
+  // T1 – Biodiversity Spatial Planning (blue #1565C0)
+  // A stylised map with location pin and grid lines
+  T1: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="2,5 9,3 15,5.5 22,3 22,19 15,21 9,19 2,21" fill="#BBDEFB"/>
+    <polygon points="2,5 9,3 15,5.5 22,3 22,19 15,21 9,19 2,21" fill="none" stroke="#1565C0" stroke-width="1.5" stroke-linejoin="round"/>
+    <line x1="9" y1="3" x2="9" y2="19" stroke="#1565C0" stroke-width="1.3"/>
+    <line x1="15" y1="5.5" x2="15" y2="21" stroke="#1565C0" stroke-width="1.3"/>
+    <path d="M12 7 C10.3 7 9 8.3 9 10 C9 12.5 12 16 12 16 C12 16 15 12.5 15 10 C15 8.3 13.7 7 12 7Z" fill="#1565C0"/>
+    <circle cx="12" cy="10" r="1.5" fill="white"/>
+  </svg>`,
+
+  // T2 – Degraded Area Mapping & Restoration (orange #D84315)
+  // A seedling sprouting from cracked earth
+  T2: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="17" width="20" height="5" rx="1.5" fill="#BCAAA4"/>
+    <path d="M8 17 C7 14 6 11 8 8" stroke="#8D6E63" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M16 17 C17 14 18 11 16 8" stroke="#8D6E63" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <path d="M12 17 V9" stroke="#5D4037" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M12 14 C10 12 7 12 6 10 C7 8 10 8 12 10" fill="#66BB6A" stroke="#388E3C" stroke-width="1"/>
+    <path d="M12 11 C14 9 17 9 18 7 C17 5 14 5 12 7" fill="#81C784" stroke="#388E3C" stroke-width="1"/>
+    <circle cx="8" cy="17.5" r="0.8" fill="#FF8A65"/>
+    <circle cx="14" cy="17.5" r="0.8" fill="#FF8A65"/>
+  </svg>`,
+
+  // T3 – 30×30 Conservation (green #2E7D32)
+  // A protective shield with a leaf + "30" concept
+  T3: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M12 2 L20 5.5 V12 C20 17 16.4 21.4 12 22.8 C7.6 21.4 4 17 4 12 V5.5 Z" fill="#C8E6C9" stroke="#2E7D32" stroke-width="1.5" stroke-linejoin="round"/>
+    <circle cx="12" cy="13" r="5" fill="#2E7D32"/>
+    <path d="M12 9 C10 9 8 11 9 13 C10 15 12 14 12 14 C12 14 14 15 15 13 C16 11 14 9 12 9Z" fill="#A5D6A7"/>
+    <path d="M12 14 V17" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M10 12 L12 14 L15 10.5" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  // T4 – Species & Biodiversity Distribution (purple #7E57C2)
+  // A colourful bird in flight
+  T4: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M20 7 C20 7 16 5 12 7 C9 8.5 7 11 7 14 C7 14 9.5 11.5 12 12 C14.5 12.5 16.5 15 16 17 L18.5 14.5 C21 12 22.5 9.5 20 7Z" fill="#9575CD" stroke="#5E35B1" stroke-width="1"/>
+    <path d="M7 14 C5 15.5 3 16 1.5 15.5 C3 17.5 7 17.5 9.5 16.5 C9.5 16.5 8.5 15.5 7 14Z" fill="#7E57C2"/>
+    <circle cx="15" cy="6.5" r="1.3" fill="#CE93D8"/>
+    <ellipse cx="14.5" cy="6.8" rx="0.5" ry="0.4" fill="#1A237E"/>
+    <path d="M9.5 12.5 L8 20" stroke="#7E57C2" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M11.5 12.5 L10.5 20" stroke="#9575CD" stroke-width="1.2" stroke-linecap="round"/>
+    <path d="M17 6 C18 5 19 4 20 5" stroke="#CE93D8" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  </svg>`,
+
+  // T6 – Invasive Alien Species (red #C62828)
+  // A stylised insect / bug
+  T6: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <ellipse cx="12" cy="13" rx="5" ry="6.5" fill="#FFCDD2" stroke="#C62828" stroke-width="1.5"/>
+    <line x1="7" y1="9"  x2="3"  y2="7"  stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="7" y1="13" x2="2"  y2="13" stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="7" y1="17" x2="3"  y2="19" stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="17" y1="9"  x2="21" y2="7"  stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="17" y1="13" x2="22" y2="13" stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="17" y1="17" x2="21" y2="19" stroke="#C62828" stroke-width="1.5" stroke-linecap="round"/>
+    <ellipse cx="12" cy="6.5" rx="3.5" ry="3" fill="#EF9A9A" stroke="#C62828" stroke-width="1.5"/>
+    <circle cx="10.5" cy="5.8" r="0.9" fill="#B71C1C"/>
+    <circle cx="13.5" cy="5.8" r="0.9" fill="#B71C1C"/>
+    <line x1="12" y1="10" x2="12" y2="19.5" stroke="#C62828" stroke-width="1" stroke-dasharray="2,1.5"/>
+  </svg>`,
+
+  // T7 – Pesticide & Herbicide Mapping (purple #8E24AA)
+  // A laboratory flask with droplets
+  T7: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <path d="M9 2 H15 V6.5 L19.5 14.5 C21 17 20 20 18 21 C16.5 22 13.5 22.5 12 22.5 C10.5 22.5 7.5 22 6 21 C4 20 3 17 4.5 14.5 Z" fill="#F3E5F5" stroke="#8E24AA" stroke-width="1.5" stroke-linejoin="round"/>
+    <line x1="9" y1="6.5" x2="15" y2="6.5" stroke="#8E24AA" stroke-width="1.5"/>
+    <ellipse cx="9.5" cy="16.5" rx="2" ry="2" fill="#CE93D8" opacity="0.8"/>
+    <ellipse cx="14" cy="19"   rx="1.5" ry="1.5" fill="#AB47BC" opacity="0.8"/>
+    <ellipse cx="15.5" cy="15" rx="1.2" ry="1.2" fill="#8E24AA" opacity="0.7"/>
+    <path d="M12 3.5 V6.5" stroke="#8E24AA" stroke-width="1.5"/>
+    <path d="M10 2 H14" stroke="#6A1B9A" stroke-width="2" stroke-linecap="round"/>
+  </svg>`,
+
+  // T8 – Coastal Eutrophication (teal #00838F)
+  // Ocean waves with a rising sun / nutrient haze
+  T8: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="14" width="20" height="8" rx="2" fill="#B2EBF2"/>
+    <path d="M2 14 C4.5 12 6.5 13.2 9 14 C11.5 14.8 13.5 12.5 16 14 C18 15 20 13 22 14" stroke="#00838F" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    <path d="M2 18 C4.5 16.5 6.5 17.5 9 18 C11.5 18.5 13.5 16.5 16 18 C18 19 20 17 22 18" stroke="#0097A7" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.7"/>
+    <circle cx="12" cy="6.5" r="4" fill="#FFF9C4" stroke="#F9A825" stroke-width="1.2"/>
+    <line x1="12" y1="1"    x2="12" y2="2.5"  stroke="#F9A825" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="16.5" y1="2.5" x2="15.5" y2="3.5" stroke="#F9A825" stroke-width="1.5" stroke-linecap="round"/>
+    <line x1="7.5"  y1="2.5" x2="8.5"  y2="3.5" stroke="#F9A825" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M9 10 C10 8.5 14 8.5 15 10" stroke="#4CAF50" stroke-width="1.5" fill="none" stroke-linecap="round" opacity="0.8"/>
+  </svg>`,
+
+  // T10 – Agriculture & Land Cover Change (brown #795548)
+  // Wheat stalks over a field
+  T10: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="19" width="20" height="4" rx="1" fill="#8D6E63"/>
+    <path d="M7 19 L9 8" stroke="#795548" stroke-width="1.5" stroke-linecap="round"/>
+    <ellipse cx="9"  cy="7"   rx="2.5" ry="1.8" fill="#FDD835" transform="rotate(-10,9,7)"/>
+    <ellipse cx="8"  cy="10"  rx="1.8" ry="1.3" fill="#FBC02D" transform="rotate(-20,8,10)"/>
+    <ellipse cx="10" cy="10"  rx="1.8" ry="1.3" fill="#FBC02D" transform="rotate(15,10,10)"/>
+    <path d="M14 19 L16 8" stroke="#795548" stroke-width="1.5" stroke-linecap="round"/>
+    <ellipse cx="16" cy="7"   rx="2.5" ry="1.8" fill="#FDD835" transform="rotate(10,16,7)"/>
+    <ellipse cx="15" cy="10"  rx="1.8" ry="1.3" fill="#FBC02D" transform="rotate(-15,15,10)"/>
+    <ellipse cx="17" cy="10"  rx="1.8" ry="1.3" fill="#FBC02D" transform="rotate(20,17,10)"/>
+    <path d="M3 19 Q6 16 9 19 Q12 22 15 19 Q18 16 22 19" stroke="#A5D6A7" stroke-width="1.2" fill="none" stroke-linecap="round" opacity="0.8"/>
+  </svg>`,
+
+  // T12 – Blue & Green Spaces (green #388E3C)
+  // Two trees with a water element
+  T12: (sz) => `<svg width="${sz}" height="${sz}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect x="2" y="19" width="20" height="3" rx="1" fill="#A5D6A7"/>
+    <rect x="10" y="16" width="4" height="3" rx="0.5" fill="#81D4FA"/>
+    <line x1="8"  y1="19" x2="8"  y2="15" stroke="#5D4037" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="8,15 4,9  12,9"  fill="#43A047"/>
+    <polygon points="8,12 5,7  11,7"  fill="#66BB6A"/>
+    <polygon points="8,9  6,5  10,5" fill="#81C784"/>
+    <line x1="16" y1="19" x2="16" y2="15" stroke="#5D4037" stroke-width="2" stroke-linecap="round"/>
+    <polygon points="16,15 12,9  20,9"  fill="#388E3C"/>
+    <polygon points="16,12 13,7  19,7"  fill="#4CAF50"/>
+    <polygon points="16,9  14,5  18,5" fill="#66BB6A"/>
+    <path d="M10 17 Q12 15 14 17" stroke="#29B6F6" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+  </svg>`
+};
+
+/**
+ * Returns a colorful thematic SVG icon for a given NBSAP target code.
+ * @param {string} targetCode  e.g. 'T1', 'T3'
+ * @param {number} [size=20]
+ * @returns {string} SVG markup string
+ */
+export function colorfulTargetIcon(targetCode, size = 20) {
+  const fn = COLORFUL_TARGET_ICONS[targetCode];
+  return fn ? fn(size) : targetIcon(targetCode, size);
 }
 
 // ── Icon path definitions ────────────────────────────────────────────
