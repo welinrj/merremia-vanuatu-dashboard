@@ -177,14 +177,6 @@ export function initAbout() {
             <td><strong>Vanua Spatial Solutions</strong></td>
             <td>GIS system design, development &amp; technical implementation (portal, dashboard, upload pipeline)</td>
           </tr>
-          <tr>
-            <td><strong>UNDP</strong> — United Nations Development Programme</td>
-            <td>Funding partner &amp; technical advisory for GBF implementation support</td>
-          </tr>
-          <tr>
-            <td><strong>GEF</strong> — Global Environment Facility</td>
-            <td>Financial support for biodiversity monitoring infrastructure</td>
-          </tr>
         </tbody>
       </table>
 
@@ -306,7 +298,6 @@ export function initAbout() {
           ['Protected Planet / WDPA', 'https://www.protectedplanet.net/'],
           ['Key Biodiversity Areas', 'https://www.keybiodiversityareas.org/'],
           ['LMMA Network', 'https://lmmanetwork.org/'],
-          ['UNDP Biodiversity', 'https://www.undp.org/topics/nature-environment/biodiversity'],
           ['Vanuatu DEPC', 'https://depc.gov.vu/'],
         ].map(([label, url]) => `
           <a href="${url}" target="_blank" rel="noopener noreferrer"
