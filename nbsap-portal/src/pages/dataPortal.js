@@ -163,6 +163,32 @@ function metadataBadge(metadata) {
   return `<span class="badge" style="font-size:10px;background:#fff3cd;color:#856404;border:1px solid #ffc107" title="Missing: ${c.missing.join(', ')}">${c.pct}%</span>`;
 }
 
+/** Renders a mini completeness progress bar */
+function completenessBar(metadata) {
+  const c = checkMetadataCompleteness(metadata);
+  const pct = c.pct || 0;
+  const cls = pct === 100 ? 'complete' : pct >= 60 ? 'partial' : 'poor';
+  const title = pct === 100
+    ? 'All metadata complete'
+    : `Missing: ${(c.missing || []).join(', ')}`;
+  return `
+    <div class="completeness-bar" title="${title}">
+      <div class="completeness-track">
+        <div class="completeness-fill ${cls}" style="width:${pct}%"></div>
+      </div>
+      <span class="completeness-pct">${pct}%</span>
+    </div>`;
+}
+
+/** Returns a data freshness badge based on upload timestamp */
+function freshnessBadge(ts) {
+  if (!ts) return `<span class="freshness-badge unknown">Unknown</span>`;
+  const days = Math.floor((Date.now() - new Date(ts).getTime()) / 86400000);
+  if (days <= 30)  return `<span class="freshness-badge fresh" title="${days}d ago">Fresh</span>`;
+  if (days <= 180) return `<span class="freshness-badge recent" title="${days}d ago">${Math.floor(days/30)}mo</span>`;
+  return `<span class="freshness-badge stale" title="${days}d ago">${Math.floor(days/30)}mo old</span>`;
+}
+
 /**
  * Builds a table row for a single layer.
  */
@@ -200,7 +226,8 @@ function buildLayerRow(l) {
       <td style="text-transform:capitalize">${m.realm}</td>
       <td>${coverageCell}</td>
       <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
-      <td style="font-size:12px;color:var(--text-secondary)">${new Date(m.uploadTimestamp).toLocaleDateString()}</td>
+      <td>${completenessBar(m)}</td>
+      <td style="font-size:12px;color:var(--text-secondary)">${freshnessBadge(m.uploadTimestamp)}</td>
       <td class="actions">
         <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
         ${admin ? `<button class="btn btn-sm btn-outline action-rename" data-id="${l.id}" title="Rename layer">Rename</button>` : ''}
@@ -278,7 +305,8 @@ function renderPortalTable() {
         <th>Realm</th>
         <th>Records</th>
         <th>Status</th>
-        <th>Last Updated</th>
+        <th title="Metadata completeness score">Complete</th>
+        <th title="Data freshness based on upload date">Freshness</th>
         <th>Actions</th>
       </tr>
     </thead>`;

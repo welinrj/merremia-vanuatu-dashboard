@@ -13,6 +13,7 @@ import { CATEGORIES } from '../../config/categories.js';
 import { categoryIcon, targetIcon } from '../../config/icons.js';
 import { resolveColors } from '../../config/symbology.js';
 import ENV from '../../config/env.js';
+import { isAdmin } from '../../services/auth/index.js';
 
 /** Target display metadata — labels, colours, and units */
 const TARGET_META = {
@@ -40,6 +41,16 @@ export function renderKPIWidgets(container) {
   // Single target selected — show target-specific dashboard
   if (activeTargets.length === 1) {
     const target = activeTargets[0];
+
+    // Check if any layers exist for this target before rendering
+    const hasLayers = layers.some(
+      l => l.metadata.targets && l.metadata.targets.includes(target)
+    );
+    if (!hasLayers) {
+      renderDataGapEmpty(container, target);
+      return;
+    }
+
     if (target === 'T1') {
       renderTarget1KPIs(container, layers, filters);
     } else if (target === 'T2') {
@@ -734,4 +745,33 @@ function formatNumber(n) {
   if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
   if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
   return n.toFixed(n % 1 === 0 ? 0 : 1);
+}
+
+/**
+ * Renders a clear "no data" empty state for a target with a data gap.
+ * Decision makers see this when a target has no GIS layers uploaded yet.
+ */
+function renderDataGapEmpty(container, targetCode) {
+  const meta = TARGET_META[targetCode] || { label: targetCode, color: '#95a5a6', unit: 'ha' };
+  const adminAction = isAdmin()
+    ? `<button class="kpi-empty-action" onclick="document.getElementById('nav-tab-admin')?.click()">
+         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+         Upload Data Layer
+       </button>`
+    : `<div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">
+         Contact <a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">DEPC GIS Coordinator</a> to upload data for this target.
+       </div>`;
+
+  container.innerHTML = `
+    <div class="kpi-empty-state">
+      <div class="kpi-empty-icon">🗂️</div>
+      <div class="kpi-empty-title">No Data for ${targetCode}</div>
+      <div class="kpi-empty-desc">
+        <strong style="color:${meta.color}">${meta.label}</strong><br>
+        No GIS datasets have been uploaded for this target yet.<br>
+        Upload a shapefile to see metrics, maps, and provincial breakdowns.
+      </div>
+      ${adminAction}
+    </div>
+  `;
 }

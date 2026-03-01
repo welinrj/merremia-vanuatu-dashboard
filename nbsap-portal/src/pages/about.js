@@ -175,7 +175,15 @@ export function initAbout() {
           </tr>
           <tr>
             <td><strong>Vanua Spatial Solutions</strong></td>
-            <td>GIS system design, development &amp; technical implementation</td>
+            <td>GIS system design, development &amp; technical implementation (portal, dashboard, upload pipeline)</td>
+          </tr>
+          <tr>
+            <td><strong>UNDP</strong> — United Nations Development Programme</td>
+            <td>Funding partner &amp; technical advisory for GBF implementation support</td>
+          </tr>
+          <tr>
+            <td><strong>GEF</strong> — Global Environment Facility</td>
+            <td>Financial support for biodiversity monitoring infrastructure</td>
           </tr>
         </tbody>
       </table>
@@ -276,6 +284,15 @@ export function initAbout() {
           <div class="contact-card-name">DEPC Vanuatu</div>
           <div class="contact-card-title">Department of Environmental Protection &amp; Conservation</div>
           <div style="font-size:12px;color:var(--text-secondary);margin-top:4px">Port Vila, Republic of Vanuatu</div>
+        </div>
+        <div class="about-contact-card" style="border-left-color:var(--secondary)">
+          <div class="contact-card-name">Vanua Spatial Solutions</div>
+          <div class="contact-card-title">GIS Technical Implementation Partner</div>
+          <a href="mailto:support@vanuaspatial.vu" class="contact-card-email">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            support@vanuaspatial.vu
+          </a>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">For portal bugs, data issues, or feature requests</div>
         </div>
       </div>
 

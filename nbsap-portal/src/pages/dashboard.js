@@ -14,6 +14,7 @@ import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
 import { isAdmin } from '../services/auth/index.js';
 import { showAlert } from '../ui/components/dialog.js';
+import { renderExecutiveSummary } from '../ui/components/executiveSummary.js';
 
 const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.vu'];
 
@@ -83,6 +84,7 @@ export function initDashboard() {
         </div>
       </div>
       <div class="dashboard-main">
+        <div id="exec-summary-container"></div>
         <div id="target-header-container"></div>
         <div class="map-container">
           <div id="map"></div>
@@ -155,6 +157,10 @@ export function initDashboard() {
 export function refreshDashboard() {
   _dashboardDirty = false;
   const state = getAppState();
+
+  // Render executive summary strip
+  const execContainer = document.getElementById('exec-summary-container');
+  if (execContainer) renderExecutiveSummary(execContainer);
 
   // Update last-updated timestamp
   const lastUpdatedEl = document.getElementById('last-updated-text');
