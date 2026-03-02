@@ -17,7 +17,6 @@ import TARGETS_CONFIG from '../config/targets.js';
 import { isAdmin } from '../services/auth/index.js';
 import { showAlert } from '../ui/components/dialog.js';
 import { renderExecutiveSummary } from '../ui/components/executiveSummary.js';
-import { renderPriorityTargets, renderLatestActivity } from '../ui/components/sidebarWidgets.js';
 
 const DATA_REQUEST_EMAILS = ['rbaereleo@vanuatu.gov.vu', 'dlaunder@vanuatu.gov.vu'];
 
@@ -44,9 +43,7 @@ export function initDashboard() {
       <div class="dashboard-sidebar">
         <div id="filter-panel-container"></div>
         <div id="kpi-container"></div>
-        <div id="priority-targets-container"></div>
-        <div id="latest-activity-container"></div>
-        <div class="sidebar-section-title" style="margin-top:4px">Last Updated</div>
+<div class="sidebar-section-title" style="margin-top:4px">Last Updated</div>
         <div id="last-updated-container" style="margin-bottom:8px">
           <span class="last-updated-badge" title="Data last refreshed from Firestore">
             <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.58-4.7"/></svg>
@@ -183,13 +180,7 @@ export function refreshDashboard() {
   const filterContainer = document.getElementById('filter-panel-container');
   if (filterContainer) renderFilterPanel(filterContainer);
 
-  // Render priority targets and latest activity widgets
-  const priorityContainer = document.getElementById('priority-targets-container');
-  if (priorityContainer) renderPriorityTargets(priorityContainer);
-  const activityContainer = document.getElementById('latest-activity-container');
-  if (activityContainer) renderLatestActivity(activityContainer);
-
-  // Re-render KPIs with smooth transition: fade-out → spinner → compute → fade-in
+// Re-render KPIs with smooth transition: fade-out → spinner → compute → fade-in
   const kpiContainer = document.getElementById('kpi-container');
   if (kpiContainer) {
     kpiContainer.style.opacity = '0';
