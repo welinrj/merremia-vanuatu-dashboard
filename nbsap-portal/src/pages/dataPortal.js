@@ -3,12 +3,13 @@
  * Lists all layers grouped by target, supports search/filter, upload, and layer management.
  * Includes metadata editor and completeness tracking per Vanuatu Spatial Data Standard.
  */
+import L from 'leaflet';
 import { CATEGORIES } from '../config/categories.js';
 import TARGETS_CONFIG from '../config/targets.js';
 import { categoryIcon, targetIcon } from '../config/icons.js';
 import ENV from '../config/env.js';
 import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
-import { deleteLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
+import { getLayer, deleteLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
 import { isAdmin } from '../services/auth/index.js';
 import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
 import { showAlert, showConfirm, showPrompt } from '../ui/components/dialog.js';
@@ -83,6 +84,34 @@ export function initDataPortal() {
         <div id="meta-editor-body"></div>
       </div>
     </div>
+
+    <!-- Dataset preview modal -->
+    <div class="modal-overlay" id="preview-modal">
+      <div class="modal" style="max-width:900px;width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+        <div class="modal-header" style="flex-shrink:0">
+          <h3 id="preview-modal-title">Dataset Preview</h3>
+          <button class="modal-close" id="preview-modal-close">&times;</button>
+        </div>
+        <div style="display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <button class="btn btn-sm btn-primary" id="preview-tab-map">Map View</button>
+          <button class="btn btn-sm btn-outline" id="preview-tab-table">Attribute Table</button>
+          <span id="preview-feature-count" style="font-size:12px;color:var(--text-secondary);margin-left:auto;align-self:center"></span>
+        </div>
+        <div id="preview-loading" style="display:none;padding:48px;text-align:center;color:var(--text-secondary)">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <div>Loading dataset&hellip;</div>
+        </div>
+        <div id="preview-map-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div id="preview-map" style="flex:1;min-height:420px"></div>
+        </div>
+        <div id="preview-table-panel" style="display:none;flex:1;min-height:0;overflow:auto;padding:0">
+          <div id="preview-table-body"></div>
+        </div>
+        <div id="preview-no-data" style="display:none;padding:48px;text-align:center;color:var(--text-secondary)">
+          No spatial data available for this dataset.
+        </div>
+      </div>
+    </div>
   `;
 
   // Populate target filter from static import
@@ -124,12 +153,21 @@ export function initDataPortal() {
     if (e.target === e.currentTarget) closeMetadataEditor();
   });
 
+  document.getElementById('preview-modal-close').addEventListener('click', closePreview);
+  document.getElementById('preview-modal').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) closePreview();
+  });
+  document.getElementById('preview-tab-map').addEventListener('click', () => switchPreviewTab('map'));
+  document.getElementById('preview-tab-table').addEventListener('click', () => switchPreviewTab('table'));
+
   // Event delegation on the table container — bind once here, not on every render
   document.getElementById('portal-table-container').addEventListener('click', (e) => {
     const btn = e.target.closest('button');
     if (btn) {
       const id = btn.dataset.id;
-      if (btn.classList.contains('action-view')) {
+      if (btn.classList.contains('action-preview')) {
+        openPreview(id);
+      } else if (btn.classList.contains('action-view')) {
         selectedLayerId = id;
         renderLayerDetails(id);
         renderPortalTable();
@@ -229,7 +267,8 @@ function buildLayerRow(l) {
       <td>${completenessBar(m)}</td>
       <td style="font-size:12px;color:var(--text-secondary)">${freshnessBadge(m.uploadTimestamp)}</td>
       <td class="actions">
-        <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">View</button>
+        <button class="btn btn-sm btn-outline action-view" data-id="${l.id}">Details</button>
+        <button class="btn btn-sm btn-outline action-preview" data-id="${l.id}" title="Preview map and attributes">Preview</button>
         ${admin ? `<button class="btn btn-sm btn-outline action-rename" data-id="${l.id}" title="Rename layer">Rename</button>` : ''}
         ${admin ? `<button class="btn btn-sm btn-outline action-download" data-id="${l.id}">GeoJSON</button>` : ''}
         ${showRemove ? `<button class="btn btn-sm btn-danger action-remove" data-id="${l.id}">Remove</button>` : ''}
@@ -634,6 +673,185 @@ function downloadMetadataReport() {
   a.download = `metadata-report-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ── Dataset Preview ──────────────────────────────────────────────────
+
+let _previewMap = null;
+let _previewActiveTab = 'map';
+
+async function openPreview(layerId) {
+  const state = getAppState();
+  let layer = state.layers.find(l => l.id === layerId);
+  if (!layer) return;
+
+  const modal = document.getElementById('preview-modal');
+  const loadingEl = document.getElementById('preview-loading');
+  const mapPanel = document.getElementById('preview-map-panel');
+  const tablePanel = document.getElementById('preview-table-panel');
+  const noDataEl = document.getElementById('preview-no-data');
+
+  // Reset UI
+  document.getElementById('preview-modal-title').textContent = layer.metadata.name;
+  document.getElementById('preview-feature-count').textContent = '';
+  loadingEl.style.display = 'block';
+  mapPanel.style.display = 'none';
+  tablePanel.style.display = 'none';
+  noDataEl.style.display = 'none';
+  switchPreviewTab('map');
+  modal.classList.add('active');
+
+  // Load GeoJSON on demand if not yet in state
+  if (!layer.geojson) {
+    try {
+      const full = await getLayer(layerId);
+      if (full && full.geojson) {
+        const idx = state.layers.findIndex(l => l.id === layerId);
+        if (idx >= 0) {
+          state.layers[idx] = { ...state.layers[idx], geojson: full.geojson };
+          layer = state.layers[idx];
+        }
+      }
+    } catch (err) {
+      console.error('Preview: failed to load GeoJSON', err);
+    }
+  }
+
+  loadingEl.style.display = 'none';
+
+  if (!layer.geojson || !(layer.geojson.features || []).length) {
+    noDataEl.style.display = 'block';
+    return;
+  }
+
+  const featureCount = (layer.geojson.features || []).length;
+  document.getElementById('preview-feature-count').textContent = `${featureCount.toLocaleString()} feature${featureCount !== 1 ? 's' : ''}`;
+
+  mapPanel.style.display = 'flex';
+  _renderPreviewMap(layer);
+  _renderPreviewTable(layer);
+}
+
+function closePreview() {
+  document.getElementById('preview-modal').classList.remove('active');
+  if (_previewMap) {
+    _previewMap.remove();
+    _previewMap = null;
+  }
+}
+
+function switchPreviewTab(tab) {
+  _previewActiveTab = tab;
+  const mapPanel = document.getElementById('preview-map-panel');
+  const tablePanel = document.getElementById('preview-table-panel');
+  const mapBtn = document.getElementById('preview-tab-map');
+  const tableBtn = document.getElementById('preview-tab-table');
+
+  if (tab === 'map') {
+    mapPanel.style.display = 'flex';
+    tablePanel.style.display = 'none';
+    mapBtn.className = 'btn btn-sm btn-primary';
+    tableBtn.className = 'btn btn-sm btn-outline';
+    // Leaflet needs a nudge after becoming visible
+    if (_previewMap) setTimeout(() => _previewMap.invalidateSize(), 50);
+  } else {
+    mapPanel.style.display = 'none';
+    tablePanel.style.display = 'block';
+    mapBtn.className = 'btn btn-sm btn-outline';
+    tableBtn.className = 'btn btn-sm btn-primary';
+  }
+}
+
+function _renderPreviewMap(layer) {
+  const mapEl = document.getElementById('preview-map');
+  const catConfig = CATEGORIES[layer.metadata.category] || {};
+  const color = catConfig.color || '#006B3F';
+
+  // Destroy existing map instance before re-creating
+  if (_previewMap) {
+    _previewMap.remove();
+    _previewMap = null;
+  }
+
+  _previewMap = L.map(mapEl, { zoomControl: true });
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(_previewMap);
+
+  const geoLayer = L.geoJSON(layer.geojson, {
+    style: () => ({
+      color,
+      weight: 1.5,
+      opacity: 0.9,
+      fillColor: color,
+      fillOpacity: 0.25
+    }),
+    pointToLayer: (feature, latlng) => L.circleMarker(latlng, {
+      radius: 6,
+      fillColor: color,
+      color: '#fff',
+      weight: 1,
+      opacity: 1,
+      fillOpacity: 0.8
+    }),
+    onEachFeature: (feature, leafletLayer) => {
+      if (!feature.properties) return;
+      const rows = Object.entries(feature.properties)
+        .filter(([, v]) => v != null && String(v).trim() !== '')
+        .map(([k, v]) => `<tr><td style="font-weight:600;padding:2px 8px 2px 0;white-space:nowrap">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
+        .join('');
+      if (rows) leafletLayer.bindPopup(`<table style="font-size:12px;border-collapse:collapse">${rows}</table>`, { maxWidth: 280 });
+    }
+  }).addTo(_previewMap);
+
+  try {
+    _previewMap.fitBounds(geoLayer.getBounds(), { padding: [20, 20] });
+  } catch {
+    _previewMap.setView([-15.3767, 166.9592], 7); // Vanuatu fallback
+  }
+}
+
+function _renderPreviewTable(layer) {
+  const container = document.getElementById('preview-table-body');
+  const features = layer.geojson.features || [];
+  const MAX_ROWS = 200;
+
+  // Collect all property keys across features (first 200)
+  const keySet = new Set();
+  const sample = features.slice(0, MAX_ROWS);
+  for (const f of sample) {
+    if (f.properties) Object.keys(f.properties).forEach(k => keySet.add(k));
+  }
+  const keys = [...keySet];
+
+  if (keys.length === 0) {
+    container.innerHTML = '<div style="padding:24px;color:var(--text-secondary);text-align:center">No attribute data found.</div>';
+    return;
+  }
+
+  const headerRow = keys.map(k => `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}</th>`).join('');
+  const bodyRows = sample.map((f, i) => {
+    const p = f.properties || {};
+    const cells = keys.map(k => `<td style="padding:5px 10px;font-size:12px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${escapeAttr(String(p[k] ?? ''))}">${p[k] ?? ''}</td>`).join('');
+    return `<tr style="background:${i % 2 === 0 ? '#fff' : 'var(--gray-50,#f8f9fa)'}">${cells}</tr>`;
+  }).join('');
+
+  const note = features.length > MAX_ROWS
+    ? `<div style="padding:8px 12px;font-size:12px;color:var(--text-secondary);background:var(--gray-50,#f8f9fa);border-top:1px solid var(--border)">Showing first ${MAX_ROWS} of ${features.length.toLocaleString()} features.</div>`
+    : '';
+
+  container.innerHTML = `
+    <div style="overflow:auto">
+      <table style="border-collapse:collapse;width:100%;min-width:max-content">
+        <thead><tr>${headerRow}</tr></thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    </div>
+    ${note}
+  `;
 }
 
 function downloadLayerGeoJSON(layerId) {
