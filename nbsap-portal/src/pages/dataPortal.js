@@ -102,7 +102,7 @@ export function initDataPortal() {
           <div>Loading dataset&hellip;</div>
         </div>
         <div id="preview-map-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
-          <div id="preview-map" style="flex:1;min-height:420px"></div>
+          <div id="preview-map" style="flex:1;min-height:600px"></div>
         </div>
         <div id="preview-table-panel" style="display:none;flex:1;min-height:0;overflow:auto;padding:0">
           <div id="preview-table-body"></div>
