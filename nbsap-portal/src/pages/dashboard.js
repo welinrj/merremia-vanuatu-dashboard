@@ -12,6 +12,8 @@ import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpecies
 import { compute30x30Metrics, computeTargetMetrics, computeTarget1Metrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
+import ENV from '../config/env.js';
+import TARGETS_CONFIG from '../config/targets.js';
 import { isAdmin } from '../services/auth/index.js';
 import { showAlert } from '../ui/components/dialog.js';
 import { renderExecutiveSummary } from '../ui/components/executiveSummary.js';
@@ -110,6 +112,7 @@ export function initDashboard() {
             </div>
           </div>
           <div id="category-breakdown-container" style="margin-top:20px"></div>
+          <div id="context-panel-container"></div>
         </div>
       </div>
     </div>
@@ -313,8 +316,12 @@ export function refreshDashboard() {
       if (chartContainer) chartContainer.innerHTML = '';
     }
 
-    if (catContainer) catContainer.innerHTML = '';
+    if (catContainer) renderAllTargetsSummary(catContainer);
   }
+
+  // Always render the Vanuatu quick-reference context strip
+  const contextContainer = document.getElementById('context-panel-container');
+  if (contextContainer) renderContextPanel(contextContainer);
 }
 
 /**
@@ -351,6 +358,192 @@ function renderCategoryBreakdown(container, metrics) {
       </thead>
       <tbody>${rows}</tbody>
     </table>
+  `;
+}
+
+/**
+ * Renders a summary for the "all targets" view:
+ * 30×30 progress cards + targets data-coverage table.
+ * Replaces the otherwise-empty category-breakdown-container.
+ */
+function renderAllTargetsSummary(container) {
+  const allLayers = getDashboardLayers();
+  const targets = TARGETS_CONFIG.targets;
+
+  // Dataset counts and area totals from layer metadata (no GeoJSON needed)
+  const datasetsByTarget = {};
+  let totalDatasets = 0;
+  let allTerrestrialHa = 0;
+  let allMarineHa = 0;
+
+  for (const layer of allLayers) {
+    totalDatasets++;
+    for (const t of (layer.metadata?.targets || [])) {
+      datasetsByTarget[t] = (datasetsByTarget[t] || 0) + 1;
+    }
+    const ha = layer.metadata?.totalAreaHa || 0;
+    if (layer.metadata?.realm === 'marine') allMarineHa += ha;
+    else allTerrestrialHa += ha;
+  }
+
+  // 30×30 progress — sum T3 layers that count toward 30x30
+  let conservedTerrestrialHa = 0;
+  let conservedMarineHa = 0;
+  for (const layer of allLayers) {
+    const m = layer.metadata;
+    if (!m?.totalAreaHa || !m.countsToward30x30) continue;
+    if (!(m.targets || []).includes('T3')) continue;
+    if (m.realm === 'marine') conservedMarineHa += m.totalAreaHa;
+    else conservedTerrestrialHa += m.totalAreaHa;
+  }
+
+  const terrPct = Math.min((conservedTerrestrialHa / ENV.nationalBaselines.terrestrial_ha) * 100, 100);
+  const marinePct = Math.min((conservedMarineHa / ENV.nationalBaselines.marine_ha) * 100, 100);
+  const targetsWithData = targets.filter(t => (datasetsByTarget[t.code] || 0) > 0).length;
+
+  const tableRows = targets.map(t => {
+    const count = datasetsByTarget[t.code] || 0;
+    const statusColor = count > 0 ? 'var(--success)' : 'var(--text-tertiary)';
+    return `
+      <tr>
+        <td><span class="badge" style="background:${t.color}20;color:${t.color};border:1px solid ${t.color}40;font-weight:700;font-size:11px;white-space:nowrap">${t.code}</span></td>
+        <td style="font-size:13px">${t.name.replace(/^Target \d+:\s*/, '')}</td>
+        <td style="font-size:12px">
+          <span style="display:inline-flex;align-items:center;gap:5px;color:${statusColor}">
+            <span style="width:7px;height:7px;border-radius:50%;background:${statusColor};flex-shrink:0"></span>
+            ${count > 0 ? `${count} dataset${count !== 1 ? 's' : ''}` : 'No data yet'}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--text-secondary)">${(t.recommendedCategories || []).slice(0, 4).join(', ')}</td>
+      </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+
+      <div class="card">
+        <div class="card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          30&times;30 Conservation Progress
+          <span style="margin-left:auto;font-size:10px;color:var(--text-tertiary)">Target: 30% by 2030</span>
+        </div>
+        <div class="card-body">
+          <div style="margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:600">Terrestrial</span>
+              <span style="font-size:14px;font-weight:700;color:${terrPct >= 30 ? 'var(--success)' : 'var(--primary)'}">${terrPct.toFixed(1)}%</span>
+            </div>
+            <div style="background:var(--gray-200);border-radius:4px;height:10px;overflow:hidden;position:relative">
+              <div style="width:${terrPct}%;background:var(--primary);height:100%;border-radius:4px;transition:width 0.6s ease"></div>
+              <div style="position:absolute;left:30%;top:-1px;bottom:-1px;width:2px;background:var(--danger);opacity:0.7" title="30% GBF target"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:3px">${formatHa(conservedTerrestrialHa)} ha conserved of ${formatHa(ENV.nationalBaselines.terrestrial_ha)} ha total</div>
+          </div>
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px">
+              <span style="font-size:12px;font-weight:600">Marine</span>
+              <span style="font-size:14px;font-weight:700;color:${marinePct >= 30 ? 'var(--success)' : 'var(--secondary)'}">${marinePct.toFixed(1)}%</span>
+            </div>
+            <div style="background:var(--gray-200);border-radius:4px;height:10px;overflow:hidden;position:relative">
+              <div style="width:${marinePct}%;background:var(--secondary);height:100%;border-radius:4px;transition:width 0.6s ease"></div>
+              <div style="position:absolute;left:30%;top:-1px;bottom:-1px;width:2px;background:var(--danger);opacity:0.7" title="30% GBF target"></div>
+            </div>
+            <div style="font-size:11px;color:var(--text-tertiary);margin-top:3px">${formatHa(conservedMarineHa)} ha conserved of ${formatHa(ENV.nationalBaselines.marine_ha)} ha total</div>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text-tertiary);display:flex;align-items:center;gap:5px">
+            <span style="display:inline-block;width:14px;height:2px;background:var(--danger);opacity:0.7;flex-shrink:0"></span>
+            Red line marks the 30% GBF target threshold
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Dataset Summary
+        </div>
+        <div class="card-body">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="text-align:center;padding:10px 8px;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--border)">
+              <div style="font-size:24px;font-weight:800;color:var(--primary);line-height:1">${totalDatasets}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Datasets Loaded</div>
+            </div>
+            <div style="text-align:center;padding:10px 8px;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--border)">
+              <div style="font-size:24px;font-weight:800;color:var(--secondary);line-height:1">${targetsWithData}/${targets.length}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Targets with Data</div>
+            </div>
+            <div style="text-align:center;padding:10px 8px;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--border)">
+              <div style="font-size:18px;font-weight:700;color:var(--primary);line-height:1">${formatHa(allTerrestrialHa)}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Terrestrial ha</div>
+            </div>
+            <div style="text-align:center;padding:10px 8px;background:var(--gray-50);border-radius:var(--radius-md);border:1px solid var(--border)">
+              <div style="font-size:18px;font-weight:700;color:var(--secondary);line-height:1">${formatHa(allMarineHa)}</div>
+              <div style="font-size:11px;color:var(--text-secondary);margin-top:4px">Marine ha</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="breakdown-header">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      All NBSAP Targets &mdash; Data Coverage
+    </div>
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th style="width:56px">Target</th>
+          <th>GBF Objective</th>
+          <th style="width:130px">Datasets</th>
+          <th>Key Data Layers</th>
+        </tr>
+      </thead>
+      <tbody>${tableRows}</tbody>
+    </table>
+  `;
+}
+
+/**
+ * Renders a static Vanuatu quick-reference context strip at the bottom of the dashboard.
+ * Always visible regardless of the active filter.
+ */
+function renderContextPanel(container) {
+  if (!container || container.dataset.rendered) return;
+  container.dataset.rendered = '1';
+  container.innerHTML = `
+    <div style="margin-top:16px;padding:12px 16px;background:linear-gradient(135deg,var(--primary-lighter),var(--secondary-lighter));border:1px solid var(--border);border-radius:var(--radius-md);display:flex;flex-wrap:wrap;gap:20px;align-items:flex-start">
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">Country</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">Republic of Vanuatu</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Melanesia &bull; 83 islands</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">Land Area</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">12,190 km&sup2;</div>
+        <div style="font-size:12px;color:var(--text-secondary)">6 provinces</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">EEZ</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">663,251 km&sup2;</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Coral Triangle adjacent</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">30&times;30 Deadline</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">2030</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Kunming-Montreal GBF</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">NBSAP Targets</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">9 National Targets</div>
+        <div style="font-size:12px;color:var(--text-secondary)">T1, T2, T3, T4, T6, T7, T8, T10, T12</div>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:var(--text-tertiary);margin-bottom:2px">Data Custodian</div>
+        <div style="font-size:13px;font-weight:600;color:var(--text)">DEPC</div>
+        <div style="font-size:12px;color:var(--text-secondary)">Dept. of Env. Protection &amp; Conservation</div>
+      </div>
+    </div>
   `;
 }
 
