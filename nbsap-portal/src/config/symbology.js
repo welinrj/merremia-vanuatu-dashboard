@@ -247,9 +247,19 @@ export function featureOutlineStyle(feature, category) {
 
 /**
  * Returns Leaflet polygon style for reference layers.
+ * EEZ is rendered as a line only (no fill) so underlying layers remain visible.
  */
 export function referencePolygonStyle(category, typeValue) {
   const colors = resolveColors(category, typeValue);
+  if (category === 'EEZ') {
+    return {
+      fillColor: colors.fill,
+      color: colors.stroke,
+      weight: 2.5,
+      fillOpacity: 0,
+      dashArray: null
+    };
+  }
   return {
     fillColor: colors.fill,
     color: colors.stroke,
