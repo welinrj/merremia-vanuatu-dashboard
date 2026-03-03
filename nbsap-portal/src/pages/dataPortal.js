@@ -50,29 +50,7 @@ export function initDataPortal() {
         </div>
         <div id="portal-table-container"></div>
       </div>
-      <div class="portal-sidebar" id="portal-sidebar">
-        <div class="detail-placeholder">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-          </svg>
-          <p><strong>Layer Details</strong></p>
-          <p>Select a layer to view metadata and compliance information</p>
-        </div>
-        ${!isAdmin() ? `
-        <div class="card" style="margin-top:16px">
-          <div class="card-header">
-            <span>Request Data Download</span>
-          </div>
-          <div class="card-body" style="font-size:13px">
-            <p style="margin:0 0 8px;color:var(--text-secondary)">To download CSV or GeoJSON files, please contact:</p>
-            <div style="margin-bottom:4px"><a href="mailto:rbaereleo@vanuatu.gov.vu" style="color:var(--primary)">Rolenas Baereleo</a></div>
-            <div><a href="mailto:dlaunder@vanuatu.gov.vu" style="color:var(--primary)">Dean Wotlolan</a></div>
-          </div>
-        </div>` : ''}
-      </div>
+      <div class="portal-sidebar" id="portal-sidebar" style="display:none"></div>
     </div>
     <!-- Metadata editor modal -->
     <div class="modal-overlay" id="metadata-editor-modal">
@@ -87,7 +65,7 @@ export function initDataPortal() {
 
     <!-- Dataset preview modal -->
     <div class="modal-overlay" id="preview-modal">
-      <div class="modal" style="max-width:900px;width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div class="modal" style="max-width:900px;width:95vw;height:90vh;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
         <div class="modal-header" style="flex-shrink:0">
           <h3 id="preview-modal-title">Dataset Preview</h3>
           <button class="modal-close" id="preview-modal-close">&times;</button>
@@ -102,7 +80,7 @@ export function initDataPortal() {
           <div>Loading dataset&hellip;</div>
         </div>
         <div id="preview-map-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
-          <div id="preview-map" style="flex:1;min-height:600px"></div>
+          <div id="preview-map" style="flex:1;min-height:0"></div>
         </div>
         <div id="preview-table-panel" style="display:none;flex:1;min-height:0;overflow:auto;padding:0">
           <div id="preview-table-body"></div>
@@ -420,9 +398,12 @@ function renderLayerDetails(layerId) {
   const layer = state.layers.find(l => l.id === layerId);
 
   if (!layer) {
-    sidebar.innerHTML = '<div class="detail-placeholder"><p>Layer not found</p></div>';
+    sidebar.style.display = 'none';
+    sidebar.innerHTML = '';
     return;
   }
+
+  sidebar.style.display = '';
 
   const m = layer.metadata;
   const tor = validateTORCompliance(m, layer.geojson);
@@ -431,9 +412,12 @@ function renderLayerDetails(layerId) {
   const admin = isAdmin();
 
   sidebar.innerHTML = `
-    <div class="detail-header">
-      <span style="width:4px;height:28px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
-      <h4>${m.name}</h4>
+    <div class="detail-header" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:10px;min-width:0">
+        <span style="width:4px;height:28px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
+        <h4 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</h4>
+      </div>
+      <button id="btn-close-sidebar" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;line-height:1;flex-shrink:0" title="Close">&times;</button>
     </div>
 
     ${admin ? `<div style="display:flex;gap:6px;margin-bottom:12px">
@@ -520,6 +504,14 @@ function renderLayerDetails(layerId) {
       </div>
     ` : ''}
   `;
+
+  // Close sidebar button (always present)
+  sidebar.querySelector('#btn-close-sidebar').addEventListener('click', () => {
+    selectedLayerId = null;
+    sidebar.style.display = 'none';
+    sidebar.innerHTML = '';
+    renderPortalTable();
+  });
 
   // Bind admin action buttons
   if (admin) {
@@ -904,18 +896,9 @@ async function removeLayerAction(layerId) {
   }).catch(() => {});
 
   selectedLayerId = null;
-  document.getElementById('portal-sidebar').innerHTML = `
-    <div class="detail-placeholder">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-        <polyline points="14 2 14 8 20 8"/>
-        <line x1="16" y1="13" x2="8" y2="13"/>
-        <line x1="16" y1="17" x2="8" y2="17"/>
-      </svg>
-      <p><strong>Layer Details</strong></p>
-      <p>Select a layer to view metadata and compliance information</p>
-    </div>
-  `;
+  const sidebar = document.getElementById('portal-sidebar');
+  sidebar.style.display = 'none';
+  sidebar.innerHTML = '';
 
   renderPortalTable();
 }
