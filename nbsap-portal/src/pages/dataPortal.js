@@ -65,7 +65,7 @@ export function initDataPortal() {
 
     <!-- Dataset preview modal -->
     <div class="modal-overlay" id="preview-modal">
-      <div class="modal" style="max-width:900px;width:95vw;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
+      <div class="modal" style="max-width:900px;width:95vw;height:90vh;max-height:90vh;display:flex;flex-direction:column;overflow:hidden">
         <div class="modal-header" style="flex-shrink:0">
           <h3 id="preview-modal-title">Dataset Preview</h3>
           <button class="modal-close" id="preview-modal-close">&times;</button>
@@ -80,7 +80,7 @@ export function initDataPortal() {
           <div>Loading dataset&hellip;</div>
         </div>
         <div id="preview-map-panel" style="flex:1;min-height:0;display:flex;flex-direction:column">
-          <div id="preview-map" style="flex:1;min-height:600px"></div>
+          <div id="preview-map" style="flex:1;min-height:0"></div>
         </div>
         <div id="preview-table-panel" style="display:none;flex:1;min-height:0;overflow:auto;padding:0">
           <div id="preview-table-body"></div>
