@@ -183,7 +183,10 @@ export function updateMapLayers() {
     // Apply target filter
     if (filters.targets.length > 0) {
       const isT1Auto = filters.targets.includes('T1') && T1_DISPLAY_CATEGORIES.has(meta.category);
-      if (!isT1Auto && !meta.targets.some(t => filters.targets.includes(t))) continue;
+      // For T1, only show layers by category (T1_DISPLAY_CATEGORIES), not meta.targets,
+      // so layers tagged T1 in Firestore but not in the T1 category set are excluded.
+      const nonT1Targets = filters.targets.filter(t => t !== 'T1');
+      if (!isT1Auto && !meta.targets.some(t => nonT1Targets.includes(t))) continue;
     }
 
     // Apply category filter
