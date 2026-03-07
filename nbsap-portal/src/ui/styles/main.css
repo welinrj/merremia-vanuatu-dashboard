@@ -320,8 +320,8 @@ html, body {
 }
 
 .map-container {
-  flex: 0 0 390px;
-  height: 390px;
+  flex: 1;
+  min-height: 320px;
   position: relative;
   margin: 0 16px 12px;
   border: 1px solid var(--border);
@@ -338,8 +338,7 @@ html, body {
 .dashboard-bottom {
   background: var(--bg-white);
   border-top: 1px solid var(--border);
-  flex: 1;
-  min-height: 0;
+  flex: 0 0 auto;
   overflow-y: auto;
   padding: 14px 18px;
 }
@@ -4163,15 +4162,12 @@ body.print-mode {
   }
 
   .map-container {
-    flex: 0 0 auto;
-    height: 50vw;
+    flex: 1;
     min-height: 240px;
-    max-height: 360px;
   }
 
   .dashboard-bottom {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
     padding: 10px 12px;
   }
 }
