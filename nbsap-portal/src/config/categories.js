@@ -11,7 +11,7 @@
  */
 export const CATEGORIES = {
   // ── Boundary / Reference ──────────────────────────────────────────
-  EEZ:             { label: 'Exclusive Economic Zone',            defaultRealm: 'marine',      color: '#0277BD' },
+  EEZ:             { label: 'Exclusive Economic Zone',            defaultRealm: 'marine',      color: '#FF0000' },
   ADMIN_BOUNDARY:  { label: 'National Boundary (Admin0)',         defaultRealm: 'terrestrial', color: '#37474F' },
 
   // ── Conservation (green spectrum) ─────────────────────────────────

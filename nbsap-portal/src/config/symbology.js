@@ -13,7 +13,7 @@
 // Stroke colours are a darker shade of the fill for professional contrast.
 export const SYMBOLOGY = {
   // Boundary / Reference
-  EEZ:            { fill: '#0277BD', stroke: '#01579B' },
+  EEZ:            { fill: '#FF0000', stroke: '#CC0000' },
   ADMIN_BOUNDARY: { fill: '#37474F', stroke: '#263238' },
   // Conservation — green spectrum
   CCA:            { fill: '#2E7D32', stroke: '#1B5E20' },
@@ -218,6 +218,15 @@ export function featureGroupKey(category, feature) {
  */
 export function dissolvedFillStyle(category, typeValue) {
   const colors = resolveColors(category, typeValue);
+  if (category === 'EEZ') {
+    return {
+      fillColor: colors.fill,
+      color: colors.stroke,
+      weight: 2.5,
+      fillOpacity: 0,
+      interactive: false
+    };
+  }
   return {
     fillColor: colors.fill,
     color: colors.stroke,
