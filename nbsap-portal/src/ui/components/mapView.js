@@ -41,7 +41,7 @@ const hiddenLayers = new Set();
  * Categories that are always displayed on the T1 map regardless of the
  * target tag stored in layer metadata (mirrors T1_AUTO_CATEGORIES in state.js).
  */
-const T1_DISPLAY_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'MPA', 'LMMA']);
+const T1_DISPLAY_CATEGORIES = new Set(['ADMIN_BOUNDARY', 'EEZ', 'SPATIAL_PLAN']);
 
 /** User-defined layer display order (bottom→top). IDs not in list render in default order. */
 let layerOrder = [];
