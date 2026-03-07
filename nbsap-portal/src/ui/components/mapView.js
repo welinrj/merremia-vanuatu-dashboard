@@ -37,6 +37,12 @@ let legendControl = null;
 /** Tracks which layer IDs the user has hidden via the layer toggle panel */
 const hiddenLayers = new Set();
 
+/**
+ * Categories that are always displayed on the T1 map regardless of the
+ * target tag stored in layer metadata (mirrors T1_AUTO_CATEGORIES in state.js).
+ */
+const T1_DISPLAY_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'MPA', 'LMMA']);
+
 /** User-defined layer display order (bottom→top). IDs not in list render in default order. */
 let layerOrder = [];
 
@@ -176,7 +182,8 @@ export function updateMapLayers() {
 
     // Apply target filter
     if (filters.targets.length > 0) {
-      if (!meta.targets.some(t => filters.targets.includes(t))) continue;
+      const isT1Auto = filters.targets.includes('T1') && T1_DISPLAY_CATEGORIES.has(meta.category);
+      if (!isT1Auto && !meta.targets.some(t => filters.targets.includes(t))) continue;
     }
 
     // Apply category filter
