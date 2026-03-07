@@ -22,6 +22,8 @@ function getBaseUrl() {
  * Initializes the Admin page.
  */
 export function initAdmin() {
+  // Restore admin UI state from session (survives page refresh)
+  if (isAdmin()) setAdminState(true);
   renderAdminPage();
 }
 

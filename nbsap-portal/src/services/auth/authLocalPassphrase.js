@@ -13,8 +13,10 @@
 // To change: compute SHA-256 of your desired passphrase and replace this value
 const DEFAULT_HASH = 'fcc1682b158fe80d089f1627dd31cf5fa6bf2162058ac3e688d24fe03cc538f8';
 
-let isAuthenticated = false;
-let currentUser = null;
+const SESSION_KEY = 'nbsap_admin_session';
+
+let isAuthenticated = sessionStorage.getItem(SESSION_KEY) === '1';
+let currentUser = isAuthenticated ? 'admin' : null;
 
 /**
  * Computes SHA-256 hash of a string.
@@ -52,6 +54,7 @@ export async function login(passphrase) {
   if (hash === storedHash) {
     isAuthenticated = true;
     currentUser = 'admin';
+    sessionStorage.setItem(SESSION_KEY, '1');
     return { success: true };
   }
 
@@ -64,6 +67,7 @@ export async function login(passphrase) {
 export function logout() {
   isAuthenticated = false;
   currentUser = null;
+  sessionStorage.removeItem(SESSION_KEY);
 }
 
 /**
