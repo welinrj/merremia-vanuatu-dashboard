@@ -511,7 +511,7 @@ const _loadingIds = new Set();
  * Categories that auto-include for T1 (spatial planning) regardless of target tag.
  * CCA and INLAND_WATER layers count toward T1 terrestrial coverage.
  */
-const T1_AUTO_CATEGORIES = new Set(['CCA', 'INLAND_WATER']);
+const T1_AUTO_CATEGORIES = new Set(['CCA', 'INLAND_WATER', 'MPA', 'LMMA']);
 
 /**
  * Ensures GeoJSON is loaded for all layers matching the given targets.
