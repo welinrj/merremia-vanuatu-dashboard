@@ -43,6 +43,12 @@ const hiddenLayers = new Set();
  */
 const T1_DISPLAY_CATEGORIES = new Set(['ADMIN_BOUNDARY', 'EEZ', 'SPATIAL_PLAN']);
 
+/**
+ * Categories that must never appear on the T1 map, even if tagged T1 in Firestore.
+ * These belong to other targets (e.g. CCA → T3).
+ */
+const T1_EXCLUDED_CATEGORIES = new Set(['CCA', 'LMMA']);
+
 /** User-defined layer display order (bottom→top). IDs not in list render in default order. */
 let layerOrder = [];
 
@@ -182,11 +188,11 @@ export function updateMapLayers() {
 
     // Apply target filter
     if (filters.targets.length > 0) {
-      const isT1Auto = filters.targets.includes('T1') && T1_DISPLAY_CATEGORIES.has(meta.category);
-      // For T1, only show layers by category (T1_DISPLAY_CATEGORIES), not meta.targets,
-      // so layers tagged T1 in Firestore but not in the T1 category set are excluded.
-      const nonT1Targets = filters.targets.filter(t => t !== 'T1');
-      if (!isT1Auto && !meta.targets.some(t => nonT1Targets.includes(t))) continue;
+      const isT1Selected = filters.targets.includes('T1');
+      const isT1Auto = isT1Selected && T1_DISPLAY_CATEGORIES.has(meta.category);
+      const isT1TagMatch = isT1Selected && meta.targets.includes('T1') && !T1_EXCLUDED_CATEGORIES.has(meta.category);
+      const isOtherMatch = meta.targets.some(t => filters.targets.includes(t) && t !== 'T1');
+      if (!isT1Auto && !isT1TagMatch && !isOtherMatch) continue;
     }
 
     // Apply category filter
