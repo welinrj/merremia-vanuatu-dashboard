@@ -41,7 +41,16 @@ function getUniqueValues(layerData, prop) {
   const seen = new Set();
   for (const f of layerData.geojson.features) {
     const v = f.properties?.[prop];
-    if (v) seen.add(v);
+    if (v !== undefined && v !== null && v !== '') seen.add(String(v));
+  }
+  return [...seen].sort();
+}
+
+function getAttributeColumns(layerData) {
+  if (!layerData.geojson?.features?.length) return [];
+  const seen = new Set();
+  for (const f of layerData.geojson.features) {
+    if (f.properties) Object.keys(f.properties).forEach(k => seen.add(k));
   }
   return [...seen].sort();
 }
@@ -98,9 +107,8 @@ function buildPanelHTML(layerData) {
   const defaultColors = resolveColors(cat);
 
   const isPoint  = hasPointGeometry(layerData);
-  const types    = getUniqueValues(layerData, 'type');
-  const statuses = getUniqueValues(layerData, 'status');
-  const hasCategories = types.length > 0 || statuses.length > 0;
+  const columns  = getAttributeColumns(layerData);
+  const hasCategories = columns.length > 0;
 
   // Resolve current values (override → default)
   const mode            = existing?.mode || 'single';
@@ -194,25 +202,24 @@ function buildPanelHTML(layerData) {
   // Categorized tab
   let catTab = '';
   if (hasCategories) {
-    const catBy        = existing?.categoryBy || (types.length > 0 ? 'type' : 'status');
-    const items        = catBy === 'status' ? statuses : types;
-    const catColors    = existing?.categoryColors || {};
+    const catBy     = existing?.categoryBy && columns.includes(existing.categoryBy)
+      ? existing.categoryBy
+      : (columns[0] || '');
+    const items     = getUniqueValues(layerData, catBy);
+    const catColors = existing?.categoryColors || {};
 
-    const typeActive   = catBy === 'type'   ? 'active' : '';
-    const statusActive = catBy === 'status' ? 'active' : '';
-
-    const groupByBtns = (types.length > 0 && statuses.length > 0) ? `
-      <div class="sym-field">
-        <label>Categorize by</label>
-        <div class="sym-btn-group">
-          <button class="sym-grp-btn ${typeActive}"   data-groupby="type">Type</button>
-          <button class="sym-grp-btn ${statusActive}" data-groupby="status">Status</button>
-        </div>
-      </div>` : '';
+    const colOptions = columns.map(c =>
+      `<option value="${c}" ${catBy === c ? 'selected' : ''}>${c}</option>`
+    ).join('');
 
     catTab = `
       <div class="sym-tab-content ${catActive}" data-content="categorized">
-        ${groupByBtns}
+        <div class="sym-field">
+          <label>Categorize by column</label>
+          <select class="sym-select" id="sym-col-select">
+            ${colOptions}
+          </select>
+        </div>
         <div class="sym-cat-list" data-groupby="${catBy}">
           ${buildCatRows(items, cat, catColors)}
         </div>
@@ -278,13 +285,9 @@ function bindPanelEvents(panel, layerData) {
     });
   });
 
-  // Group-by (categorized tab)
-  panel.querySelectorAll('.sym-grp-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      panel.querySelectorAll('.sym-grp-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      rebuildCatList(panel, layerData, btn.dataset.groupby);
-    });
+  // Column selector (categorized tab)
+  panel.querySelector('#sym-col-select')?.addEventListener('change', (e) => {
+    rebuildCatList(panel, layerData, e.target.value);
   });
 
   // Live preview
@@ -387,9 +390,8 @@ function bindPanelEvents(panel, layerData) {
       }
       setLayerStyle(layerData.id, styleObj);
     } else {
-      const groupByBtn = panel.querySelector('.sym-grp-btn.active');
-      const catList    = panel.querySelector('.sym-cat-list');
-      const catBy      = groupByBtn?.dataset.groupby || catList?.dataset.groupby || 'type';
+      const catList = panel.querySelector('.sym-cat-list');
+      const catBy   = panel.querySelector('#sym-col-select')?.value || catList?.dataset.groupby || 'type';
       const categoryColors = {};
 
       panel.querySelectorAll('.sym-cat-row').forEach(row => {
@@ -424,16 +426,16 @@ function bindCatColorEvents(panel) {
   });
 }
 
-function rebuildCatList(panel, layerData, groupBy) {
+function rebuildCatList(panel, layerData, column) {
   const meta      = layerData.metadata;
   const cat       = meta.category || 'OTHER';
   const existing  = getLayerStyle(layerData.id);
   const catColors = existing?.categoryColors || {};
-  const items     = getUniqueValues(layerData, groupBy === 'status' ? 'status' : 'type');
+  const items     = getUniqueValues(layerData, column);
 
   const catList = panel.querySelector('.sym-cat-list');
   if (catList) {
-    catList.dataset.groupby = groupBy;
+    catList.dataset.groupby = column;
     catList.innerHTML = buildCatRows(items, cat, catColors);
     bindCatColorEvents(panel);
   }

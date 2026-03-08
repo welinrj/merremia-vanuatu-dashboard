@@ -322,8 +322,8 @@ export function updateMapLayers() {
     // Style resolver — applies user override on top of default symbology
     const styleFn = (feature) => {
       const base = dissolvedFillStyle(cat, typeValue);
-      const fTypeValue = override?.categoryBy === 'status'
-        ? feature?.properties?.status
+      const fTypeValue = override?.categoryBy
+        ? (String(feature?.properties?.[override.categoryBy] ?? '') || typeValue)
         : (feature?.properties?.type || typeValue);
       return applyStyleOverride(base, override, fTypeValue);
     };
