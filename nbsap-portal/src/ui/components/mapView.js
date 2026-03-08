@@ -438,7 +438,7 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
     L.DomEvent.disableScrollPropagation(div);
 
     const admin = isAdmin();
-    let html = `<div class="map-legend-title">Layers${admin ? ' <span class="map-legend-hint">(drag or use arrows to reorder)</span>' : ''}</div>`;
+    let html = `<div class="map-legend-title">Layers <span class="map-legend-hint">(use arrows to reorder)</span></div>`;
 
     for (let i = 0; i < orderedMatching.length; i++) {
       const ld = orderedMatching[i];
@@ -458,10 +458,10 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       const hasOverride  = hasLayerStyle(ld.id);
 
       html += `<div class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" data-layer-id="${ld.id}" ${admin ? 'draggable="true"' : ''} title="${datasetName}">
-        ${admin ? `<div class="layer-order-controls">
+        <div class="layer-order-controls">
           <button class="layer-order-btn layer-move-up" data-layer-id="${ld.id}" ${isLast ? 'disabled' : ''} title="Bring forward">&#9650;</button>
           <button class="layer-order-btn layer-move-down" data-layer-id="${ld.id}" ${isFirst ? 'disabled' : ''} title="Send backward">&#9660;</button>
-        </div>` : ''}
+        </div>
         <label class="map-layer-label-wrap">
           <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
           <span class="map-legend-swatch" style="background:${swatchFill};border-color:${swatchStroke}"></span>
@@ -491,22 +491,23 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       });
     });
 
+    // Bind reorder button events (available to all users)
+    div.querySelectorAll('.layer-move-up').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        moveLayer(btn.dataset.layerId, 'up');
+      });
+    });
+    div.querySelectorAll('.layer-move-down').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        moveLayer(btn.dataset.layerId, 'down');
+      });
+    });
+
     if (admin) {
-      // Bind reorder button events
-      div.querySelectorAll('.layer-move-up').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          moveLayer(btn.dataset.layerId, 'up');
-        });
-      });
-      div.querySelectorAll('.layer-move-down').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          moveLayer(btn.dataset.layerId, 'down');
-        });
-      });
 
       // Drag-and-drop reordering
       let dragSrcId = null;
