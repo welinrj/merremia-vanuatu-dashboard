@@ -33,6 +33,7 @@ import {
   applyPointStyleOverride
 } from '../../config/symbolizer.js';
 import { openSymbolizer, closeSymbolizer, getOpenSymbolizerLayerId } from './layerSymbolizer.js';
+import { isAdmin } from '../../services/auth/index.js';
 
 let map = null;
 let baseLayers = {};
@@ -436,7 +437,8 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
 
-    let html = '<div class="map-legend-title">Layers <span class="map-legend-hint">(drag or use arrows to reorder)</span></div>';
+    const admin = isAdmin();
+    let html = `<div class="map-legend-title">Layers${admin ? ' <span class="map-legend-hint">(drag or use arrows to reorder)</span>' : ''}</div>`;
 
     for (let i = 0; i < orderedMatching.length; i++) {
       const ld = orderedMatching[i];
@@ -455,21 +457,21 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       const styleActive  = getOpenSymbolizerLayerId() === ld.id;
       const hasOverride  = hasLayerStyle(ld.id);
 
-      html += `<div class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" data-layer-id="${ld.id}" draggable="true" title="${datasetName}">
-        <div class="layer-order-controls">
+      html += `<div class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" data-layer-id="${ld.id}" ${admin ? 'draggable="true"' : ''} title="${datasetName}">
+        ${admin ? `<div class="layer-order-controls">
           <button class="layer-order-btn layer-move-up" data-layer-id="${ld.id}" ${isLast ? 'disabled' : ''} title="Bring forward">&#9650;</button>
           <button class="layer-order-btn layer-move-down" data-layer-id="${ld.id}" ${isFirst ? 'disabled' : ''} title="Send backward">&#9660;</button>
-        </div>
+        </div>` : ''}
         <label class="map-layer-label-wrap">
           <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
           <span class="map-legend-swatch" style="background:${swatchFill};border-color:${swatchStroke}"></span>
           <span class="map-legend-label">${datasetName}</span>
         </label>
-        <button class="layer-style-btn ${hasOverride ? 'has-override' : ''} ${styleActive ? 'is-open' : ''}" data-layer-id="${ld.id}" title="Symbolize layer" draggable="false">
+        ${admin ? `<button class="layer-style-btn ${hasOverride ? 'has-override' : ''} ${styleActive ? 'is-open' : ''}" data-layer-id="${ld.id}" title="Symbolize layer" draggable="false">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5l-4 .5.5-4Z"/>
           </svg>
-        </button>
+        </button>` : ''}
       </div>`;
     }
 
@@ -489,68 +491,70 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       });
     });
 
-    // Bind reorder button events
-    div.querySelectorAll('.layer-move-up').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        moveLayer(btn.dataset.layerId, 'up');
-      });
-    });
-    div.querySelectorAll('.layer-move-down').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        moveLayer(btn.dataset.layerId, 'down');
-      });
-    });
-
-    // Drag-and-drop reordering
-    let dragSrcId = null;
-    const rows = div.querySelectorAll('.map-layer-toggle[draggable]');
-    rows.forEach(row => {
-      row.addEventListener('dragstart', (e) => {
-        dragSrcId = row.dataset.layerId;
-        row.classList.add('layer-dragging');
-        e.dataTransfer.effectAllowed = 'move';
-      });
-      row.addEventListener('dragend', () => {
-        row.classList.remove('layer-dragging');
-        div.querySelectorAll('.layer-dragover').forEach(el => el.classList.remove('layer-dragover'));
-        dragSrcId = null;
-      });
-      row.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        row.classList.add('layer-dragover');
-      });
-      row.addEventListener('dragleave', () => {
-        row.classList.remove('layer-dragover');
-      });
-      row.addEventListener('drop', (e) => {
-        e.preventDefault();
-        row.classList.remove('layer-dragover');
-        const targetId = row.dataset.layerId;
-        if (dragSrcId && dragSrcId !== targetId) {
-          reorderLayer(dragSrcId, targetId);
-        }
-      });
-    });
-
-    // Bind style (symbolizer) button events
-    div.querySelectorAll('.layer-style-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const layerId  = btn.dataset.layerId;
-        const layerData = orderedMatching.find(l => l.id === layerId);
-        if (!layerData) return;
-        openSymbolizer(layerData, () => {
-          _suppressFitBounds = true;
-          updateMapLayers();
+    if (admin) {
+      // Bind reorder button events
+      div.querySelectorAll('.layer-move-up').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          moveLayer(btn.dataset.layerId, 'up');
         });
       });
-    });
+      div.querySelectorAll('.layer-move-down').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          moveLayer(btn.dataset.layerId, 'down');
+        });
+      });
+
+      // Drag-and-drop reordering
+      let dragSrcId = null;
+      const rows = div.querySelectorAll('.map-layer-toggle[draggable]');
+      rows.forEach(row => {
+        row.addEventListener('dragstart', (e) => {
+          dragSrcId = row.dataset.layerId;
+          row.classList.add('layer-dragging');
+          e.dataTransfer.effectAllowed = 'move';
+        });
+        row.addEventListener('dragend', () => {
+          row.classList.remove('layer-dragging');
+          div.querySelectorAll('.layer-dragover').forEach(el => el.classList.remove('layer-dragover'));
+          dragSrcId = null;
+        });
+        row.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = 'move';
+          row.classList.add('layer-dragover');
+        });
+        row.addEventListener('dragleave', () => {
+          row.classList.remove('layer-dragover');
+        });
+        row.addEventListener('drop', (e) => {
+          e.preventDefault();
+          row.classList.remove('layer-dragover');
+          const targetId = row.dataset.layerId;
+          if (dragSrcId && dragSrcId !== targetId) {
+            reorderLayer(dragSrcId, targetId);
+          }
+        });
+      });
+
+      // Bind style (symbolizer) button events
+      div.querySelectorAll('.layer-style-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const layerId  = btn.dataset.layerId;
+          const layerData = orderedMatching.find(l => l.id === layerId);
+          if (!layerData) return;
+          openSymbolizer(layerData, () => {
+            _suppressFitBounds = true;
+            updateMapLayers();
+          });
+        });
+      });
+    }
 
     return div;
   };
