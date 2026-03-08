@@ -678,6 +678,8 @@ function downloadMetadataReport() {
 
 // ── Dataset Preview ──────────────────────────────────────────────────
 
+let _featureHistory = []; // undo stack: array of feature arrays
+
 let _previewMap = null;
 let _previewActiveTab = 'map';
 let _previewLayerId = null;
@@ -693,6 +695,7 @@ async function openPreview(layerId) {
   if (!layer) return;
 
   _previewLayerId = layerId;
+  _featureHistory = []; // clear undo history when opening a new layer
 
   const modal = document.getElementById('preview-modal');
   const loadingEl = document.getElementById('preview-loading');
@@ -873,8 +876,23 @@ function _renderPreviewTable(layer) {
   }
 
   const admin = isAdmin();
+  const undoDisabled = _featureHistory.length === 0 ? 'disabled' : '';
+
+  const adminToolbar = admin ? `
+    <div style="display:flex;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--gray-50,#f8f9fa);align-items:center;flex-wrap:wrap;flex-shrink:0">
+      <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Admin:</span>
+      <button class="btn btn-sm btn-outline" id="tbl-add-row-btn" style="font-size:11px;padding:2px 10px">+ Add Row</button>
+      <button class="btn btn-sm btn-outline" id="tbl-add-col-btn" style="font-size:11px;padding:2px 10px">+ Add Column</button>
+      <button class="btn btn-sm btn-outline" id="tbl-undo-btn" style="font-size:11px;padding:2px 10px" ${undoDisabled}>&#8617; Undo</button>
+    </div>` : '';
+
   const actionHeader = admin ? `<th style="padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border);white-space:nowrap">Actions</th>` : '';
-  const headerRow = keys.map(k => `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}</th>`).join('') + actionHeader;
+  const headerRow = keys.map(k => {
+    const delBtn = admin
+      ? `<button class="tbl-del-col btn btn-sm btn-danger" data-key="${escapeAttr(k)}" title="Delete column" style="padding:0 5px;font-size:10px;margin-left:4px;line-height:1.4">&times;</button>`
+      : '';
+    return `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}${delBtn}</th>`;
+  }).join('') + actionHeader;
 
   const bodyRows = sample.map((f, i) => {
     const p = f.properties || {};
@@ -892,7 +910,7 @@ function _renderPreviewTable(layer) {
     ? `<div style="padding:8px 12px;font-size:12px;color:var(--text-secondary);background:var(--gray-50,#f8f9fa);border-top:1px solid var(--border)">Showing first ${MAX_ROWS} of ${features.length.toLocaleString()} features.</div>`
     : '';
 
-  container.innerHTML = `
+  container.innerHTML = adminToolbar + `
     <div style="overflow:auto">
       <table style="border-collapse:collapse;width:100%;min-width:max-content">
         <thead><tr>${headerRow}</tr></thead>
@@ -903,6 +921,14 @@ function _renderPreviewTable(layer) {
   `;
 
   if (admin) {
+    document.getElementById('tbl-add-row-btn')?.addEventListener('click', () => _applyAddRow());
+    document.getElementById('tbl-add-col-btn')?.addEventListener('click', () => _promptAddColumn());
+    document.getElementById('tbl-undo-btn')?.addEventListener('click', () => _applyUndo());
+
+    container.querySelectorAll('.tbl-del-col').forEach(btn => {
+      btn.addEventListener('click', () => _applyDeleteColumn(btn.dataset.key));
+    });
+
     container.querySelectorAll('.tbl-edit-feat').forEach(btn => {
       btn.addEventListener('click', () => {
         const idx = parseInt(btn.dataset.idx, 10);
@@ -986,10 +1012,16 @@ async function removeLayerAction(layerId) {
 /**
  * Saves the modified features array back to Firestore and refreshes the preview.
  */
-async function _saveFeatureChanges(updatedFeatures, action = 'edit_feature') {
+async function _saveFeatureChanges(updatedFeatures, action = 'edit_feature', skipHistory = false) {
   const state = getAppState();
   const layer = state.layers.find(l => l.id === _previewLayerId);
   if (!layer) return;
+
+  // Push current features onto undo stack before applying change
+  if (!skipHistory && layer.geojson?.features) {
+    _featureHistory.push(JSON.parse(JSON.stringify(layer.geojson.features)));
+    if (_featureHistory.length > 50) _featureHistory.shift();
+  }
 
   const updatedGeojson = { ...layer.geojson, features: updatedFeatures };
   const updatedMeta = { ...layer.metadata, featureCount: updatedFeatures.length };
@@ -1062,6 +1094,46 @@ function _applyAddFeature(geometry, props) {
   const newFeature = { type: 'Feature', geometry, properties: props };
   const features = [...layer.geojson.features, newFeature];
   _saveFeatureChanges(features, 'add_feature');
+}
+
+function _applyAddRow() {
+  openNewFeatureEditor('None', {
+    onSave: (props) => _applyAddFeature(null, props)
+  });
+}
+
+async function _promptAddColumn() {
+  const name = await showPrompt('Column name:', '', { title: 'Add Column' });
+  if (!name?.trim()) return;
+  const key = name.trim();
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer?.geojson) return;
+  const features = layer.geojson.features.map(f => ({
+    ...f,
+    properties: { ...(f.properties || {}), [key]: '' }
+  }));
+  _saveFeatureChanges(features, 'add_column');
+}
+
+async function _applyDeleteColumn(key) {
+  const ok = await showConfirm(`Delete column '${key}' from all features?`, { title: 'Delete Column', okLabel: 'Delete', danger: true });
+  if (!ok) return;
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer?.geojson) return;
+  const features = layer.geojson.features.map(f => {
+    const props = { ...(f.properties || {}) };
+    delete props[key];
+    return { ...f, properties: props };
+  });
+  _saveFeatureChanges(features, 'delete_column');
+}
+
+async function _applyUndo() {
+  if (_featureHistory.length === 0) return;
+  const prev = _featureHistory.pop();
+  _saveFeatureChanges(prev, 'undo', true);
 }
 
 // ── Draw mode ────────────────────────────────────────────────────────
