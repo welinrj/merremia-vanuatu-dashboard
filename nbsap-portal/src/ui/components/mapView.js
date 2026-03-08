@@ -26,6 +26,13 @@ import {
 } from '../../config/symbology.js';
 import { getAppState, getDashboardLayers } from '../state.js';
 import { dissolveFeatures } from '../../gis/areaCalc.js';
+import {
+  getLayerStyle,
+  hasLayerStyle,
+  applyStyleOverride,
+  applyPointStyleOverride
+} from '../../config/symbolizer.js';
+import { openSymbolizer, closeSymbolizer, getOpenSymbolizerLayerId } from './layerSymbolizer.js';
 
 let map = null;
 let baseLayers = {};
@@ -173,6 +180,7 @@ export function updateMapLayers() {
   // so dissolution + colouring respect sub-types.
   const groupPolygons = {};            // groupKey → Feature[]
   const groupMeta = {};                // groupKey → { cat, typeValue }
+  const groupLayerIds = {};            // groupKey → layerId (first layer for this group)
   const categoryPolygonMetas = {};     // cat → { features, meta }[] for popup outlines
   const categoryPointFeatures = {};    // cat → { features, meta }
   const refPolygonFeatures = [];
@@ -232,6 +240,7 @@ export function updateMapLayers() {
           if (!groupMeta[gk]) {
             groupMeta[gk] = { cat, typeValue: cat === 'LAND_COVER' ? (f.properties?.type || null) : null };
           }
+          if (!groupLayerIds[gk]) groupLayerIds[gk] = layerData.id;
         }
       } else if (geomType === 'Point' || geomType === 'MultiPoint') {
         if (isRef) {
@@ -305,13 +314,23 @@ export function updateMapLayers() {
   const MAP_DISSOLVE_LIMIT = 200;
   for (const [gk, features] of Object.entries(groupPolygons)) {
     const { cat, typeValue } = groupMeta[gk];
-    const style = dissolvedFillStyle(cat, typeValue);
+    const layerId  = groupLayerIds[gk];
+    const override = getLayerStyle(layerId);
     const rendererOpt = isLargeDataset ? { renderer: canvasRenderer } : {};
+
+    // Style resolver — applies user override on top of default symbology
+    const styleFn = (feature) => {
+      const base = dissolvedFillStyle(cat, typeValue);
+      const fTypeValue = override?.categoryBy === 'status'
+        ? feature?.properties?.status
+        : (feature?.properties?.type || typeValue);
+      return applyStyleOverride(base, override, fTypeValue);
+    };
 
     if (isLargeDataset || features.length > MAP_DISSOLVE_LIMIT) {
       // Large dataset or too many polygons — render raw with canvas, no dissolution
       const fillLayer = L.geoJSON({ type: 'FeatureCollection', features }, {
-        style: () => style,
+        style: styleFn,
         interactive: true,
         renderer: canvasRenderer
       });
@@ -328,7 +347,7 @@ export function updateMapLayers() {
       const dissolved = dissolveFeatures(features);
       if (dissolved) {
         const dissolvedLayer = L.geoJSON(dissolved, {
-          style: () => style,
+          style: (feature) => styleFn(feature),
           interactive: false,
           ...rendererOpt
         });
@@ -342,8 +361,15 @@ export function updateMapLayers() {
   if (!isLargeDataset) {
     for (const [cat, layerGroups] of Object.entries(categoryPolygonMetas)) {
       for (const group of layerGroups) {
+        const layerOverride = getLayerStyle(group.meta.id);
         const geojsonLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
-          style: (feature) => featureOutlineStyle(feature, cat),
+          style: (feature) => {
+            const base = featureOutlineStyle(feature, cat);
+            const fTypeValue = layerOverride?.categoryBy === 'status'
+              ? feature.properties?.status
+              : feature.properties?.type;
+            return applyStyleOverride(base, layerOverride, fTypeValue);
+          },
           onEachFeature: (feature, layer) => {
             buildPopup(feature, layer, group.meta);
           }
@@ -355,10 +381,15 @@ export function updateMapLayers() {
 
   // ── Pass 6: Point features ──────────────────────────────────────────
   for (const [cat, group] of Object.entries(categoryPointFeatures)) {
-    const rendererOpt = group.features.length > LARGE_LAYER_THRESHOLD ? { renderer: canvasRenderer } : {};
+    const rendererOpt    = group.features.length > LARGE_LAYER_THRESHOLD ? { renderer: canvasRenderer } : {};
+    const pointOverride  = getLayerStyle(group.meta.id);
     const pointLayer = L.geoJSON({ type: 'FeatureCollection', features: group.features }, {
       pointToLayer: (f, latlng) => {
-        return L.circleMarker(latlng, pointMarkerStyle(f, cat));
+        const base = pointMarkerStyle(f, cat);
+        const fTypeValue = pointOverride?.categoryBy === 'status'
+          ? f.properties?.status
+          : f.properties?.type;
+        return L.circleMarker(latlng, applyPointStyleOverride(base, pointOverride, fTypeValue));
       },
       onEachFeature: (f, layer) => {
         buildPopup(f, layer, group.meta);
@@ -417,6 +448,13 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       const isFirst = i === 0;
       const isLast = i === orderedMatching.length - 1;
 
+      // Show override color on swatch if a single-mode override exists
+      const override = getLayerStyle(ld.id);
+      const swatchFill   = (override?.mode === 'single' && override.fillColor)   ? override.fillColor   : colors.fill;
+      const swatchStroke = (override?.mode === 'single' && override.strokeColor) ? override.strokeColor : colors.stroke;
+      const styleActive  = getOpenSymbolizerLayerId() === ld.id;
+      const hasOverride  = hasLayerStyle(ld.id);
+
       html += `<div class="map-legend-row map-layer-toggle ${checked ? '' : 'layer-hidden'}" data-layer-id="${ld.id}" draggable="true" title="${datasetName}">
         <div class="layer-order-controls">
           <button class="layer-order-btn layer-move-up" data-layer-id="${ld.id}" ${isLast ? 'disabled' : ''} title="Bring forward">&#9650;</button>
@@ -424,9 +462,14 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
         </div>
         <label class="map-layer-label-wrap">
           <input type="checkbox" class="map-layer-cb" data-layer-id="${ld.id}" ${checked ? 'checked' : ''}>
-          <span class="map-legend-swatch" style="background:${colors.fill};border-color:${colors.stroke}"></span>
+          <span class="map-legend-swatch" style="background:${swatchFill};border-color:${swatchStroke}"></span>
           <span class="map-legend-label">${datasetName}</span>
         </label>
+        <button class="layer-style-btn ${hasOverride ? 'has-override' : ''} ${styleActive ? 'is-open' : ''}" data-layer-id="${ld.id}" title="Symbolize layer" draggable="false">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+            <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5l-4 .5.5-4Z"/>
+          </svg>
+        </button>
       </div>`;
     }
 
@@ -491,6 +534,21 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
         if (dragSrcId && dragSrcId !== targetId) {
           reorderLayer(dragSrcId, targetId);
         }
+      });
+    });
+
+    // Bind style (symbolizer) button events
+    div.querySelectorAll('.layer-style-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const layerId  = btn.dataset.layerId;
+        const layerData = orderedMatching.find(l => l.id === layerId);
+        if (!layerData) return;
+        openSymbolizer(layerData, () => {
+          _suppressFitBounds = true;
+          updateMapLayers();
+        });
       });
     });
 
