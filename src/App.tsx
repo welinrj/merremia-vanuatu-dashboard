@@ -72,6 +72,7 @@ function App() {
   }
 
   return (
+    <>
     <div className="app-layout">
       <Sidebar
         activePage={activePage}
@@ -116,6 +117,7 @@ function App() {
       </main>
     </div>
     <SmolTamtan />
+    </>
   )
 }
 
