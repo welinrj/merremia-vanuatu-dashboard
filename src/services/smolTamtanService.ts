@@ -94,9 +94,6 @@ async function gatherContext(): Promise<string> {
           parts.push(`  Location: ${[area.island, area.province].filter(Boolean).join(', ')}`)
         }
         if (area.areaHa) parts.push(`  Area: ${area.areaHa.toLocaleString()} hectares`)
-        if (area.managementAuthority) parts.push(`  Managed by: ${area.managementAuthority}`)
-        if (area.designatedDate) parts.push(`  Designated: ${area.designatedDate}`)
-        if (area.description) parts.push(`  Description: ${area.description}`)
         sections.push(parts.join('\n'))
       })
     } else {
