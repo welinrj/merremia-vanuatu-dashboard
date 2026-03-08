@@ -63,14 +63,11 @@ async function gatherContext(): Promise<string> {
     if (datasets.length > 0) {
       sections.push('### GIS Datasets (' + datasets.length + ' total)')
       datasets.forEach((ds) => {
-        const parts = [`- **${ds.name}** [${ds.format ?? 'unknown format'}]`]
-        if (ds.description) parts.push(`  Description: ${ds.description}`)
-        parts.push(`  Status: ${ds.status ?? 'unknown'} | Features: ${ds.featureCount ?? 'unknown'} | Size: ${ds.sizeBytes ? Math.round(ds.sizeBytes / 1024) + ' KB' : 'unknown'}`)
-        if (ds.tags && ds.tags.length) parts.push(`  Tags: ${ds.tags.join(', ')}`)
-        if (ds.bbox) parts.push(`  Bounding box (minLon, minLat, maxLon, maxLat): ${ds.bbox.map((v: number) => v.toFixed(4)).join(', ')}`)
-        if (ds.properties && ds.properties.length) {
-          parts.push(`  Attribute fields: ${ds.properties.slice(0, 8).join(', ')}${ds.properties.length > 8 ? ` … (+${ds.properties.length - 8} more)` : ''}`)
-        }
+        const meta = ds.metadata
+        const parts = [`- **${meta.name}** [${ds.format ?? 'unknown format'}]`]
+        if (meta.description) parts.push(`  Description: ${meta.description}`)
+        parts.push(`  Status: ${meta.status ?? 'unknown'} | Features: ${ds.featureCount ?? 'unknown'} | Size: ${ds.sizeBytes ? Math.round(ds.sizeBytes / 1024) + ' KB' : 'unknown'}`)
+        if (meta.tags && meta.tags.length) parts.push(`  Tags: ${meta.tags.join(', ')}`)
         sections.push(parts.join('\n'))
       })
     } else {
