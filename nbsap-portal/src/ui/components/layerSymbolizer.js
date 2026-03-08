@@ -103,13 +103,15 @@ function buildPanelHTML(layerData) {
   const hasCategories = types.length > 0 || statuses.length > 0;
 
   // Resolve current values (override → default)
-  const mode     = existing?.mode || 'single';
-  const fill     = existing?.fillColor    || defaultColors.fill;
-  const stroke   = existing?.strokeColor  || defaultColors.stroke;
-  const opacity  = existing?.fillOpacity  ?? 0.45;
-  const weight   = existing?.weight       ?? 2.5;
-  const dash     = existing?.dashArray    || '';
-  const radius   = existing?.pointRadius  ?? 6;
+  const mode            = existing?.mode || 'single';
+  const fill            = existing?.fillColor    || defaultColors.fill;
+  const stroke          = existing?.strokeColor  || defaultColors.stroke;
+  const opacity         = existing?.fillOpacity  ?? 0.45;
+  const weight          = existing?.weight       ?? 2.5;
+  const dash            = existing?.dashArray    || '';
+  const radius          = existing?.pointRadius  ?? 6;
+  const fillTransparent   = existing?.fillTransparent   || false;
+  const strokeTransparent = existing?.strokeTransparent || false;
 
   const singleActive = mode === 'single'      ? 'active' : '';
   const catActive    = mode === 'categorized' ? 'active' : '';
@@ -122,41 +124,52 @@ function buildPanelHTML(layerData) {
 
   // Preview dash style CSS
   const dashCSS = dash ? 'dashed' : 'solid';
+  const previewBg     = fillTransparent   ? 'transparent'                                   : fill;
+  const previewBorder = strokeTransparent ? 'none'                                           : `${weight}px ${dashCSS} ${stroke}`;
+  const previewOpacity = fillTransparent  ? ''                                               : `opacity:${Math.min(opacity + 0.55, 1)}`;
+  const fillDisabled   = fillTransparent   ? 'disabled' : '';
+  const strokeDisabled = strokeTransparent ? 'disabled' : '';
+  const fillGrpClass   = fillTransparent   ? 'sym-field sym-field-disabled' : 'sym-field';
+  const strokeGrpClass = strokeTransparent ? 'sym-field sym-field-disabled' : 'sym-field';
 
   // Simple tab
   const simpleTab = `
     <div class="sym-tab-content ${singleActive}" data-content="single">
-      <div class="sym-field">
-        <label>Fill Color</label>
+      <div class="${fillGrpClass}" id="sym-fill-group">
+        <label>Fill Color
+          <label class="sym-check-label"><input type="checkbox" id="sym-fill-none" ${fillTransparent ? 'checked' : ''}> No fill</label>
+        </label>
         <div class="sym-color-row">
-          <input type="color" class="sym-color" id="sym-fill" value="${fill}">
+          <input type="color" class="sym-color" id="sym-fill" value="${fill}" ${fillDisabled}>
           <span class="sym-color-hex">${fill}</span>
         </div>
       </div>
-      <div class="sym-field">
+      <div class="${fillGrpClass}" id="sym-opacity-group">
         <label>Fill Opacity</label>
         <div class="sym-slider-row">
-          <input type="range" class="sym-slider" id="sym-opacity" min="0" max="1" step="0.05" value="${opacity}">
+          <input type="range" class="sym-slider" id="sym-opacity" min="0" max="1" step="0.05" value="${opacity}" ${fillDisabled}>
           <span class="sym-slider-val">${Math.round(opacity * 100)}%</span>
         </div>
       </div>
-      <div class="sym-field">
-        <label>Stroke Color</label>
+      <div class="${strokeGrpClass}" id="sym-stroke-group">
+        <label>Stroke Color
+          <label class="sym-check-label"><input type="checkbox" id="sym-stroke-none" ${strokeTransparent ? 'checked' : ''}> No stroke</label>
+        </label>
         <div class="sym-color-row">
-          <input type="color" class="sym-color" id="sym-stroke" value="${stroke}">
+          <input type="color" class="sym-color" id="sym-stroke" value="${stroke}" ${strokeDisabled}>
           <span class="sym-color-hex">${stroke}</span>
         </div>
       </div>
-      <div class="sym-field">
+      <div class="${strokeGrpClass}" id="sym-weight-group">
         <label>Stroke Width</label>
         <div class="sym-slider-row">
-          <input type="range" class="sym-slider" id="sym-weight" min="0.5" max="8" step="0.5" value="${weight}">
+          <input type="range" class="sym-slider" id="sym-weight" min="0.5" max="8" step="0.5" value="${weight}" ${strokeDisabled}>
           <span class="sym-slider-val">${weight}px</span>
         </div>
       </div>
-      <div class="sym-field">
+      <div class="${strokeGrpClass}" id="sym-dash-group">
         <label>Stroke Style</label>
-        <select class="sym-select" id="sym-dash">
+        <select class="sym-select" id="sym-dash" ${strokeDisabled}>
           ${DASH_OPTIONS.map(o =>
             `<option value="${o.value}" ${dash === o.value ? 'selected' : ''}>${o.label}</option>`
           ).join('')}
@@ -171,8 +184,8 @@ function buildPanelHTML(layerData) {
         </div>
       </div>` : ''}
       <div class="sym-preview-row">
-        <div class="sym-preview-swatch" id="sym-preview"
-          style="background:${fill};border:${weight}px ${dashCSS} ${stroke};opacity:${Math.min(opacity + 0.55, 1)}">
+        <div class="sym-preview-swatch ${fillTransparent ? 'sym-preview-transparent' : ''}" id="sym-preview"
+          style="background:${previewBg};border:${previewBorder};${previewOpacity}">
         </div>
         <span class="sym-preview-label">Preview</span>
       </div>
@@ -275,24 +288,48 @@ function bindPanelEvents(panel, layerData) {
   });
 
   // Live preview
-  const fillInput    = panel.querySelector('#sym-fill');
-  const strokeInput  = panel.querySelector('#sym-stroke');
-  const opacityInput = panel.querySelector('#sym-opacity');
-  const weightInput  = panel.querySelector('#sym-weight');
-  const dashSel      = panel.querySelector('#sym-dash');
-  const preview      = panel.querySelector('#sym-preview');
+  const fillInput      = panel.querySelector('#sym-fill');
+  const strokeInput    = panel.querySelector('#sym-stroke');
+  const opacityInput   = panel.querySelector('#sym-opacity');
+  const weightInput    = panel.querySelector('#sym-weight');
+  const dashSel        = panel.querySelector('#sym-dash');
+  const preview        = panel.querySelector('#sym-preview');
+  const fillNoneChk    = panel.querySelector('#sym-fill-none');
+  const strokeNoneChk  = panel.querySelector('#sym-stroke-none');
+
+  function setGroupDisabled(groupIds, disabled) {
+    groupIds.forEach(id => {
+      const el = panel.querySelector(`#${id}`);
+      if (!el) return;
+      el.classList.toggle('sym-field-disabled', disabled);
+      el.querySelectorAll('input:not([type=checkbox]), select').forEach(i => { i.disabled = disabled; });
+    });
+  }
 
   function updatePreview() {
-    if (!preview || !fillInput) return;
-    const f  = fillInput.value;
+    if (!preview) return;
+    const noFill   = fillNoneChk?.checked;
+    const noStroke = strokeNoneChk?.checked;
+    const f  = fillInput?.value || '#ccc';
     const s  = strokeInput?.value || '#000';
     const o  = parseFloat(opacityInput?.value ?? 0.45);
     const w  = parseFloat(weightInput?.value  ?? 2.5);
     const isDashed = dashSel && dashSel.value !== '';
-    preview.style.background  = f;
-    preview.style.border      = `${w}px ${isDashed ? 'dashed' : 'solid'} ${s}`;
-    preview.style.opacity     = Math.min(o + 0.55, 1);
+
+    preview.classList.toggle('sym-preview-transparent', noFill);
+    preview.style.background = noFill   ? 'transparent'                                    : f;
+    preview.style.border     = noStroke ? 'none'                                            : `${w}px ${isDashed ? 'dashed' : 'solid'} ${s}`;
+    preview.style.opacity    = noFill   ? ''                                                : String(Math.min(o + 0.55, 1));
   }
+
+  fillNoneChk?.addEventListener('change', () => {
+    setGroupDisabled(['sym-fill-group', 'sym-opacity-group'], fillNoneChk.checked);
+    updatePreview();
+  });
+  strokeNoneChk?.addEventListener('change', () => {
+    setGroupDisabled(['sym-stroke-group', 'sym-weight-group', 'sym-dash-group'], strokeNoneChk.checked);
+    updatePreview();
+  });
 
   // Color inputs
   panel.querySelectorAll('.sym-color').forEach(input => {
@@ -335,12 +372,14 @@ function bindPanelEvents(panel, layerData) {
     if (activeTab === 'single') {
       const isPoint = hasPointGeometry(layerData);
       const styleObj = {
-        mode:        'single',
-        fillColor:   fillInput?.value   || resolveColors(layerData.metadata.category || 'OTHER').fill,
-        strokeColor: strokeInput?.value || resolveColors(layerData.metadata.category || 'OTHER').stroke,
-        fillOpacity: parseFloat(opacityInput?.value ?? 0.45),
-        weight:      parseFloat(weightInput?.value  ?? 2.5),
-        dashArray:   dashSel?.value || null,
+        mode:             'single',
+        fillColor:        fillInput?.value   || resolveColors(layerData.metadata.category || 'OTHER').fill,
+        strokeColor:      strokeInput?.value || resolveColors(layerData.metadata.category || 'OTHER').stroke,
+        fillOpacity:      parseFloat(opacityInput?.value ?? 0.45),
+        weight:           parseFloat(weightInput?.value  ?? 2.5),
+        dashArray:        dashSel?.value || null,
+        fillTransparent:   fillNoneChk?.checked   || false,
+        strokeTransparent: strokeNoneChk?.checked || false,
       };
       if (isPoint) {
         const r = panel.querySelector('#sym-radius');

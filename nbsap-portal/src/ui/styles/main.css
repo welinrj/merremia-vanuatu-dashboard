@@ -1833,6 +1833,42 @@ html, body {
   flex-shrink: 0;
   transition: all 0.18s;
 }
+/* Checkered pattern when fill is transparent */
+.sym-preview-swatch.sym-preview-transparent {
+  background-image: repeating-conic-gradient(#ccc 0% 25%, #fff 0% 50%) !important;
+  background-size: 8px 8px !important;
+}
+
+/* Disabled controls */
+.sym-field-disabled input,
+.sym-field-disabled select {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.sym-field-disabled .sym-color-hex {
+  opacity: 0.35;
+}
+
+/* No fill / no stroke checkbox inline with label */
+.sym-check-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted, #999);
+  cursor: pointer;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.sym-check-label input[type=checkbox] {
+  width: 11px;
+  height: 11px;
+  cursor: pointer;
+  accent-color: var(--primary, #006B3F);
+}
 .sym-preview-label {
   font-size: 9px;
   text-transform: uppercase;
