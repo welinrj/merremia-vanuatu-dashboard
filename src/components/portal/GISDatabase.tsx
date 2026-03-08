@@ -18,6 +18,7 @@ import {
   deleteRemoteDataset,
 } from '../../services/githubSync'
 import DatasetUpload from './DatasetUpload'
+import FeatureEditor from './FeatureEditor'
 import MapViewer from './MapViewer'
 import './DataPortal.css'
 import './GISDatabase.css'
@@ -26,10 +27,11 @@ interface GISDatabaseProps {
   onNavigate?: (section: string) => void
 }
 
-type DbView = 'browse' | 'upload'
+type DbView = 'browse' | 'upload' | 'edit-features'
 
 const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
   const [view, setView] = useState<DbView>('browse')
+  const [editingDataset, setEditingDataset] = useState<GeoDataset | null>(null)
   const [datasets, setDatasets] = useState<DatasetSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [storageUsed, setStorageUsed] = useState<number | null>(null)
@@ -103,6 +105,14 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
     setSelectedId(id)
     const ds = await getDataset(id)
     setPreview(ds)
+  }
+
+  async function handleEditFeatures(id: string) {
+    const ds = await getDataset(id)
+    if (ds) {
+      setEditingDataset(ds)
+      setView('edit-features')
+    }
   }
 
   // Fire-and-forget push to GitHub after local mutation
@@ -242,6 +252,25 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
           onCancel={() => setView('browse')}
         />
       </div>
+    )
+  }
+
+  if (view === 'edit-features' && editingDataset) {
+    return (
+      <FeatureEditor
+        dataset={editingDataset}
+        onClose={() => {
+          setView('browse')
+          setEditingDataset(null)
+        }}
+        onSaved={async () => {
+          backgroundSync()
+          await refresh()
+          setView('browse')
+          setEditingDataset(null)
+          setImportStatus('Features saved.')
+        }}
+      />
     )
   }
 
@@ -422,6 +451,13 @@ const GISDatabase: FC<GISDatabaseProps> = ({ onNavigate }) => {
                   <td>{new Date(ds.createdAt).toLocaleDateString()}</td>
                   <td>
                     <div className="action-buttons">
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={() => handleEditFeatures(ds.id)}
+                        title="Edit features"
+                      >
+                        Edit Features
+                      </button>
                       <button
                         className="btn btn-sm"
                         onClick={() => handleExportOne(ds.id)}
