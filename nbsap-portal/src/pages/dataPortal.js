@@ -876,13 +876,14 @@ function _renderPreviewTable(layer) {
   }
 
   const admin = isAdmin();
+  const undoDisabled = _featureHistory.length === 0 ? 'disabled' : '';
 
   const adminToolbar = admin ? `
     <div style="display:flex;gap:6px;padding:6px 12px;border-bottom:1px solid var(--border);background:var(--gray-50,#f8f9fa);align-items:center;flex-wrap:wrap;flex-shrink:0">
       <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Admin:</span>
       <button class="btn btn-sm btn-outline" id="tbl-add-row-btn" style="font-size:11px;padding:2px 10px">+ Add Row</button>
       <button class="btn btn-sm btn-outline" id="tbl-add-col-btn" style="font-size:11px;padding:2px 10px">+ Add Column</button>
-      <button class="btn btn-sm btn-outline" id="tbl-undo-btn" style="font-size:11px;padding:2px 10px" ${_featureHistory.length === 0 ? 'disabled' : ''}>&#8617; Undo</button>
+      <button class="btn btn-sm btn-outline" id="tbl-undo-btn" style="font-size:11px;padding:2px 10px" ${undoDisabled}>&#8617; Undo</button>
     </div>` : '';
 
   const actionHeader = admin ? `<th style="padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border);white-space:nowrap">Actions</th>` : '';
@@ -1116,7 +1117,7 @@ async function _promptAddColumn() {
 }
 
 async function _applyDeleteColumn(key) {
-  const ok = await showConfirm(`Delete column "${key}" from all features?`, { title: 'Delete Column', okLabel: 'Delete', danger: true });
+  const ok = await showConfirm(`Delete column '${key}' from all features?`, { title: 'Delete Column', okLabel: 'Delete', danger: true });
   if (!ok) return;
   const state = getAppState();
   const layer = state.layers.find(l => l.id === _previewLayerId);
