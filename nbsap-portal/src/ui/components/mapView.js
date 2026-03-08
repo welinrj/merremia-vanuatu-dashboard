@@ -39,6 +39,7 @@ let map = null;
 let baseLayers = {};
 let referenceGroup = null;  // Reference layers — rendered behind everything
 let overlayGroup = null;
+let labelGroup = null;      // Text label markers — rendered on top of everything
 let provincesLayer = null;
 let legendControl = null;
 
@@ -131,6 +132,10 @@ export function initMap(containerId) {
   overlayGroup = L.featureGroup();
   overlayGroup.addTo(map);
 
+  // Label markers — sit on top of all feature layers
+  labelGroup = L.layerGroup();
+  labelGroup.addTo(map);
+
   L.control.layers(baseLayers, {}, { position: 'topright' }).addTo(map);
 
   // Scale bar
@@ -149,6 +154,7 @@ export function updateMapLayers() {
 
   if (referenceGroup) referenceGroup.clearLayers();
   overlayGroup.clearLayers();
+  if (labelGroup) labelGroup.clearLayers();
   if (provincesLayer) {
     provincesLayer.remove();
     provincesLayer = null;
@@ -400,6 +406,39 @@ export function updateMapLayers() {
     overlayGroup.addLayer(pointLayer);
   }
 
+  // ── Pass 7: Feature labels ──────────────────────────────────────────
+  for (const layerData of visibleLayers) {
+    const labelCfg = getLayerStyle(layerData.id)?.labels;
+    if (!labelCfg?.enabled) continue;
+
+    const field       = labelCfg.field       || 'name';
+    const fontSize    = labelCfg.fontSize     ?? 11;
+    const fontColor   = labelCfg.fontColor    || '#222222';
+    const bufferSize  = labelCfg.bufferSize   ?? 2;
+    const bufferColor = labelCfg.bufferColor  || '#ffffff';
+    const haloCSS     = buildLabelHaloCSS(bufferSize, bufferColor);
+
+    for (const feature of (layerData.geojson?.features || [])) {
+      const text = String(feature.properties?.[field] ?? '');
+      if (!text) continue;
+      const latlng = getFeatureLabelPoint(feature);
+      if (!latlng) continue;
+
+      const escaped = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const marker = L.marker(latlng, {
+        icon: L.divIcon({
+          className: 'feature-label',
+          html: `<span class="feature-label-text" style="font-size:${fontSize}px;color:${fontColor};${haloCSS}">${escaped}</span>`,
+          iconSize: null,
+          iconAnchor: null,
+        }),
+        interactive: false,
+        zIndexOffset: 1000,
+      });
+      labelGroup.addLayer(marker);
+    }
+  }
+
   // ── Layer toggle panel (replaces static legend) ───────────────────
   updateLayerPanel(matchingLayers, visibleLayers);
 
@@ -637,6 +676,43 @@ function buildPopup(feature, layer, meta, isReference = false) {
     </div>
   `;
   layer.bindPopup(popup);
+}
+
+/**
+ * Returns the CSS text-shadow string for a label halo/buffer effect.
+ */
+function buildLabelHaloCSS(bufferSize, bufferColor) {
+  if (!bufferSize || bufferSize <= 0) return '';
+  const b = bufferSize;
+  const c = bufferColor;
+  const shadows = [
+    `${-b}px ${-b}px ${b}px ${c}`, `${b}px ${-b}px ${b}px ${c}`,
+    `${-b}px ${b}px ${b}px ${c}`,  `${b}px ${b}px ${b}px ${c}`,
+    `${-b}px 0 ${b}px ${c}`,       `${b}px 0 ${b}px ${c}`,
+    `0 ${-b}px ${b}px ${c}`,       `0 ${b}px ${b}px ${c}`,
+  ];
+  return `text-shadow:${shadows.join(',')};`;
+}
+
+/**
+ * Returns the Leaflet LatLng for placing a label on a feature.
+ * Uses the coordinate for points, and bounding-box centre for polygons/lines.
+ */
+function getFeatureLabelPoint(feature) {
+  const geom = feature?.geometry;
+  if (!geom) return null;
+  const type = geom.type;
+  if (type === 'Point') {
+    return L.latLng(geom.coordinates[1], geom.coordinates[0]);
+  }
+  if (type === 'MultiPoint') {
+    return L.latLng(geom.coordinates[0][1], geom.coordinates[0][0]);
+  }
+  try {
+    const bounds = L.geoJSON(feature).getBounds();
+    if (bounds.isValid()) return bounds.getCenter();
+  } catch (_) {}
+  return null;
 }
 
 /**
