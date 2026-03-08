@@ -2,6 +2,7 @@ import { useState, useEffect, lazy, Suspense } from 'react'
 import Sidebar from './components/Sidebar'
 import Header from './components/Header'
 import StaffLogin from './components/StaffLogin'
+import SmolTamtan from './components/SmolTamtan/SmolTamtan'
 import { getUser } from './services/userStore'
 import type { UserProfile } from './types/user'
 import './App.css'
@@ -71,6 +72,7 @@ function App() {
   }
 
   return (
+    <>
     <div className="app-layout">
       <Sidebar
         activePage={activePage}
@@ -114,6 +116,8 @@ function App() {
         </div>
       </main>
     </div>
+    <SmolTamtan />
+    </>
   )
 }
 
