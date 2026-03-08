@@ -28,6 +28,13 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm test
+      - name: Build NBSAP portal
+        env:
+          VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
+        run: |
+          cd nbsap-portal
+          npm ci
+          npm run build
 
       # Build NBSAP portal sub-project
       - name: Build NBSAP portal
