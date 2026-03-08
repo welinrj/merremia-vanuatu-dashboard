@@ -58,42 +58,33 @@ async function gatherContext() {
   try {
     const layers = await listLayers();
     if (layers.length > 0) {
-      sections.push(`### GIS Layers (${layers.length} total)`);
+      sections.push(`### GIS Layers (${layers.length} total)\nColumns: name | area_ha | type | province | realm | status | year`);
       layers.forEach((layer) => {
         const meta = layer.metadata ?? {};
         const features = layer.geojson?.features ?? [];
 
-        // Layer-level header
         const totalHa = meta.totalAreaHa != null
-          ? `${Number(meta.totalAreaHa).toLocaleString()} ha total`
-          : features.length > 0
-            ? `${features.reduce((s, f) => s + (Number(f.properties?.area_ha) || 0), 0).toLocaleString()} ha total`
-            : null;
+          ? Number(meta.totalAreaHa)
+          : features.reduce((s, f) => s + (Number(f.properties?.area_ha) || 0), 0);
 
-        const headerParts = [`#### ${meta.name ?? layer.id ?? 'Unnamed layer'}`];
-        if (meta.category) headerParts.push(`Type: ${meta.category}`);
-        if (totalHa) headerParts.push(totalHa);
-        if (meta.featureCount != null) headerParts.push(`${meta.featureCount} features`);
-        sections.push(headerParts.join(' | '));
+        sections.push(
+          `\n**${meta.name ?? layer.id}** | ${meta.category ?? ''} | ${features.length} features | ${Math.round(totalHa).toLocaleString()} ha total`
+        );
 
-        if (meta.description) sections.push(`Description: ${meta.description}`);
-
-        // Per-feature breakdown so Tamtan can answer area questions
-        if (features.length > 0) {
-          sections.push('Features:');
-          features.forEach((f) => {
-            const p = f.properties ?? {};
-            const name = p.name ?? 'Unnamed feature';
-            const areaHa = p.area_ha != null ? `${Number(p.area_ha).toLocaleString()} ha` : 'area unknown';
-            const parts = [`  - ${name}: ${areaHa}`];
-            if (p.type) parts[0] += ` (${p.type})`;
-            if (p.province) parts[0] += ` — ${p.province} province`;
-            if (p.realm) parts[0] += `, ${p.realm}`;
-            if (p.status) parts[0] += `, ${p.status}`;
-            if (p.year) parts[0] += `, est. ${p.year}`;
-            sections.push(parts[0]);
-          });
-        }
+        features.forEach((f) => {
+          const p = f.properties ?? {};
+          sections.push(
+            [
+              p.name ?? 'Unnamed',
+              p.area_ha != null ? `${p.area_ha} ha` : '?',
+              p.type ?? '',
+              p.province ?? '',
+              p.realm ?? '',
+              p.status ?? '',
+              p.year ?? '',
+            ].join(' | ')
+          );
+        });
       });
     } else {
       sections.push('### GIS Layers\nNo layers are currently loaded in the portal.');
