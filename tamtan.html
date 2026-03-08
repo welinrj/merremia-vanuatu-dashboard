@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Smol Tamtan</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #06061a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const W = 600, H = 600;
+canvas.width = W;
+canvas.height = H;
+const cx = W / 2, cy = H / 2;
+
+// ── STARS ──────────────────────────────────────────────────────────
+const stars = Array.from({length: 90}, (_, i) => ({
+  x: ((i * 73 + 17) % W),
+  y: ((i * 137 + 43) % H),
+  r: i % 5 === 0 ? 1.5 : 0.6,
+  phase: Math.random() * Math.PI * 2
+}));
+
+function drawStars(t) {
+  for (const s of stars) {
+    const a = 0.4 + 0.4 * Math.sin(t / 600 + s.phase);
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ── PORTAL ─────────────────────────────────────────────────────────
+function drawPortalBack() {
+  // outer aura
+  const aura = ctx.createRadialGradient(cx, cy, 30, cx, cy, 115);
+  aura.addColorStop(0, 'rgba(80,30,220,0.55)');
+  aura.addColorStop(0.5, 'rgba(30,80,200,0.25)');
+  aura.addColorStop(1, 'rgba(0,0,80,0)');
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 115, 90, 0, 0, Math.PI * 2);
+  ctx.fillStyle = aura;
+  ctx.fill();
+
+  // portal fill (dark swirling inside)
+  const fill = ctx.createRadialGradient(cx - 10, cy - 10, 5, cx, cy, 82);
+  fill.addColorStop(0,   'rgba(30,0,100,0.95)');
+  fill.addColorStop(0.6, 'rgba(10,0,60,0.9)');
+  fill.addColorStop(1,   'rgba(70,20,180,0.7)');
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 82, 64, 0, 0, Math.PI * 2);
+  ctx.fillStyle = fill;
+  ctx.fill();
+}
+
+function drawPortalFront(t) {
+  // swirl lines inside
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 82, 64, 0, 0, Math.PI * 2);
+  ctx.clip();
+  for (let i = 0; i < 4; i++) {
+    const phase = t / 1800 + i * Math.PI / 2;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, 55 - i * 10, 42 - i * 7, phase, 0, Math.PI * 1.6);
+    ctx.strokeStyle = `rgba(160,100,255,${0.35 - i * 0.06})`;
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  // glowing ring
+  ctx.save();
+  ctx.shadowColor = '#a060ff';
+  ctx.shadowBlur = 22;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 82, 64, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = '#9050ff';
+  ctx.lineWidth = 7;
+  ctx.stroke();
+  // inner bright edge
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, 82, 64, 0, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(200,160,255,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+// ── TAMTAN ─────────────────────────────────────────────────────────
+function drawTamtan(x, y, dir, walk, alpha, scale) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  if (dir < 0) ctx.scale(-1, 1);   // flip when going left
+
+  const w = walk;
+  const legA = Math.sin(w) * 18;
+  const armA = Math.sin(w + Math.PI) * 20;
+
+  // drop shadow
+  ctx.beginPath();
+  ctx.ellipse(0, 26, 13, 4, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(0,0,0,0.28)';
+  ctx.fill();
+
+  // ── legs ──
+  ctx.lineCap = 'round';
+  ctx.lineWidth = 5;
+  ctx.strokeStyle = '#d05828';
+
+  // left leg
+  ctx.beginPath();
+  ctx.moveTo(-6, 12);
+  ctx.lineTo(-9 + legA * 0.4, 24);
+  ctx.stroke();
+  // right leg
+  ctx.beginPath();
+  ctx.moveTo(6, 12);
+  ctx.lineTo(9 - legA * 0.4, 24);
+  ctx.stroke();
+
+  // feet
+  function foot(fx, fy, flip) {
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.scale(flip, 1);
+    ctx.beginPath();
+    ctx.ellipse(3, 0, 6, 3.5, 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = '#b84018';
+    ctx.fill();
+    ctx.restore();
+  }
+  foot(-9 + legA * 0.4, 25, 1);
+  foot(9 - legA * 0.4, 25, -1);
+
+  // ── arms ──
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = '#d05828';
+
+  // left arm
+  ctx.beginPath();
+  ctx.moveTo(-14, -3);
+  ctx.quadraticCurveTo(-22, 3 + armA * 0.25, -20, 13);
+  ctx.stroke();
+  // right arm
+  ctx.beginPath();
+  ctx.moveTo(14, -3);
+  ctx.quadraticCurveTo(22, 3 - armA * 0.25, 20, 13);
+  ctx.stroke();
+
+  // hands
+  ctx.fillStyle = '#e07858';
+  ctx.beginPath(); ctx.arc(-20, 13, 4.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(20,  13, 4.5, 0, Math.PI * 2); ctx.fill();
+
+  // ── body ──
+  const bg = ctx.createRadialGradient(-4, -4, 2, 0, 0, 19);
+  bg.addColorStop(0, '#ff9a68');
+  bg.addColorStop(1, '#c83e1a');
+  ctx.beginPath();
+  ctx.ellipse(0, 0, 17, 19, 0, 0, Math.PI * 2);
+  ctx.fillStyle = bg;
+  ctx.fill();
+
+  // belly
+  ctx.beginPath();
+  ctx.ellipse(0, 6, 9, 7, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(255,210,170,0.45)';
+  ctx.fill();
+
+  // ── head ──
+  const hg = ctx.createRadialGradient(-4, -24, 2, 0, -21, 15);
+  hg.addColorStop(0, '#ffb07a');
+  hg.addColorStop(1, '#d05030');
+  ctx.beginPath();
+  ctx.arc(0, -21, 15, 0, Math.PI * 2);
+  ctx.fillStyle = hg;
+  ctx.fill();
+
+  // ears
+  for (const ex of [-13, 13]) {
+    ctx.beginPath();
+    ctx.ellipse(ex, -30, 5.5, 7.5, ex < 0 ? -0.25 : 0.25, 0, Math.PI * 2);
+    ctx.fillStyle = '#d05030';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(ex, -30, 2.5, 4.5, ex < 0 ? -0.25 : 0.25, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff9090';
+    ctx.fill();
+  }
+
+  // eyes
+  const blink = Math.sin(Date.now() / 150) > 0.92;
+  for (const ex of [-6, 6]) {
+    ctx.beginPath();
+    ctx.ellipse(ex, -23, 4.5, blink ? 0.9 : 4.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'white';
+    ctx.fill();
+    if (!blink) {
+      ctx.beginPath();
+      ctx.ellipse(ex + 0.5, -23, 2.8, 2.8, 0, 0, Math.PI * 2);
+      ctx.fillStyle = '#1a1a90';
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(ex + 1.5, -24.2, 0.9, 0, Math.PI * 2);
+      ctx.fillStyle = 'white';
+      ctx.fill();
+    }
+  }
+
+  // mouth
+  ctx.beginPath();
+  ctx.arc(0, -17, 6, 0.25, Math.PI - 0.25);
+  ctx.strokeStyle = '#902010';
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ── GHOST TAMTANS ───────────────────────────────────────────────────
+const ghosts = [];
+let lastSpawn = 0;
+
+function spawnGhost(t) {
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = 80 + Math.random() * 160;
+  ghosts.push({
+    x: cx + Math.cos(angle) * dist,
+    y: cy + Math.sin(angle) * dist * 0.7,
+    dir: Math.random() < 0.5 ? 1 : -1,
+    walk: Math.random() * 10,
+    alpha: 0,
+    scale: 0.45 + Math.random() * 0.45,
+    phase: 'in',
+    hold: 0
+  });
+}
+
+function updateGhosts(dt) {
+  for (let i = ghosts.length - 1; i >= 0; i--) {
+    const g = ghosts[i];
+    g.walk += 0.06;
+    if (g.phase === 'in') {
+      g.alpha += 0.04;
+      if (g.alpha >= 1) { g.alpha = 1; g.phase = 'hold'; g.hold = 0; }
+    } else if (g.phase === 'hold') {
+      g.hold++;
+      if (g.hold > 55) g.phase = 'out';
+    } else {
+      g.alpha -= 0.035;
+      if (g.alpha <= 0) { ghosts.splice(i, 1); continue; }
+    }
+  }
+}
+
+// ── MAIN LOOP ──────────────────────────────────────────────────────
+let orbitAngle = 0;
+let walkCycle  = 0;
+
+function frame(t) {
+  // spawn ghost every 1.8–3.2 s
+  if (t - lastSpawn > 1800 + Math.random() * 1400) {
+    spawnGhost(t);
+    lastSpawn = t;
+  }
+
+  ctx.clearRect(0, 0, W, H);
+
+  // background
+  ctx.fillStyle = '#06061a';
+  ctx.fillRect(0, 0, W, H);
+  drawStars(t);
+
+  // orbit params  (ellipse around portal)
+  const oa = 120, ob = 55;
+  orbitAngle += 0.013;
+  walkCycle  += 0.13;
+
+  const mx = cx + Math.cos(orbitAngle) * oa;
+  const my = cy + Math.sin(orbitAngle) * ob;
+  const behind = Math.sin(orbitAngle) < 0;   // top half = behind portal
+  const walkDir = -Math.sin(orbitAngle);     // +1 going right, -1 going left
+
+  updateGhosts(t);
+
+  // draw portal back
+  drawPortalBack();
+
+  // draw ghosts (always under main character and portal ring)
+  for (const g of ghosts) {
+    drawTamtan(g.x, g.y, g.dir, g.walk, g.alpha * 0.75, g.scale);
+  }
+
+  // main tamtan – behind portal?
+  if (behind) drawTamtan(mx, my, walkDir, walkCycle, 1, 1);
+
+  // portal ring + swirl on top
+  drawPortalFront(t);
+
+  // main tamtan – in front of portal?
+  if (!behind) drawTamtan(mx, my, walkDir, walkCycle, 1, 1);
+
+  requestAnimationFrame(frame);
+}
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
