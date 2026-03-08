@@ -14,6 +14,8 @@
  *     weight: stroke-width in pixels
  *     dashArray: null | '8 4' | '6 4' | '2 4' | …
  *     pointRadius: pixels (point layers only)
+ *     fillTransparent: boolean — no fill (fill: false)
+ *     strokeTransparent: boolean — no stroke (stroke: false, weight: 0)
  *
  *   Categorized mode — different fill/stroke per type or status value:
  *     categoryBy: 'type' | 'status'
@@ -84,11 +86,21 @@ export function applyStyleOverride(baseStyle, override, featureTypeValue) {
 
   // Single mode
   const merged = { ...baseStyle };
-  if (override.fillColor)                        merged.fillColor   = override.fillColor;
-  if (override.strokeColor)                      merged.color       = override.strokeColor;
-  if (override.fillOpacity !== undefined)        merged.fillOpacity = override.fillOpacity;
-  if (override.weight       !== undefined)       merged.weight      = override.weight;
-  if (override.dashArray    !== undefined)       merged.dashArray   = override.dashArray || null;
+  if (override.fillTransparent) {
+    merged.fill        = false;
+    merged.fillOpacity = 0;
+  } else {
+    if (override.fillColor)               merged.fillColor   = override.fillColor;
+    if (override.fillOpacity !== undefined) merged.fillOpacity = override.fillOpacity;
+  }
+  if (override.strokeTransparent) {
+    merged.stroke = false;
+    merged.weight  = 0;
+  } else {
+    if (override.strokeColor)             merged.color  = override.strokeColor;
+    if (override.weight !== undefined)    merged.weight = override.weight;
+  }
+  if (override.dashArray !== undefined)   merged.dashArray = override.dashArray || null;
   return merged;
 }
 
@@ -113,10 +125,20 @@ export function applyPointStyleOverride(baseStyle, override, featureTypeValue) {
 
   // Single mode
   const merged = { ...baseStyle };
-  if (override.fillColor)                  merged.fillColor   = override.fillColor;
-  if (override.strokeColor)                merged.color       = override.strokeColor;
-  if (override.fillOpacity !== undefined)  merged.fillOpacity = override.fillOpacity;
-  if (override.weight       !== undefined) merged.weight      = override.weight;
-  if (override.pointRadius  !== undefined) merged.radius      = override.pointRadius;
+  if (override.fillTransparent) {
+    merged.fill        = false;
+    merged.fillOpacity = 0;
+  } else {
+    if (override.fillColor)               merged.fillColor   = override.fillColor;
+    if (override.fillOpacity !== undefined) merged.fillOpacity = override.fillOpacity;
+  }
+  if (override.strokeTransparent) {
+    merged.stroke = false;
+    merged.weight  = 0;
+  } else {
+    if (override.strokeColor)             merged.color  = override.strokeColor;
+    if (override.weight !== undefined)    merged.weight = override.weight;
+  }
+  if (override.pointRadius !== undefined) merged.radius = override.pointRadius;
   return merged;
 }
