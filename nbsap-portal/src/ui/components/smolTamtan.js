@@ -53,46 +53,35 @@ const SUGGESTIONS = [
 
 // ─── Context gathering ─────────────────────────────────────────────────────────
 
+const MAX_CONTEXT_FEATURES = 120;
+
 async function gatherContext() {
   const sections = [];
   try {
     const layers = await listLayers();
     if (layers.length > 0) {
-      sections.push(`### GIS Layers (${layers.length} total)`);
+      sections.push(`### GIS Layers (${layers.length} total)\nFormat per feature: name | area_ha`);
+      let featuresBudget = MAX_CONTEXT_FEATURES;
       layers.forEach((layer) => {
         const meta = layer.metadata ?? {};
         const features = layer.geojson?.features ?? [];
 
-        // Layer-level header
         const totalHa = meta.totalAreaHa != null
-          ? `${Number(meta.totalAreaHa).toLocaleString()} ha total`
-          : features.length > 0
-            ? `${features.reduce((s, f) => s + (Number(f.properties?.area_ha) || 0), 0).toLocaleString()} ha total`
-            : null;
+          ? Number(meta.totalAreaHa)
+          : features.reduce((s, f) => s + (Number(f.properties?.area_ha) || 0), 0);
 
-        const headerParts = [`#### ${meta.name ?? layer.id ?? 'Unnamed layer'}`];
-        if (meta.category) headerParts.push(`Type: ${meta.category}`);
-        if (totalHa) headerParts.push(totalHa);
-        if (meta.featureCount != null) headerParts.push(`${meta.featureCount} features`);
-        sections.push(headerParts.join(' | '));
+        sections.push(
+          `\n**${meta.name ?? layer.id}** | ${meta.category ?? ''} | ${features.length} features | ${Math.round(totalHa).toLocaleString()} ha total`
+        );
 
-        if (meta.description) sections.push(`Description: ${meta.description}`);
-
-        // Per-feature breakdown so Tamtan can answer area questions
-        if (features.length > 0) {
-          sections.push('Features:');
-          features.forEach((f) => {
-            const p = f.properties ?? {};
-            const name = p.name ?? 'Unnamed feature';
-            const areaHa = p.area_ha != null ? `${Number(p.area_ha).toLocaleString()} ha` : 'area unknown';
-            const parts = [`  - ${name}: ${areaHa}`];
-            if (p.type) parts[0] += ` (${p.type})`;
-            if (p.province) parts[0] += ` — ${p.province} province`;
-            if (p.realm) parts[0] += `, ${p.realm}`;
-            if (p.status) parts[0] += `, ${p.status}`;
-            if (p.year) parts[0] += `, est. ${p.year}`;
-            sections.push(parts[0]);
-          });
+        const shown = features.slice(0, featuresBudget);
+        featuresBudget -= shown.length;
+        shown.forEach((f) => {
+          const p = f.properties ?? {};
+          sections.push(`${p.name ?? 'Unnamed'} | ${p.area_ha != null ? `${p.area_ha} ha` : '?'}`);
+        });
+        if (features.length > shown.length) {
+          sections.push(`…${features.length - shown.length} more features not shown`);
         }
       });
     } else {
@@ -299,8 +288,10 @@ export function initSmolTamtan() {
       const context = await gatherContext();
       const systemPrompt = SYSTEM_PROMPT.replace('{CONTEXT}', context);
 
+      // Keep only the last 10 messages to avoid unbounded history growth
       const history = messages
         .filter((m) => m.id !== 'welcome')
+        .slice(-10)
         .map(({ role, content: c }) => ({ role, content: c }));
 
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -313,7 +304,7 @@ export function initSmolTamtan() {
         },
         body: JSON.stringify({
           model: 'claude-haiku-4-5-20251001',
-          max_tokens: 1024,
+          max_tokens: 512,
           stream: true,
           system: systemPrompt,
           messages: history,
