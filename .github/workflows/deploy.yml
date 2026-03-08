@@ -36,20 +36,6 @@ jobs:
           npm ci
           npm run build
 
-      # Build NBSAP portal sub-project
-      - name: Build NBSAP portal
-        env:
-          VITE_ANTHROPIC_API_KEY: ${{ secrets.VITE_ANTHROPIC_API_KEY }}
-        run: |
-
-
-      # Build NBSAP portal sub-project
-      - name: Build NBSAP portal
-        run: |
-          cd nbsap-portal
-          npm ci
-          npm run build
-
       # Copy static HTML pages into the deploy output
       - name: Copy static pages to dist
         run: |
