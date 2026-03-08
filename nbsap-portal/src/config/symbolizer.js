@@ -20,6 +20,14 @@
  *   Categorized mode — different fill/stroke per type or status value:
  *     categoryBy: 'type' | 'status'
  *     categoryColors: { 'TypeName': { fillColor, strokeColor }, … }
+ *
+ *   Label config (present in any mode under the `labels` key):
+ *     labels.enabled:     boolean — render text labels on the map
+ *     labels.field:       string  — feature property to display as label
+ *     labels.fontSize:    number  — font size in pixels (8–24)
+ *     labels.fontColor:   '#hex' — text colour
+ *     labels.bufferSize:  number  — halo/buffer width in pixels (0 = none)
+ *     labels.bufferColor: '#hex' — halo colour
  */
 
 const STORAGE_KEY = 'nbsap_layer_styles_v1';

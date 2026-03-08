@@ -121,7 +121,7 @@ function buildPanelHTML(layerData) {
   const fillTransparent   = existing?.fillTransparent   || false;
   const strokeTransparent = existing?.strokeTransparent || false;
 
-  const singleActive = mode === 'single'      ? 'active' : '';
+  const singleActive = (mode !== 'categorized' && mode !== 'labels') ? 'active' : '';
   const catActive    = mode === 'categorized' ? 'active' : '';
 
   // Tabs
@@ -226,6 +226,11 @@ function buildPanelHTML(layerData) {
       </div>`;
   }
 
+  // Labels tab
+  const labelsActive = mode === 'labels' ? 'active' : '';
+  tabs += `<button class="sym-tab ${labelsActive}" data-tab="labels">Labels</button>`;
+  const labelTab = buildLabelTabHTML(columns, existing);
+
   return `
     <div class="sym-header">
       <div class="sym-title">
@@ -244,6 +249,7 @@ function buildPanelHTML(layerData) {
     <div class="sym-body">
       ${simpleTab}
       ${catTab}
+      ${labelTab}
     </div>
     <div class="sym-footer">
       <button class="sym-btn sym-btn-reset">Reset Default</button>
@@ -267,6 +273,80 @@ function buildCatRows(items, cat, catColors) {
         <input type="color" class="sym-cat-stroke" value="${oStroke}" title="Stroke color">
       </div>`;
   }).join('');
+}
+
+function buildLabelTabHTML(columns, existing) {
+  const lbl         = existing?.labels || {};
+  const enabled     = lbl.enabled     || false;
+  const field       = (lbl.field && columns.includes(lbl.field)) ? lbl.field : (columns[0] || 'name');
+  const fontSize    = lbl.fontSize    ?? 11;
+  const fontColor   = lbl.fontColor   || '#222222';
+  const bufferSize  = lbl.bufferSize  ?? 2;
+  const bufferColor = lbl.bufferColor || '#ffffff';
+  const disabledAttr = enabled ? '' : 'disabled';
+  const controlsClass = enabled ? 'sym-field' : 'sym-field sym-field-disabled';
+
+  const colOptions = columns.length > 0
+    ? columns.map(c => `<option value="${c}" ${field === c ? 'selected' : ''}>${c}</option>`).join('')
+    : '<option value="name">name</option>';
+
+  return `
+    <div class="sym-tab-content" data-content="labels">
+      <div class="sym-field">
+        <label>Show Labels
+          <label class="sym-check-label" style="float:right">
+            <input type="checkbox" id="sym-label-enabled" ${enabled ? 'checked' : ''}> On
+          </label>
+        </label>
+      </div>
+      <div class="${controlsClass}" id="sym-label-field-group">
+        <label>Label Field</label>
+        <select class="sym-select" id="sym-label-field" ${disabledAttr}>
+          ${colOptions}
+        </select>
+      </div>
+      <div class="${controlsClass}" id="sym-label-size-group">
+        <label>Font Size</label>
+        <div class="sym-slider-row">
+          <input type="range" class="sym-slider" id="sym-label-size" min="8" max="24" step="1" value="${fontSize}" ${disabledAttr}>
+          <span class="sym-slider-val">${fontSize}px</span>
+        </div>
+      </div>
+      <div class="${controlsClass}" id="sym-label-color-group">
+        <label>Font Color</label>
+        <div class="sym-color-row">
+          <input type="color" class="sym-color" id="sym-label-color" value="${fontColor}" ${disabledAttr}>
+          <span class="sym-color-hex">${fontColor}</span>
+        </div>
+      </div>
+      <div class="${controlsClass}" id="sym-label-buf-group">
+        <label>Buffer Size</label>
+        <div class="sym-slider-row">
+          <input type="range" class="sym-slider" id="sym-label-bufsize" min="0" max="5" step="1" value="${bufferSize}" ${disabledAttr}>
+          <span class="sym-slider-val">${bufferSize}px</span>
+        </div>
+      </div>
+      <div class="${controlsClass}" id="sym-label-bufcol-group">
+        <label>Buffer Color</label>
+        <div class="sym-color-row">
+          <input type="color" class="sym-color" id="sym-label-bufcolor" value="${bufferColor}" ${disabledAttr}>
+          <span class="sym-color-hex">${bufferColor}</span>
+        </div>
+      </div>
+      <div class="sym-label-preview-row" id="sym-label-preview-row">
+        <span class="sym-label-preview-text" id="sym-label-preview-text"
+          style="font-size:${fontSize}px;color:${fontColor};${buildTextHaloCSS(bufferSize, bufferColor)}">
+          Label Preview
+        </span>
+      </div>
+    </div>`;
+}
+
+function buildTextHaloCSS(bufferSize, bufferColor) {
+  if (!bufferSize || bufferSize <= 0) return '';
+  const b = bufferSize;
+  const c = bufferColor;
+  return `text-shadow:${-b}px ${-b}px ${b}px ${c},${b}px ${-b}px ${b}px ${c},${-b}px ${b}px ${b}px ${c},${b}px ${b}px ${b}px ${c},${-b}px 0 ${b}px ${c},${b}px 0 ${b}px ${c},0 ${-b}px ${b}px ${c},0 ${b}px ${b}px ${c};`;
 }
 
 // ── Event binding ──────────────────────────────────────────────────────
@@ -358,6 +438,57 @@ function bindPanelEvents(panel, layerData) {
 
   dashSel?.addEventListener('change', updatePreview);
 
+  // ── Labels tab events ──────────────────────────────────────────────
+  const labelEnabled = panel.querySelector('#sym-label-enabled');
+  const labelControls = [
+    'sym-label-field-group', 'sym-label-size-group',
+    'sym-label-color-group', 'sym-label-buf-group', 'sym-label-bufcol-group'
+  ];
+
+  function updateLabelPreview() {
+    const txt  = panel.querySelector('#sym-label-preview-text');
+    if (!txt) return;
+    const sz   = panel.querySelector('#sym-label-size')?.value || 11;
+    const col  = panel.querySelector('#sym-label-color')?.value || '#222222';
+    const bsz  = parseInt(panel.querySelector('#sym-label-bufsize')?.value ?? 2, 10);
+    const bcol = panel.querySelector('#sym-label-bufcolor')?.value || '#ffffff';
+    txt.style.fontSize   = sz + 'px';
+    txt.style.color      = col;
+    txt.style.cssText += buildTextHaloCSS(bsz, bcol);
+  }
+
+  labelEnabled?.addEventListener('change', () => {
+    const on = labelEnabled.checked;
+    labelControls.forEach(id => {
+      const el = panel.querySelector(`#${id}`);
+      if (!el) return;
+      el.classList.toggle('sym-field-disabled', !on);
+      el.querySelectorAll('input:not([type=checkbox]), select').forEach(i => { i.disabled = !on; });
+    });
+    updateLabelPreview();
+  });
+
+  panel.querySelector('#sym-label-size')?.addEventListener('input', (e) => {
+    const val = e.target.nextElementSibling;
+    if (val) val.textContent = e.target.value + 'px';
+    updateLabelPreview();
+  });
+  panel.querySelector('#sym-label-bufsize')?.addEventListener('input', (e) => {
+    const val = e.target.nextElementSibling;
+    if (val) val.textContent = e.target.value + 'px';
+    updateLabelPreview();
+  });
+  panel.querySelector('#sym-label-color')?.addEventListener('input', (e) => {
+    const hex = e.target.nextElementSibling;
+    if (hex) hex.textContent = e.target.value;
+    updateLabelPreview();
+  });
+  panel.querySelector('#sym-label-bufcolor')?.addEventListener('input', (e) => {
+    const hex = e.target.nextElementSibling;
+    if (hex) hex.textContent = e.target.value;
+    updateLabelPreview();
+  });
+
   // Categorized color pickers — live swatch
   bindCatColorEvents(panel);
 
@@ -372,6 +503,22 @@ function bindPanelEvents(panel, layerData) {
   panel.querySelector('.sym-btn-apply').addEventListener('click', () => {
     const activeTab = panel.querySelector('.sym-tab.active')?.dataset.tab || 'single';
 
+    // Collect label config regardless of active tab (persisted across tabs)
+    const labelEnabledEl  = panel.querySelector('#sym-label-enabled');
+    const labelFieldEl    = panel.querySelector('#sym-label-field');
+    const labelSizeEl     = panel.querySelector('#sym-label-size');
+    const labelColorEl    = panel.querySelector('#sym-label-color');
+    const labelBufSizeEl  = panel.querySelector('#sym-label-bufsize');
+    const labelBufColorEl = panel.querySelector('#sym-label-bufcolor');
+    const labelConfig = {
+      enabled:     labelEnabledEl?.checked   || false,
+      field:       labelFieldEl?.value       || 'name',
+      fontSize:    parseInt(labelSizeEl?.value  ?? 11, 10),
+      fontColor:   labelColorEl?.value       || '#222222',
+      bufferSize:  parseInt(labelBufSizeEl?.value ?? 2, 10),
+      bufferColor: labelBufColorEl?.value    || '#ffffff',
+    };
+
     if (activeTab === 'single') {
       const isPoint = hasPointGeometry(layerData);
       const styleObj = {
@@ -383,12 +530,17 @@ function bindPanelEvents(panel, layerData) {
         dashArray:        dashSel?.value || null,
         fillTransparent:   fillNoneChk?.checked   || false,
         strokeTransparent: strokeNoneChk?.checked || false,
+        labels:           labelConfig,
       };
       if (isPoint) {
         const r = panel.querySelector('#sym-radius');
         if (r) styleObj.pointRadius = parseFloat(r.value);
       }
       setLayerStyle(layerData.id, styleObj);
+    } else if (activeTab === 'labels') {
+      // Save only label config (preserve existing fill/stroke override if any)
+      const existing = getLayerStyle(layerData.id) || { mode: 'single' };
+      setLayerStyle(layerData.id, { ...existing, labels: labelConfig });
     } else {
       const catList = panel.querySelector('.sym-cat-list');
       const catBy   = panel.querySelector('#sym-col-select')?.value || catList?.dataset.groupby || 'type';
@@ -407,6 +559,7 @@ function bindPanelEvents(panel, layerData) {
         mode: 'categorized',
         categoryBy,
         categoryColors,
+        labels: labelConfig,
       });
     }
 
