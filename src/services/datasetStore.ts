@@ -458,6 +458,33 @@ function parseKMLCoords(text: string): number[][] {
     .filter((c) => c.length >= 2)
 }
 
+/** Replace the GeoJSON feature data for a dataset, rewriting chunks and updating derived stats */
+export async function updateDatasetFeatures(
+  id: string,
+  newData: FeatureCollection,
+): Promise<void> {
+  const ref = doc(db, COLLECTION, id)
+  const snapshot = await getDoc(ref)
+  if (!snapshot.exists()) throw new Error('Dataset not found')
+
+  const raw = JSON.stringify(newData)
+  const now = new Date().toISOString()
+  const meta = snapshot.data() as Record<string, unknown>
+
+  const updated: GeoDataset = {
+    ...(meta as unknown as GeoDataset),
+    data: newData,
+    featureCount: newData.features.length,
+    bbox: computeBbox(newData),
+    properties: extractPropertyNames(newData),
+    sizeBytes: new Blob([raw]).size,
+    updatedAt: now,
+  }
+
+  await deleteChunks(id)
+  await writeDataset(updated)
+}
+
 /** Update the githubSha for a dataset after sync */
 export async function updateGitHubSha(
   id: string,
