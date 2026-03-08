@@ -7,7 +7,7 @@
  * API key: add  VITE_ANTHROPIC_API_KEY=sk-ant-...  to the .env file.
  */
 
-import { listLayersMeta } from '../../services/storage/index.js';
+import { listLayers } from '../../services/storage/index.js';
 
 // ─── System prompt ────────────────────────────────────────────────────────────
 
@@ -46,8 +46,8 @@ const WELCOME_TEXT =
 
 const SUGGESTIONS = [
   'What GIS layers are in the portal?',
+  'How many hectares is the Vatthe Conservation Area?',
   'What is the 30x30 target?',
-  'Tell me about Vanuatu biodiversity',
   'What NBSAP targets are tracked here?',
 ];
 
@@ -56,16 +56,44 @@ const SUGGESTIONS = [
 async function gatherContext() {
   const sections = [];
   try {
-    const layers = await listLayersMeta();
+    const layers = await listLayers();
     if (layers.length > 0) {
       sections.push(`### GIS Layers (${layers.length} total)`);
       layers.forEach((layer) => {
-        const parts = [`- **${layer.name ?? 'Unnamed layer'}**`];
-        if (layer.description) parts.push(`  Description: ${layer.description}`);
-        if (layer.type) parts.push(`  Type: ${layer.type}`);
-        if (layer.featureCount != null) parts.push(`  Features: ${layer.featureCount}`);
-        if (layer.tags && layer.tags.length) parts.push(`  Tags: ${layer.tags.join(', ')}`);
-        sections.push(parts.join('\n'));
+        const meta = layer.metadata ?? {};
+        const features = layer.geojson?.features ?? [];
+
+        // Layer-level header
+        const totalHa = meta.totalAreaHa != null
+          ? `${Number(meta.totalAreaHa).toLocaleString()} ha total`
+          : features.length > 0
+            ? `${features.reduce((s, f) => s + (Number(f.properties?.area_ha) || 0), 0).toLocaleString()} ha total`
+            : null;
+
+        const headerParts = [`#### ${meta.name ?? layer.id ?? 'Unnamed layer'}`];
+        if (meta.category) headerParts.push(`Type: ${meta.category}`);
+        if (totalHa) headerParts.push(totalHa);
+        if (meta.featureCount != null) headerParts.push(`${meta.featureCount} features`);
+        sections.push(headerParts.join(' | '));
+
+        if (meta.description) sections.push(`Description: ${meta.description}`);
+
+        // Per-feature breakdown so Tamtan can answer area questions
+        if (features.length > 0) {
+          sections.push('Features:');
+          features.forEach((f) => {
+            const p = f.properties ?? {};
+            const name = p.name ?? 'Unnamed feature';
+            const areaHa = p.area_ha != null ? `${Number(p.area_ha).toLocaleString()} ha` : 'area unknown';
+            const parts = [`  - ${name}: ${areaHa}`];
+            if (p.type) parts[0] += ` (${p.type})`;
+            if (p.province) parts[0] += ` — ${p.province} province`;
+            if (p.realm) parts[0] += `, ${p.realm}`;
+            if (p.status) parts[0] += `, ${p.status}`;
+            if (p.year) parts[0] += `, est. ${p.year}`;
+            sections.push(parts[0]);
+          });
+        }
       });
     } else {
       sections.push('### GIS Layers\nNo layers are currently loaded in the portal.');
