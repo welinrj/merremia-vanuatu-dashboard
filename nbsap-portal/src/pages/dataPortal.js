@@ -9,7 +9,8 @@ import TARGETS_CONFIG from '../config/targets.js';
 import { categoryIcon, targetIcon } from '../config/icons.js';
 import ENV from '../config/env.js';
 import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
-import { getLayer, deleteLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
+import { getLayer, deleteLayer, saveLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
+import { openFeatureEditor, openNewFeatureEditor, closeFeatureEditor } from '../ui/components/featureEditor.js';
 import { isAdmin } from '../services/auth/index.js';
 import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
 import { showAlert, showConfirm, showPrompt } from '../ui/components/dialog.js';
@@ -70,11 +71,19 @@ export function initDataPortal() {
           <h3 id="preview-modal-title">Dataset Preview</h3>
           <button class="modal-close" id="preview-modal-close">&times;</button>
         </div>
-        <div style="display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div style="display:flex;gap:6px;padding:8px 16px;border-bottom:1px solid var(--border);flex-shrink:0;align-items:center">
           <button class="btn btn-sm btn-primary" id="preview-tab-map">Map View</button>
           <button class="btn btn-sm btn-outline" id="preview-tab-table">Attribute Table</button>
           <span id="preview-feature-count" style="font-size:12px;color:var(--text-secondary);margin-left:auto;align-self:center"></span>
         </div>
+        ${isAdmin() ? `<div id="preview-draw-toolbar" style="display:none;gap:6px;padding:6px 16px;border-bottom:1px solid var(--border);background:var(--gray-50,#f8f9fa);flex-shrink:0;align-items:center;flex-wrap:wrap">
+          <span style="font-size:12px;font-weight:600;color:var(--text-secondary)">Add Feature:</span>
+          <button class="btn btn-sm btn-outline" id="draw-point-btn" title="Click map to place a point">Point</button>
+          <button class="btn btn-sm btn-outline" id="draw-polygon-btn" title="Click vertices, double-click to finish">Polygon</button>
+          <button class="btn btn-sm btn-outline" id="draw-line-btn" title="Click vertices, double-click to finish">Line</button>
+          <button class="btn btn-sm btn-danger" id="draw-cancel-btn" style="display:none">Cancel Draw</button>
+          <span id="draw-hint" style="font-size:12px;color:var(--primary);font-style:italic"></span>
+        </div>` : ''}
         <div id="preview-loading" style="display:none;padding:48px;text-align:center;color:var(--text-secondary)">
           <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-bottom:8px;opacity:.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
           <div>Loading dataset&hellip;</div>
@@ -671,11 +680,19 @@ function downloadMetadataReport() {
 
 let _previewMap = null;
 let _previewActiveTab = 'map';
+let _previewLayerId = null;
+
+// ── Draw mode state ──────────────────────────────────────────────────
+let _drawVertices = [];
+let _drawPreviewLayer = null;
+let _drawMode = false;
 
 async function openPreview(layerId) {
   const state = getAppState();
   let layer = state.layers.find(l => l.id === layerId);
   if (!layer) return;
+
+  _previewLayerId = layerId;
 
   const modal = document.getElementById('preview-modal');
   const loadingEl = document.getElementById('preview-loading');
@@ -722,14 +739,24 @@ async function openPreview(layerId) {
   mapPanel.style.display = 'flex';
   _renderPreviewMap(layer);
   _renderPreviewTable(layer);
+
+  // Show draw toolbar for admins
+  const drawToolbar = document.getElementById('preview-draw-toolbar');
+  if (drawToolbar) {
+    drawToolbar.style.display = 'flex';
+    _bindDrawToolbar(layer);
+  }
 }
 
 function closePreview() {
+  _cancelDrawMode();
+  closeFeatureEditor();
   document.getElementById('preview-modal').classList.remove('active');
   if (_previewMap) {
     _previewMap.remove();
     _previewMap = null;
   }
+  _previewLayerId = null;
 }
 
 function switchPreviewTab(tab) {
@@ -791,11 +818,32 @@ function _renderPreviewMap(layer) {
     }),
     onEachFeature: (feature, leafletLayer) => {
       if (!feature.properties) return;
-      const rows = Object.entries(feature.properties)
-        .filter(([, v]) => v != null && String(v).trim() !== '')
-        .map(([k, v]) => `<tr><td style="font-weight:600;padding:2px 8px 2px 0;white-space:nowrap">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
-        .join('');
-      if (rows) leafletLayer.bindPopup(`<table style="font-size:12px;border-collapse:collapse">${rows}</table>`, { maxWidth: 280 });
+      if (isAdmin()) {
+        leafletLayer.on('click', (e) => {
+          if (_drawMode) return; // don't open editor during draw
+          L.DomEvent.stopPropagation(e);
+          const layerState = getAppState().layers.find(l => l.id === _previewLayerId);
+          if (!layerState?.geojson) return;
+          const idx = layerState.geojson.features.indexOf(feature);
+          if (idx < 0) return;
+          openFeatureEditor(feature, {
+            onSave: (updatedProps) => _applyFeatureEdit(idx, updatedProps),
+            onDelete: () => _applyFeatureDelete(idx)
+          });
+        });
+        leafletLayer.on('mouseover', () => {
+          if (!_drawMode) leafletLayer.setStyle?.({ weight: 3, fillOpacity: 0.5 });
+        });
+        leafletLayer.on('mouseout', () => {
+          if (!_drawMode) leafletLayer.setStyle?.({ weight: 1.5, fillOpacity: 0.25 });
+        });
+      } else {
+        const rows = Object.entries(feature.properties)
+          .filter(([, v]) => v != null && String(v).trim() !== '')
+          .map(([k, v]) => `<tr><td style="font-weight:600;padding:2px 8px 2px 0;white-space:nowrap">${k}</td><td style="padding:2px 0">${v}</td></tr>`)
+          .join('');
+        if (rows) leafletLayer.bindPopup(`<table style="font-size:12px;border-collapse:collapse">${rows}</table>`, { maxWidth: 280 });
+      }
     }
   }).addTo(_previewMap);
 
@@ -824,11 +872,20 @@ function _renderPreviewTable(layer) {
     return;
   }
 
-  const headerRow = keys.map(k => `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}</th>`).join('');
+  const admin = isAdmin();
+  const actionHeader = admin ? `<th style="padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border);white-space:nowrap">Actions</th>` : '';
+  const headerRow = keys.map(k => `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}</th>`).join('') + actionHeader;
+
   const bodyRows = sample.map((f, i) => {
     const p = f.properties || {};
     const cells = keys.map(k => `<td style="padding:5px 10px;font-size:12px;white-space:nowrap;max-width:200px;overflow:hidden;text-overflow:ellipsis" title="${escapeAttr(String(p[k] ?? ''))}">${p[k] ?? ''}</td>`).join('');
-    return `<tr style="background:${i % 2 === 0 ? '#fff' : 'var(--gray-50,#f8f9fa)'}">${cells}</tr>`;
+    const actionCell = admin
+      ? `<td style="padding:4px 8px;white-space:nowrap">
+          <button class="btn btn-sm btn-outline tbl-edit-feat" data-idx="${i}" style="padding:2px 8px;font-size:11px">Edit</button>
+          <button class="btn btn-sm btn-danger tbl-del-feat" data-idx="${i}" style="padding:2px 8px;font-size:11px;margin-left:4px">Del</button>
+        </td>`
+      : '';
+    return `<tr style="background:${i % 2 === 0 ? '#fff' : 'var(--gray-50,#f8f9fa)'}">${cells}${actionCell}</tr>`;
   }).join('');
 
   const note = features.length > MAX_ROWS
@@ -844,6 +901,27 @@ function _renderPreviewTable(layer) {
     </div>
     ${note}
   `;
+
+  if (admin) {
+    container.querySelectorAll('.tbl-edit-feat').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        const layerState = getAppState().layers.find(l => l.id === _previewLayerId);
+        const feat = layerState?.geojson?.features?.[idx];
+        if (!feat) return;
+        openFeatureEditor(feat, {
+          onSave: (updatedProps) => _applyFeatureEdit(idx, updatedProps),
+          onDelete: () => _applyFeatureDelete(idx)
+        });
+      });
+    });
+    container.querySelectorAll('.tbl-del-feat').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = parseInt(btn.dataset.idx, 10);
+        _applyFeatureDelete(idx);
+      });
+    });
+  }
 }
 
 function downloadLayerGeoJSON(layerId) {
@@ -901,6 +979,208 @@ async function removeLayerAction(layerId) {
   sidebar.innerHTML = '';
 
   renderPortalTable();
+}
+
+// ── Feature CRUD helpers ─────────────────────────────────────────────
+
+/**
+ * Saves the modified features array back to Firestore and refreshes the preview.
+ */
+async function _saveFeatureChanges(updatedFeatures, action = 'edit_feature') {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer) return;
+
+  const updatedGeojson = { ...layer.geojson, features: updatedFeatures };
+  const updatedMeta = { ...layer.metadata, featureCount: updatedFeatures.length };
+
+  // Update local state immediately
+  const idx = state.layers.findIndex(l => l.id === _previewLayerId);
+  if (idx >= 0) {
+    state.layers[idx] = { ...state.layers[idx], geojson: updatedGeojson, metadata: updatedMeta };
+  }
+
+  // Persist to Firestore
+  try {
+    await saveLayer({ id: _previewLayerId, metadata: updatedMeta, geojson: updatedGeojson });
+  } catch (err) {
+    console.error('Failed to save feature changes:', err);
+    showAlert('Failed to save changes. Please try again.', { title: 'Error' });
+    return;
+  }
+
+  await addAuditEntry({
+    action,
+    layer_id: _previewLayerId,
+    filename: layer.metadata?.originalFilename || '',
+    targets: layer.metadata?.targets || [],
+    category: layer.metadata?.category || '',
+    result: 'success'
+  }).catch(() => {});
+
+  // Refresh the preview map and table with updated data
+  const updatedLayer = state.layers.find(l => l.id === _previewLayerId);
+  if (updatedLayer) {
+    document.getElementById('preview-feature-count').textContent =
+      `${updatedFeatures.length.toLocaleString()} feature${updatedFeatures.length !== 1 ? 's' : ''}`;
+    _renderPreviewMap(updatedLayer);
+    _renderPreviewTable(updatedLayer);
+    const drawToolbar = document.getElementById('preview-draw-toolbar');
+    if (drawToolbar) _bindDrawToolbar(updatedLayer);
+  }
+
+  renderPortalTable();
+}
+
+function _applyFeatureEdit(featureIdx, updatedProps) {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer?.geojson) return;
+  const features = [...layer.geojson.features];
+  features[featureIdx] = { ...features[featureIdx], properties: updatedProps };
+  _saveFeatureChanges(features, 'edit_feature');
+}
+
+async function _applyFeatureDelete(featureIdx) {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer?.geojson) return;
+
+  const ok = await showConfirm('Delete this feature? This cannot be undone.', {
+    title: 'Delete Feature', okLabel: 'Delete', danger: true
+  });
+  if (!ok) return;
+
+  const features = layer.geojson.features.filter((_, i) => i !== featureIdx);
+  _saveFeatureChanges(features, 'delete_feature');
+}
+
+function _applyAddFeature(geometry, props) {
+  const state = getAppState();
+  const layer = state.layers.find(l => l.id === _previewLayerId);
+  if (!layer?.geojson) return;
+  const newFeature = { type: 'Feature', geometry, properties: props };
+  const features = [...layer.geojson.features, newFeature];
+  _saveFeatureChanges(features, 'add_feature');
+}
+
+// ── Draw mode ────────────────────────────────────────────────────────
+
+function _bindDrawToolbar(layer) {
+  const pointBtn = document.getElementById('draw-point-btn');
+  const polyBtn = document.getElementById('draw-polygon-btn');
+  const lineBtn = document.getElementById('draw-line-btn');
+  const cancelBtn = document.getElementById('draw-cancel-btn');
+  if (!pointBtn) return;
+
+  pointBtn.onclick = () => _startDrawMode('Point');
+  polyBtn.onclick = () => _startDrawMode('Polygon');
+  lineBtn.onclick = () => _startDrawMode('LineString');
+  cancelBtn.onclick = () => _cancelDrawMode();
+}
+
+function _startDrawMode(geomType) {
+  if (!_previewMap) return;
+  _cancelDrawMode();
+  _drawMode = true;
+  _drawVertices = [];
+
+  const container = _previewMap.getContainer();
+  container.style.cursor = 'crosshair';
+
+  const hintEl = document.getElementById('draw-hint');
+  const cancelBtn = document.getElementById('draw-cancel-btn');
+  if (hintEl) hintEl.textContent = geomType === 'Point' ? 'Click to place point' : 'Click vertices — double-click to finish';
+  if (cancelBtn) cancelBtn.style.display = '';
+
+  function onMapClick(e) {
+    if (!_drawMode) return;
+    if (geomType === 'Point') {
+      const geom = { type: 'Point', coordinates: [e.latlng.lng, e.latlng.lat] };
+      _cancelDrawMode();
+      openNewFeatureEditor(geomType, {
+        onSave: (props) => _applyAddFeature(geom, props)
+      });
+      return;
+    }
+    _drawVertices.push([e.latlng.lng, e.latlng.lat]);
+    _updateDrawPreview(e.latlng, geomType);
+  }
+
+  function onMapDblClick(e) {
+    if (!_drawMode || geomType === 'Point') return;
+    // Remove duplicate vertex from the click that preceded dblclick
+    if (_drawVertices.length > 0) _drawVertices.pop();
+
+    const minVerts = geomType === 'Polygon' ? 3 : 2;
+    if (_drawVertices.length < minVerts) {
+      const hintEl2 = document.getElementById('draw-hint');
+      if (hintEl2) hintEl2.textContent = `Need at least ${minVerts} vertices`;
+      return;
+    }
+
+    let geom;
+    if (geomType === 'Polygon') {
+      geom = { type: 'Polygon', coordinates: [[..._drawVertices, _drawVertices[0]]] };
+    } else {
+      geom = { type: 'LineString', coordinates: [..._drawVertices] };
+    }
+
+    _cancelDrawMode();
+    openNewFeatureEditor(geomType, {
+      onSave: (props) => _applyAddFeature(geom, props)
+    });
+  }
+
+  function onMouseMove(e) {
+    if (_drawVertices.length > 0) _updateDrawPreview(e.latlng, geomType);
+  }
+
+  _previewMap.on('click', onMapClick);
+  _previewMap.on('dblclick', onMapDblClick);
+  _previewMap.on('mousemove', onMouseMove);
+
+  // Store cleanup refs
+  _drawCleanup = () => {
+    _previewMap?.off('click', onMapClick);
+    _previewMap?.off('dblclick', onMapDblClick);
+    _previewMap?.off('mousemove', onMouseMove);
+    if (container) container.style.cursor = '';
+    const hh = document.getElementById('draw-hint');
+    const cc = document.getElementById('draw-cancel-btn');
+    if (hh) hh.textContent = '';
+    if (cc) cc.style.display = 'none';
+  };
+}
+
+let _drawCleanup = null;
+
+function _cancelDrawMode() {
+  _drawMode = false;
+  _drawVertices = [];
+  if (_drawPreviewLayer && _previewMap) {
+    _previewMap.removeLayer(_drawPreviewLayer);
+    _drawPreviewLayer = null;
+  }
+  if (_drawCleanup) { _drawCleanup(); _drawCleanup = null; }
+}
+
+function _updateDrawPreview(cursorLatLng, geomType) {
+  if (_drawPreviewLayer && _previewMap) _previewMap.removeLayer(_drawPreviewLayer);
+  if (_drawVertices.length === 0) return;
+
+  const coords = [..._drawVertices, [cursorLatLng.lng, cursorLatLng.lat]];
+  const latLngs = coords.map(([lng, lat]) => [lat, lng]);
+
+  if (geomType === 'Polygon' && coords.length >= 3) {
+    _drawPreviewLayer = L.polygon(latLngs, {
+      color: '#0072BC', weight: 2, fillOpacity: 0.15, dashArray: '6,4'
+    }).addTo(_previewMap);
+  } else {
+    _drawPreviewLayer = L.polyline(latLngs, {
+      color: '#0072BC', weight: 2, dashArray: '6,4'
+    }).addTo(_previewMap);
+  }
 }
 
 /**
