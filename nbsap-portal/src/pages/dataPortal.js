@@ -892,6 +892,8 @@ function _renderPreviewTable(layer) {
       : '';
     return `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}${delBtn}</th>`;
   }).join('') + actionHeader;
+  const actionHeader = admin ? `<th style="padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border);white-space:nowrap">Actions</th>` : '';
+  const headerRow = keys.map(k => `<th style="white-space:nowrap;padding:6px 10px;background:var(--gray-50,#f8f9fa);font-weight:600;font-size:12px;border-bottom:2px solid var(--border)">${k}</th>`).join('') + actionHeader;
 
   const bodyRows = sample.map((f, i) => {
     const p = f.properties || {};
@@ -1012,6 +1014,7 @@ async function removeLayerAction(layerId) {
  * Saves the modified features array back to Firestore and refreshes the preview.
  */
 async function _saveFeatureChanges(updatedFeatures, action = 'edit_feature', skipHistory = false) {
+async function _saveFeatureChanges(updatedFeatures, action = 'edit_feature') {
   const state = getAppState();
   const layer = state.layers.find(l => l.id === _previewLayerId);
   if (!layer) return;
