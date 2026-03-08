@@ -15,6 +15,7 @@
 import { getLayerStyle, setLayerStyle, resetLayerStyle } from '../../config/symbolizer.js';
 import { resolveColors } from '../../config/symbology.js';
 import { CATEGORIES } from '../../config/categories.js';
+import { isAdmin } from '../../services/auth/index.js';
 
 let _panel = null;
 let _currentLayerId = null;
@@ -121,13 +122,17 @@ function buildPanelHTML(layerData) {
   const fillTransparent   = existing?.fillTransparent   || false;
   const strokeTransparent = existing?.strokeTransparent || false;
 
+  const admin        = isAdmin();
   const singleActive = (mode !== 'categorized' && mode !== 'labels') ? 'active' : '';
   const catActive    = mode === 'categorized' ? 'active' : '';
 
-  // Tabs
-  let tabs = `<button class="sym-tab ${singleActive}" data-tab="single">Simple</button>`;
-  if (hasCategories) {
-    tabs += `<button class="sym-tab ${catActive}" data-tab="categorized">Categorized</button>`;
+  // Tabs — Simple and Categorized are admin-only; Labels is available to all
+  let tabs = '';
+  if (admin) {
+    tabs += `<button class="sym-tab ${singleActive}" data-tab="single">Simple</button>`;
+    if (hasCategories) {
+      tabs += `<button class="sym-tab ${catActive}" data-tab="categorized">Categorized</button>`;
+    }
   }
 
   // Preview dash style CSS
@@ -226,10 +231,10 @@ function buildPanelHTML(layerData) {
       </div>`;
   }
 
-  // Labels tab
-  const labelsActive = mode === 'labels' ? 'active' : '';
+  // Labels tab — active by default for non-admins
+  const labelsActive = (!admin || mode === 'labels') ? 'active' : '';
   tabs += `<button class="sym-tab ${labelsActive}" data-tab="labels">Labels</button>`;
-  const labelTab = buildLabelTabHTML(columns, existing);
+  const labelTab = buildLabelTabHTML(columns, existing, !admin);
 
   return `
     <div class="sym-header">
@@ -247,8 +252,8 @@ function buildPanelHTML(layerData) {
     </div>
     <div class="sym-tabs">${tabs}</div>
     <div class="sym-body">
-      ${simpleTab}
-      ${catTab}
+      ${admin ? simpleTab : ''}
+      ${admin ? catTab : ''}
       ${labelTab}
     </div>
     <div class="sym-footer">
@@ -275,7 +280,7 @@ function buildCatRows(items, cat, catColors) {
   }).join('');
 }
 
-function buildLabelTabHTML(columns, existing) {
+function buildLabelTabHTML(columns, existing, activeByDefault = false) {
   const lbl         = existing?.labels || {};
   const enabled     = lbl.enabled     || false;
   const field       = (lbl.field && columns.includes(lbl.field)) ? lbl.field : (columns[0] || 'name');
@@ -291,7 +296,7 @@ function buildLabelTabHTML(columns, existing) {
     : '<option value="name">name</option>';
 
   return `
-    <div class="sym-tab-content" data-content="labels">
+    <div class="sym-tab-content ${activeByDefault ? 'active' : ''}" data-content="labels">
       <div class="sym-field">
         <label>Show Labels
           <label class="sym-check-label" style="float:right">

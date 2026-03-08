@@ -506,11 +506,11 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
           <span class="map-legend-swatch" style="background:${swatchFill};border-color:${swatchStroke}"></span>
           <span class="map-legend-label">${datasetName}</span>
         </label>
-        ${admin ? `<button class="layer-style-btn ${hasOverride ? 'has-override' : ''} ${styleActive ? 'is-open' : ''}" data-layer-id="${ld.id}" title="Symbolize layer" draggable="false">
+        <button class="layer-style-btn ${hasOverride ? 'has-override' : ''} ${styleActive ? 'is-open' : ''}" data-layer-id="${ld.id}" title="Labels / Symbolize layer" draggable="false">
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
             <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5l-4 .5.5-4Z"/>
           </svg>
-        </button>` : ''}
+        </button>
       </div>`;
     }
 
@@ -546,6 +546,21 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
       });
     });
 
+    // Bind style (symbolizer / labels) button events — available to all users
+    div.querySelectorAll('.layer-style-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const layerId  = btn.dataset.layerId;
+        const layerData = orderedMatching.find(l => l.id === layerId);
+        if (!layerData) return;
+        openSymbolizer(layerData, () => {
+          _suppressFitBounds = true;
+          updateMapLayers();
+        });
+      });
+    });
+
     if (admin) {
 
       // Drag-and-drop reordering
@@ -577,21 +592,6 @@ function updateLayerPanel(matchingLayers, visibleLayers) {
           if (dragSrcId && dragSrcId !== targetId) {
             reorderLayer(dragSrcId, targetId);
           }
-        });
-      });
-
-      // Bind style (symbolizer) button events
-      div.querySelectorAll('.layer-style-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const layerId  = btn.dataset.layerId;
-          const layerData = orderedMatching.find(l => l.id === layerId);
-          if (!layerData) return;
-          openSymbolizer(layerData, () => {
-            _suppressFitBounds = true;
-            updateMapLayers();
-          });
         });
       });
     }
