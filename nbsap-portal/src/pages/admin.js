@@ -5,8 +5,8 @@
  * Data syncs in real time via Firestore across all devices.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
-import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting } from '../services/storage/index.js';
-import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName } from '../ui/state.js';
+import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer } from '../services/storage/index.js';
+import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName, addLayer, removeLayer } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
@@ -139,6 +139,7 @@ function renderLoginForm(page) {
 
 async function renderAdminDashboard(page) {
   const auditLog = await getAuditLog();
+  const mergeHistory = await getSetting('mergeHistory') || {};
   const state = getAppState();
   const tracker = state.layerTracker;
   const submittedCount = Object.keys(tracker).length;
@@ -243,12 +244,21 @@ async function renderAdminDashboard(page) {
                       ${isSubmitted ? filesHtml : '<span style="color:var(--text-tertiary)">--</span>'}
                     </td>
                     <td>
-                      <button class="btn btn-sm btn-primary tracker-upload" data-expected-id="${el.id}">
-                        ${isSubmitted ? 'Add More' : 'Upload'}
-                      </button>
-                      ${isSubmitted
-                        ? `<button class="btn btn-sm btn-danger tracker-remove-all" data-expected-id="${el.id}" style="margin-left:4px" title="Remove all files for this layer">Clear</button>`
-                        : ''}
+                      <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">
+                        <button class="btn btn-sm btn-primary tracker-upload" data-expected-id="${el.id}">
+                          ${isSubmitted ? 'Add More' : 'Upload'}
+                        </button>
+                        ${isSubmitted && entries.length >= 2
+                          ? `<button class="btn btn-sm btn-secondary tracker-merge" data-expected-id="${el.id}" title="Merge all uploaded files into one combined dataset">
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right:3px"><path d="M8 6H5a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/><path d="M16 6h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-3"/><line x1="12" y1="3" x2="12" y2="21"/></svg>Merge</button>`
+                          : ''}
+                        ${mergeHistory[el.id]
+                          ? `<button class="btn btn-sm btn-outline tracker-undo-merge" data-expected-id="${el.id}" title="Undo merge — restores the original separate files" style="border-color:var(--warning);color:var(--warning)">&#8617; Undo</button>`
+                          : ''}
+                        ${isSubmitted
+                          ? `<button class="btn btn-sm btn-danger tracker-remove-all" data-expected-id="${el.id}" title="Remove all files for this layer">Clear</button>`
+                          : ''}
+                      </div>
                     </td>
                   </tr>
                 `;
@@ -430,6 +440,12 @@ async function renderAdminDashboard(page) {
       const layerId = btn.dataset.layerId;
       untrackLayer(expectedId, layerId);
       await setSetting('layerTracker', getAppState().layerTracker);
+      // Clean up merge history if the removed file was the merged layer
+      const mh = await getSetting('mergeHistory') || {};
+      if (mh[expectedId]?.mergedLayerId === layerId) {
+        delete mh[expectedId];
+        await setSetting('mergeHistory', mh);
+      }
       renderAdminPage();
     });
   });
@@ -488,7 +504,27 @@ async function renderAdminDashboard(page) {
 
       untrackLayer(expectedId, null);
       await setSetting('layerTracker', getAppState().layerTracker);
+      // Clean up any merge history for this layer
+      const mh = await getSetting('mergeHistory') || {};
+      if (mh[expectedId]) {
+        delete mh[expectedId];
+        await setSetting('mergeHistory', mh);
+      }
       renderAdminPage();
+    });
+  });
+
+  // Tracker: Merge buttons (combine multiple uploads into one dataset)
+  page.querySelectorAll('.tracker-merge').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await doMerge(btn.dataset.expectedId, page);
+    });
+  });
+
+  // Tracker: Undo Merge buttons
+  page.querySelectorAll('.tracker-undo-merge').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      await doUndoMerge(btn.dataset.expectedId, page);
     });
   });
 
@@ -597,6 +633,160 @@ async function renderAdminDashboard(page) {
     a.click();
     URL.revokeObjectURL(url);
   });
+}
+
+/**
+ * Merges all uploaded files for an expected layer into a single combined dataset.
+ * Saves the merged layer to Firestore and records undo info in mergeHistory.
+ */
+async function doMerge(expectedId, page) {
+  const state = getAppState();
+  const entries = state.layerTracker[expectedId] || [];
+  if (entries.length < 2) return;
+
+  const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
+  const displayName = expected ? getExpectedLayerName(expected) : expectedId;
+
+  const fileNames = entries.map(e => {
+    const l = state.layers.find(ll => ll.id === e.layerId);
+    return l?.metadata?.originalFilename || e.layerId;
+  });
+  const fileList = fileNames.map(n => `\u2022 ${n}`).join('\n');
+
+  if (!await showConfirm(
+    `Merge ${entries.length} files into one combined dataset for \u201c${displayName}\u201d?\n\n${fileList}\n\nAll features will be combined into a single layer. You can undo this action.`,
+    { title: 'Merge Datasets', okLabel: 'Merge' }
+  )) return;
+
+  const mergeBtn = page.querySelector(`.tracker-merge[data-expected-id="${expectedId}"]`);
+  if (mergeBtn) { mergeBtn.disabled = true; mergeBtn.textContent = 'Merging\u2026'; }
+
+  try {
+    // Load GeoJSON for all source layers (use state if already loaded)
+    const layerRecords = await Promise.all(
+      entries.map(async (e) => {
+        const inState = state.layers.find(l => l.id === e.layerId);
+        if (inState?.geojson) return inState;
+        return await getLayer(e.layerId);
+      })
+    );
+
+    // Combine all features
+    const allFeatures = [];
+    let totalAreaHa = 0;
+    for (const lr of layerRecords) {
+      if (!lr?.geojson?.features) continue;
+      allFeatures.push(...lr.geojson.features);
+      totalAreaHa += lr.metadata?.totalAreaHa || 0;
+    }
+
+    if (allFeatures.length === 0) {
+      throw new Error('No features found in selected layers. Cannot merge.');
+    }
+
+    const mergedId = crypto.randomUUID();
+    const firstMeta = layerRecords.find(l => l?.metadata)?.metadata || {};
+    const mergedMetadata = {
+      ...firstMeta,
+      id: mergedId,
+      name: `${displayName} (merged)`,
+      originalFilename: '(merged)',
+      featureCount: allFeatures.length,
+      totalAreaHa: Math.round(totalAreaHa * 100) / 100,
+      uploadTimestamp: new Date().toISOString(),
+      uploadedBy: 'admin',
+      category: expected?.category || firstMeta.category,
+      targets: expected ? [expected.target] : firstMeta.targets,
+      realm: expected?.realm || firstMeta.realm,
+      mergedFrom: entries.map(e => e.layerId),
+      _mergedSourceCount: entries.length,
+    };
+
+    const mergedLayer = {
+      id: mergedId,
+      metadata: mergedMetadata,
+      geojson: { type: 'FeatureCollection', features: allFeatures }
+    };
+
+    await saveLayer(mergedLayer);
+    addLayer(mergedLayer);
+
+    // Record undo info
+    const mh = await getSetting('mergeHistory') || {};
+    mh[expectedId] = {
+      mergedLayerId: mergedId,
+      originalEntries: [...entries],
+      mergedAt: new Date().toISOString()
+    };
+    await setSetting('mergeHistory', mh);
+
+    // Update tracker to point only to the merged layer
+    setLayerTracker({ ...getAppState().layerTracker, [expectedId]: [{ layerId: mergedId, uploadedAt: new Date().toISOString() }] });
+    await setSetting('layerTracker', getAppState().layerTracker);
+
+    await addAuditEntry({
+      action: 'merge',
+      layer_id: mergedId,
+      filename: mergedMetadata.name,
+      category: mergedMetadata.category,
+      targets: mergedMetadata.targets,
+      result: 'success',
+      notes: `Merged ${entries.length} layers (${allFeatures.length} total features)`
+    });
+
+    renderAdminPage();
+  } catch (err) {
+    console.error('Merge failed:', err);
+    if (mergeBtn) { mergeBtn.disabled = false; mergeBtn.textContent = 'Merge'; }
+    alert(`Merge failed: ${err.message}`);
+  }
+}
+
+/**
+ * Undoes a previous merge: deletes the merged layer and restores the original tracker entries.
+ */
+async function doUndoMerge(expectedId, page) {
+  const mh = await getSetting('mergeHistory') || {};
+  const histEntry = mh[expectedId];
+  if (!histEntry) return;
+
+  const { mergedLayerId, originalEntries } = histEntry;
+  const expected = EXPECTED_LAYERS.find(el => el.id === expectedId);
+  const displayName = expected ? getExpectedLayerName(expected) : expectedId;
+
+  if (!await showConfirm(
+    `Undo merge for \u201c${displayName}\u201d?\n\nThe merged dataset will be deleted and the ${originalEntries.length} original files will be restored.`,
+    { title: 'Undo Merge', okLabel: 'Undo Merge' }
+  )) return;
+
+  const undoBtn = page.querySelector(`.tracker-undo-merge[data-expected-id="${expectedId}"]`);
+  if (undoBtn) { undoBtn.disabled = true; undoBtn.textContent = 'Undoing\u2026'; }
+
+  try {
+    await deleteLayer(mergedLayerId);
+    removeLayer(mergedLayerId);
+
+    // Restore original tracker entries
+    setLayerTracker({ ...getAppState().layerTracker, [expectedId]: originalEntries });
+    await setSetting('layerTracker', getAppState().layerTracker);
+
+    // Remove merge history entry
+    delete mh[expectedId];
+    await setSetting('mergeHistory', mh);
+
+    await addAuditEntry({
+      action: 'undo_merge',
+      layer_id: mergedLayerId,
+      result: 'success',
+      notes: `Restored ${originalEntries.length} original layers for "${displayName}"`
+    });
+
+    renderAdminPage();
+  } catch (err) {
+    console.error('Undo merge failed:', err);
+    if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = '\u21b5 Undo'; }
+    alert(`Undo failed: ${err.message}`);
+  }
 }
 
 /**
