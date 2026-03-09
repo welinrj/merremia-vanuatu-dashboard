@@ -13,7 +13,6 @@ import { isWizardOpen } from './ui/components/uploadWizard.js';
 import { initAbout } from './pages/about.js';
 import { computeFeatureAreas } from './gis/areaCalc.js';
 import { createLayerMetadata } from './core/schema.js';
-import { initSmolTamtan } from './ui/components/smolTamtan.js';
 
 // Fix Leaflet default icon paths (use CDN URLs for universal compatibility)
 import L from 'leaflet';
@@ -48,8 +47,6 @@ async function init() {
   initDataPortal();
   initAdmin();
   initAbout();
-  initSmolTamtan();
-
   // Signal that the app JS has loaded (clears timeout fallback)
   window.__nbsapLoaded = true;
 
