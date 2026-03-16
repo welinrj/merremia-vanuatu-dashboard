@@ -138,8 +138,28 @@ function renderLoginForm(page) {
 }
 
 async function renderAdminDashboard(page) {
-  const auditLog = await getAuditLog();
-  const mergeHistory = await getSetting('mergeHistory') || {};
+  // Show loading indicator while fetching data
+  page.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:center;min-height:300px;gap:12px;color:var(--text-secondary)">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+      Loading admin dashboard…
+    </div>`;
+
+  let auditLog, mergeHistory;
+  try {
+    const timeout = (promise, ms) => Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Request timed out')), ms)),
+    ]);
+    [auditLog, mergeHistory] = await Promise.all([
+      timeout(getAuditLog(), 10000).catch(() => []),
+      timeout(getSetting('mergeHistory'), 10000).catch(() => null),
+    ]);
+  } catch {
+    auditLog = [];
+    mergeHistory = null;
+  }
+  mergeHistory = mergeHistory || {};
   const state = getAppState();
   const tracker = state.layerTracker;
   const submittedCount = Object.keys(tracker).length;
