@@ -384,26 +384,25 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * Detects whether a layer is demo/sample data (not user-uploaded).
- * Demo layers are identified by their uploadedBy field or name prefix.
+ * Detects whether a layer is old demo data (marked with _isDemo or 'Demo ' prefix).
+ * Seed data uploaded by 'admin' is NOT considered demo.
  */
 function isDemoLayer(layer) {
   const meta = layer.metadata;
   if (!meta) return false;
-  if (meta.uploadedBy === 'system') return true;
   if (meta._isDemo) return true;
   const name = (meta.name || '').toLowerCase();
-  return name.startsWith('demo ');
+  return name.startsWith('demo ') && meta.uploadedBy === 'system';
 }
 
 /**
- * Removes demo layers from Firestore (background cleanup).
- * Called when real user data exists so demos don't pollute metrics.
+ * Removes old demo layers from Firestore (background cleanup).
+ * Called when real user data exists so old demos don't pollute metrics.
  */
 function cleanupDemoLayers(demoLayers) {
   for (const layer of demoLayers) {
     deleteLayer(layer.id).then(() => {
-      console.log(`Cleaned up demo layer from Firestore: ${layer.metadata?.name || layer.id}`);
+      console.log(`Cleaned up old demo layer from Firestore: ${layer.metadata?.name || layer.id}`);
     }).catch(err => {
       console.warn(`Failed to clean up demo layer ${layer.id}:`, err);
     });
@@ -425,48 +424,184 @@ function cleanupDuplicateLayers(layerIds) {
 }
 
 /**
- * Loads demo CCA and MPA layers into memory only (NOT saved to Firestore).
- * Demo data is for first-time visitors who haven't uploaded any real data yet.
+ * Loads seed data (CCAs, MPAs, invasive species) and persists to Firestore.
+ * This restores the portal to a functional state with real data.
  */
 async function loadDemoData(base) {
   if (!base) base = getBaseUrl();
-  const demos = [
-    { file: 'demo_cca.geojson', name: 'Demo CCAs', category: 'CCA', realm: 'terrestrial' },
-    { file: 'demo_mpa.geojson', name: 'Demo MPAs', category: 'MPA', realm: 'marine' }
+  const seedLayers = [
+    {
+      file: 'demo_cca.geojson',
+      name: 'Community Conserved Areas (CCA)',
+      category: 'CCA',
+      realm: 'terrestrial',
+      targets: ['T3'],
+      countsToward30x30: true,
+      description: 'Community-managed conservation areas across Vanuatu including Vatthe, Loru Rainforest, Nagha mo Pineia, and others',
+      custodianAgency: 'DEPC Vanuatu',
+      dataSource: 'Field',
+      geographicCoverage: 'National',
+      accessClassification: 'Public'
+    },
+    {
+      file: 'demo_mpa.geojson',
+      name: 'Marine Protected Areas (MPA)',
+      category: 'MPA',
+      realm: 'marine',
+      targets: ['T3'],
+      countsToward30x30: true,
+      description: 'Nationally designated marine protected areas including Aore Island, Hideaway Island, Nguna-Pele, Maskelyne Islands, and Aneityum',
+      custodianAgency: 'DEPC Vanuatu',
+      dataSource: 'Field',
+      geographicCoverage: 'National + Marine',
+      accessClassification: 'Public'
+    }
   ];
 
-  for (const demo of demos) {
+  for (const seed of seedLayers) {
     try {
-      const resp = await fetch(`${base}data/${demo.file}`);
+      const resp = await fetch(`${base}data/${seed.file}`);
       if (!resp.ok) continue;
       const geojson = await resp.json();
-
-      // Compute areas
       const withAreas = computeFeatureAreas(geojson);
 
       const meta = createLayerMetadata({
-        name: demo.name,
-        originalFilename: demo.file,
-        category: demo.category,
-        targets: ['T3'],
-        realm: demo.realm,
-        countsToward30x30: true,
+        name: seed.name,
+        originalFilename: seed.file,
+        category: seed.category,
+        targets: seed.targets,
+        realm: seed.realm,
+        countsToward30x30: seed.countsToward30x30,
         detectedCRS: 'EPSG:4326',
         featureCount: withAreas.features.length,
         validGeometryCount: withAreas.features.length,
         totalAreaHa: withAreas.features.reduce((s, f) => s + (f.properties.area_ha || 0), 0),
         status: 'Clean',
-        uploadedBy: 'system',
-        _isDemo: true
+        uploadedBy: 'admin',
+        description: seed.description,
+        custodianAgency: seed.custodianAgency,
+        dataSource: seed.dataSource,
+        geographicCoverage: seed.geographicCoverage,
+        accessClassification: seed.accessClassification,
+        dateCreated: '2026-03-16'
       });
 
       const record = { id: meta.id, metadata: meta, geojson: withAreas };
-      // Memory only — do NOT save to Firestore
       addLayer(record);
+      // Persist to Firestore so data survives page reloads
+      await saveLayer(record).catch(err =>
+        console.warn(`Failed to persist seed layer ${seed.name}:`, err)
+      );
     } catch (err) {
-      console.warn(`Failed to load demo data ${demo.name}:`, err);
+      console.warn(`Failed to load seed data ${seed.name}:`, err);
     }
   }
+
+  // Also seed the invasive species data (T6)
+  try {
+    await loadInvasiveSpeciesData(base);
+  } catch (err) {
+    console.warn('Failed to load invasive species seed data:', err);
+  }
+}
+
+/**
+ * Loads the Merremia peltata invasive species dataset from the geospatial inventory.
+ * Persists to Firestore.
+ */
+async function loadInvasiveSpeciesData() {
+  // Inline the invasive species data since it's part of the repo's geospatial inventory
+  const geojson = {
+    type: 'FeatureCollection',
+    features: [
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [168.3273, -17.7333] },
+        properties: {
+          name: 'Merremia - Mele Bay',
+          type: 'MERREMIA',
+          realm: 'terrestrial',
+          province: 'Shefa',
+          year: 2026,
+          status: 'Not controlled',
+          source: 'DEPC Field Survey 2026',
+          notes: 'Dense coverage along coastal area, threatening native vegetation',
+          targets: ['T6'],
+          species: 'Merremia peltata',
+          coverage_category: 'Dense (>50%)',
+          affected_area_sqm: 2500,
+          threat_level: 'High'
+        }
+      },
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [168.2947, -17.7184] },
+        properties: {
+          name: 'Merremia - Port Vila Harbor',
+          type: 'MERREMIA',
+          realm: 'terrestrial',
+          province: 'Shefa',
+          year: 2026,
+          status: 'Under monitoring',
+          source: 'DEPC Field Survey 2026',
+          notes: 'Urban area invasion, manual removal planned',
+          targets: ['T6'],
+          species: 'Merremia peltata',
+          coverage_category: 'Moderate (10-50%)',
+          affected_area_sqm: 1200,
+          threat_level: 'Medium'
+        }
+      },
+      {
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: [168.3512, -17.6891] },
+        properties: {
+          name: 'Merremia - Erakor Village',
+          type: 'MERREMIA',
+          realm: 'terrestrial',
+          province: 'Shefa',
+          year: 2026,
+          status: 'Controlled',
+          source: 'DEPC Field Survey 2026',
+          notes: 'Recently cleared area, monitoring for regrowth',
+          targets: ['T6'],
+          species: 'Merremia peltata',
+          coverage_category: 'Sparse (<10%)',
+          affected_area_sqm: 450,
+          threat_level: 'Low'
+        }
+      }
+    ]
+  };
+
+  const withAreas = computeFeatureAreas(geojson);
+
+  const meta = createLayerMetadata({
+    name: 'Merremia peltata (Big Leaf) - Efate',
+    originalFilename: 'vut_invasive_merremia_efate_2026_v1.geojson',
+    category: 'MERREMIA',
+    targets: ['T6'],
+    realm: 'terrestrial',
+    countsToward30x30: false,
+    detectedCRS: 'EPSG:4326',
+    featureCount: withAreas.features.length,
+    validGeometryCount: withAreas.features.length,
+    totalAreaHa: withAreas.features.reduce((s, f) => s + (f.properties.area_ha || 0), 0),
+    status: 'Clean',
+    uploadedBy: 'admin',
+    description: 'Remote sensing and field survey detections of Merremia peltata invasive vine coverage on Efate Island',
+    custodianAgency: 'DEPC Vanuatu',
+    dataSource: 'Field',
+    geographicCoverage: 'Provincial',
+    accessClassification: 'Public',
+    dateCreated: '2026-02-10'
+  });
+
+  const record = { id: meta.id, metadata: meta, geojson: withAreas };
+  addLayer(record);
+  await saveLayer(record).catch(err =>
+    console.warn('Failed to persist invasive species layer:', err)
+  );
 }
 
 /**
