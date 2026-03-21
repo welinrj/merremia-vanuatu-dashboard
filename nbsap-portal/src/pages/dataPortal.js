@@ -219,9 +219,11 @@ function freshnessBadge(ts) {
  */
 function buildLayerRow(l) {
   const m = l.metadata;
+  if (!m) return '';
   const catConfig = CATEGORIES[m.category] || {};
   const isRef = m.isReference === true;
   const admin = isAdmin();
+  const status = m.status || 'Clean';
 
   let coverageCell;
   if (isRef) {
@@ -230,7 +232,7 @@ function buildLayerRow(l) {
     const pct = baseline > 0 ? ((m.totalAreaHa || 0) / baseline * 100) : 0;
     coverageCell = `<span style="font-weight:600">${pct.toFixed(1)}%</span>`;
   } else {
-    coverageCell = `${m.featureCount}`;
+    coverageCell = `${m.featureCount || 0}`;
   }
 
   const showRemove = admin;
@@ -241,16 +243,16 @@ function buildLayerRow(l) {
         <div style="display:flex;align-items:center;gap:8px">
           <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
           <div>
-            <strong>${m.name}</strong>
+            <strong>${m.name || 'Untitled'}</strong>
             ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
             ${metadataBadge(m)}
           </div>
         </div>
       </td>
-      <td><span style="font-size:12px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px"><span style="color:${catConfig.color || '#78909C'}">${categoryIcon(m.category, 14)}</span>${CATEGORIES[m.category]?.label || m.category}</span></td>
-      <td style="text-transform:capitalize">${m.realm}</td>
+      <td><span style="font-size:12px;color:var(--text-secondary);display:inline-flex;align-items:center;gap:4px"><span style="color:${catConfig.color || '#78909C'}">${categoryIcon(m.category, 14)}</span>${CATEGORIES[m.category]?.label || m.category || 'Other'}</span></td>
+      <td style="text-transform:capitalize">${m.realm || 'unknown'}</td>
       <td>${coverageCell}</td>
-      <td><span class="badge badge-${m.status.toLowerCase()}">${m.status}</span></td>
+      <td><span class="badge badge-${status.toLowerCase()}">${status}</span></td>
       <td>${completenessBar(m)}</td>
       <td style="font-size:12px;color:var(--text-secondary)">${freshnessBadge(m.uploadTimestamp)}</td>
       <td class="actions">
@@ -274,16 +276,17 @@ function renderPortalTable() {
 
   let layers = state.layers || [];
 
-  // Apply filters
+  // Filter out layers with missing metadata, then apply user filters
+  layers = layers.filter(l => l.metadata != null);
   layers = layers.filter(l => {
     const meta = l.metadata;
     if (portalSearch) {
-      const searchStr = `${meta.name} ${meta.category} ${(meta.targets || []).join(' ')} ${meta.originalFilename}`.toLowerCase();
+      const searchStr = `${meta.name || ''} ${meta.category || ''} ${(meta.targets || []).join(' ')} ${meta.originalFilename || ''}`.toLowerCase();
       if (!searchStr.includes(portalSearch)) return false;
     }
     if (portalFilterTarget !== 'All' && !(meta.targets || []).includes(portalFilterTarget)) return false;
     if (portalFilterCategory !== 'All' && meta.category !== portalFilterCategory) return false;
-    if (portalFilterStatus !== 'All' && meta.status !== portalFilterStatus) return false;
+    if (portalFilterStatus !== 'All' && (meta.status || '') !== portalFilterStatus) return false;
     return true;
   });
 

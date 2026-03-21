@@ -145,6 +145,7 @@ export function setLayers(layers) {
   _dashboardLayersCache = null;
   extractProvinces();
   clearMetricsCache();
+  dispatchRefresh();
   return removedIds;
 }
 

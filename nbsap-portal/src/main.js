@@ -232,6 +232,7 @@ async function loadAppData() {
 
   // Refresh all visible components with loaded data
   refreshDashboard();
+  refreshPortal();
 }
 
 /**
