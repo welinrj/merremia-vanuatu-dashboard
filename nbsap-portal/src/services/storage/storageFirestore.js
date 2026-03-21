@@ -170,10 +170,12 @@ export async function listLayersMeta() {
   const snap = await getDocs(collection(db, COL_LAYERS));
   if (snap.empty) return [];
 
-  const layers = snap.docs.map(d => {
-    const data = d.data();
-    return { id: d.id, metadata: data.metadata, geojson: null };
-  });
+  const layers = snap.docs
+    .map(d => {
+      const data = d.data();
+      return { id: d.id, metadata: data.metadata || null, geojson: null };
+    })
+    .filter(l => l.metadata != null);
 
   layers.sort((a, b) => {
     const ta = a.metadata?.uploadTimestamp || '';
