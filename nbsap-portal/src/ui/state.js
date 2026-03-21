@@ -291,6 +291,7 @@ export function setLayerTracker(tracker) {
   if (!tracker) {
     appState.layerTracker = {};
     _invalidateTrackerCache();
+    clearMetricsCache();
     return;
   }
 
@@ -305,6 +306,7 @@ export function setLayerTracker(tracker) {
   }
   appState.layerTracker = migrated;
   _invalidateTrackerCache();
+  clearMetricsCache();
 }
 
 /**
@@ -429,7 +431,14 @@ export function getDashboardLayers() {
 
   let result;
   if (hasUserLayers()) {
-    result = getUserLayers();
+    const userLayers = getUserLayers();
+    // Fall through if tracker has entries but none match loaded layers
+    if (userLayers.length > 0) {
+      result = userLayers;
+    } else {
+      console.warn(`[NBSAP] Tracker has ${getTrackedLayerIds().size} IDs but none match ${appState.layers.length} loaded layers — showing all layers`);
+      result = appState.layers;
+    }
   } else {
     const realLayers = appState.layers.filter(l => !isDemoLayer(l));
     result = realLayers.length > 0 ? realLayers : appState.layers;

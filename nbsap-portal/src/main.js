@@ -151,7 +151,10 @@ async function loadAppData() {
   // Load layer tracker state
   try {
     const tracker = await withTimeout(getSetting('layerTracker'), 10000);
-    if (tracker) setLayerTracker(tracker);
+    if (tracker) {
+      console.log(`[NBSAP] Layer tracker loaded with ${Object.keys(tracker).length} entries:`, Object.keys(tracker));
+      setLayerTracker(tracker);
+    }
   } catch (err) {
     console.warn('Failed to load layer tracker:', err);
   }
@@ -172,6 +175,11 @@ async function loadAppData() {
     // Separate demo layers from real user-uploaded layers
     const realLayers = stored.filter(l => !isDemoLayer(l));
     const demoLayers = stored.filter(l => isDemoLayer(l));
+
+    console.log(`[NBSAP] Firestore returned ${stored.length} layers: ${realLayers.length} real, ${demoLayers.length} demo`);
+    for (const l of stored) {
+      console.log(`[NBSAP]   Layer ${l.id}: name="${l.metadata?.name}", targets=${JSON.stringify(l.metadata?.targets)}, uploadedBy=${l.metadata?.uploadedBy}`);
+    }
 
     if (realLayers.length > 0) {
       // User has real data — use only real layers (metadata only at this point)
