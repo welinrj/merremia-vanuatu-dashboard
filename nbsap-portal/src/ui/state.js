@@ -563,11 +563,18 @@ export async function ensureGeoJSONForTargets(targets) {
     })
   );
 
+  const failures = results.filter(r => r.status === 'rejected');
+  if (failures.length > 0) {
+    console.warn(`Failed to load GeoJSON for ${failures.length} layer(s):`,
+      failures.map(r => r.reason?.message || String(r.reason)));
+  }
+
   const loaded = results.some(r => r.status === 'fulfilled' && r.value === true);
   if (loaded) {
     _provincesDirty = true;
     _recomputeProvinces();
     clearMetricsCache();
+    dispatchRefresh();
   }
   return loaded;
 }

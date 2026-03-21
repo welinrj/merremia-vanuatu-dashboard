@@ -42,6 +42,11 @@ function getBaseUrl() {
  * Pages render FIRST (synchronous), then data loads asynchronously.
  */
 async function init() {
+  // Global error handlers to surface silent failures
+  window.addEventListener('unhandledrejection', (e) => {
+    console.error('Unhandled promise rejection:', e.reason);
+  });
+
   // 1. Initialize all pages immediately so UI is visible
   initDashboard();
   initDataPortal();
@@ -203,10 +208,16 @@ async function loadAppData() {
     }
   } catch (err) {
     console.warn('Failed to load stored layers:', err);
+    showLoadingStatus('Could not reach database. Loading demo data...');
     try {
       await loadDemoData(base);
     } catch (demoErr) {
       console.warn('Failed to load demo data:', demoErr);
+      showLoadingStatus('Failed to load data. Please check your connection and refresh the page.');
+      initialLoadComplete = true;
+      refreshDashboard();
+      refreshPortal();
+      return;
     }
   }
 
@@ -489,8 +500,8 @@ async function loadDemoData(base) {
 
       const record = { id: meta.id, metadata: meta, geojson: withAreas };
       addLayer(record);
-      // Persist to Firestore so data survives page reloads
-      await saveLayer(record).catch(err =>
+      // Persist to Firestore in background (non-blocking so UI renders immediately)
+      saveLayer(record).catch(err =>
         console.warn(`Failed to persist seed layer ${seed.name}:`, err)
       );
     } catch (err) {

@@ -20,6 +20,7 @@ let portalFilterTarget = 'All';
 let portalFilterCategory = 'All';
 let portalFilterStatus = 'All';
 let selectedLayerId = null;
+let portalDataReady = false;
 
 /**
  * Initializes the Data Portal page.
@@ -291,18 +292,32 @@ function renderPortalTable() {
   });
 
   if (layers.length === 0) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-state-icon">
-          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
-            <polyline points="13 2 13 9 20 9"/>
-          </svg>
+    if (!portalDataReady) {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="animation: spin 1.5s linear infinite">
+              <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">Loading data...</div>
+          <div class="empty-state-text">Connecting to database and loading layers</div>
         </div>
-        <div class="empty-state-title">No layers found</div>
-        <div class="empty-state-text">${isAdmin() ? 'Go to the Admin tab to upload shapefiles' : 'No data available yet'}</div>
-      </div>
-    `;
+      `;
+    } else {
+      container.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/>
+              <polyline points="13 2 13 9 20 9"/>
+            </svg>
+          </div>
+          <div class="empty-state-title">No layers found</div>
+          <div class="empty-state-text">${isAdmin() ? 'Go to the Admin tab to upload shapefiles' : 'No data available yet'}</div>
+        </div>
+      `;
+    }
     return;
   }
 
@@ -1262,5 +1277,6 @@ function _updateDrawPreview(cursorLatLng, geomType) {
  * Refreshes the portal when data changes.
  */
 export function refreshPortal() {
+  portalDataReady = true;
   renderPortalTable();
 }

@@ -92,9 +92,9 @@ async function readChunkedGeoJSON(layerId) {
 
   if (chunksSnap.empty) return null;
 
-  // Sort chunks by index
+  // Sort chunks by index, defaulting missing data to empty string
   const sorted = chunksSnap.docs
-    .map(d => ({ idx: parseInt(d.id, 10), data: d.data().d }))
+    .map(d => ({ idx: parseInt(d.id, 10), data: d.data().d || '' }))
     .sort((a, b) => a.idx - b.idx);
 
   // For small payloads (< 5 MB), use simple concat + parse
@@ -106,9 +106,14 @@ async function readChunkedGeoJSON(layerId) {
     chunk.data = null; // release chunk string ref for GC
   }
 
-  const result = JSON.parse(json);
-  json = null; // release the combined string
-  return result;
+  try {
+    const result = JSON.parse(json);
+    json = null; // release the combined string
+    return result;
+  } catch (e) {
+    console.error(`Failed to parse GeoJSON for layer ${layerId}:`, e.message);
+    return null;
+  }
 }
 
 async function deleteChunks(layerId) {
