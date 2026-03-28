@@ -568,6 +568,12 @@ export async function ensureGeoJSONForTargets(targets) {
     _provincesDirty = true;
     _recomputeProvinces();
     clearMetricsCache();
+    // Invalidate dashboard layers cache: getDashboardLayers() returns a filtered
+    // copy of appState.layers, holding old object references with geojson: null.
+    // When GeoJSON loads, appState.layers[idx] is replaced with a new object,
+    // but the cached filtered copy still points to the old null-GeoJSON objects.
+    // Clearing the cache forces getDashboardLayers() to rebuild with fresh refs.
+    _dashboardLayersCache = null;
   }
   return loaded;
 }
