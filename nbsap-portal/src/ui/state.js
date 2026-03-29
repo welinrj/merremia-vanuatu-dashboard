@@ -397,6 +397,11 @@ function getTrackedLayerIds() {
 function _invalidateTrackerCache() {
   _trackedIdsCache = null;
   _dashboardLayersCache = null;
+  // Also clear metrics cache: when the tracker changes, getDashboardLayers()
+  // may return a different set of layers. Without clearing metrics, the province
+  // breakdown would show stale cached values while the KPI correctly reports
+  // "No Data" — causing a contradictory UI state.
+  clearMetricsCache();
 }
 
 /**
@@ -568,6 +573,12 @@ export async function ensureGeoJSONForTargets(targets) {
     _provincesDirty = true;
     _recomputeProvinces();
     clearMetricsCache();
+    // Invalidate dashboard layers cache: getDashboardLayers() returns a filtered
+    // copy of appState.layers, holding old object references with geojson: null.
+    // When GeoJSON loads, appState.layers[idx] is replaced with a new object,
+    // but the cached filtered copy still points to the old null-GeoJSON objects.
+    // Clearing the cache forces getDashboardLayers() to rebuild with fresh refs.
+    _dashboardLayersCache = null;
   }
   return loaded;
 }

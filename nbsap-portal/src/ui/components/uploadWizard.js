@@ -10,6 +10,7 @@ import { runPipeline } from '../../core/pipeline.js';
 import { saveLayer, deleteLayer, addAuditEntry, setSetting } from '../../services/storage/index.js';
 import { getAppState, addLayer, removeLayer, trackLayer, findDuplicateLayer, findPotentialDuplicates, getExpectedLayerName } from '../state.js';
 import { showConfirm } from './dialog.js';
+import { escHtml } from '../../core/schema.js';
 
 let wizardState = { step: 1, file: null, geojson: null, prjText: null, opts: {}, expectedLayer: null };
 let wizardOpen = false;
@@ -430,7 +431,7 @@ function renderStep1(body) {
       `;
       nextBtn.disabled = false;
     } catch (err) {
-      statusEl.innerHTML = `<p style="color:var(--danger)">Error parsing: ${err.message}</p>`;
+      statusEl.innerHTML = `<p style="color:var(--danger)">Error parsing: ${escHtml(err.message)}</p>`;
     }
   });
 
@@ -678,17 +679,17 @@ function renderStep4(body) {
   const tor = r.report.torCompliance || { compliant: false, issues: [] };
 
   body.innerHTML = `
-    <h4 style="margin-bottom:12px">${meta.name}</h4>
+    <h4 style="margin-bottom:12px">${escHtml(meta.name)}</h4>
     <table class="data-table" style="margin-bottom:16px">
-      <tr><td><b>Category</b></td><td>${meta.category}</td></tr>
-      <tr><td><b>Targets</b></td><td>${meta.targets.join(', ')}</td></tr>
-      <tr><td><b>Realm</b></td><td>${meta.realm}</td></tr>
+      <tr><td><b>Category</b></td><td>${escHtml(meta.category)}</td></tr>
+      <tr><td><b>Targets</b></td><td>${escHtml(meta.targets.join(', '))}</td></tr>
+      <tr><td><b>Realm</b></td><td>${escHtml(meta.realm)}</td></tr>
       <tr><td><b>Features</b></td><td>${meta.featureCount}</td></tr>
       <tr><td><b>Area</b></td><td>${meta.totalAreaHa.toFixed(2)} ha</td></tr>
       <tr><td><b>Fixed</b></td><td>${meta.fixedCount} geometries</td></tr>
       <tr><td><b>Dropped</b></td><td>${meta.droppedCount} geometries</td></tr>
-      <tr><td><b>CRS</b></td><td>${meta.detectedCRS}</td></tr>
-      <tr><td><b>Status</b></td><td><span class="badge badge-${meta.status.toLowerCase()}">${meta.status}</span></td></tr>
+      <tr><td><b>CRS</b></td><td>${escHtml(meta.detectedCRS)}</td></tr>
+      <tr><td><b>Status</b></td><td><span class="badge badge-${escHtml(meta.status.toLowerCase())}">${escHtml(meta.status)}</span></td></tr>
       <tr><td><b>30x30</b></td><td>${meta.countsToward30x30 ? 'Yes' : 'No'}</td></tr>
       <tr><td><b>Reference</b></td><td>${meta.isReference ? 'Yes (visual only)' : 'No'}</td></tr>
     </table>
@@ -698,7 +699,7 @@ function renderStep4(body) {
       <div class="card-body">
         ${tor.compliant
           ? '<p style="color:var(--success);font-weight:600">All checks passed</p>'
-          : tor.issues.map(i => `<p style="color:var(--warning);font-size:13px">- ${i}</p>`).join('')
+          : tor.issues.map(i => `<p style="color:var(--warning);font-size:13px">- ${escHtml(i)}</p>`).join('')
         }
       </div>
     </div>
@@ -707,7 +708,7 @@ function renderStep4(body) {
       <div class="card" style="margin-bottom:12px">
         <div class="card-header">Warnings</div>
         <div class="card-body">
-          ${meta.warnings.map(w => `<p style="color:var(--warning);font-size:12px">- ${w}</p>`).join('')}
+          ${meta.warnings.map(w => `<p style="color:var(--warning);font-size:12px">- ${escHtml(w)}</p>`).join('')}
         </div>
       </div>
     ` : ''}
