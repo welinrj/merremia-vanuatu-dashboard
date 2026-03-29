@@ -415,28 +415,14 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * Filenames used by the built-in seed/demo layers.
- * Used to identify old seed layers that were saved to Firestore before the
- * _isDemo flag was introduced, so they can be cleaned up when real data arrives.
- */
-const SEED_LAYER_FILENAMES = new Set([
-  'demo_cca.geojson',
-  'demo_mpa.geojson',
-  'vut_invasive_merremia_efate_2026_v1.geojson',
-]);
-
-/**
  * Detects whether a layer is demo/seed data that should not count as real user data.
- * Checks explicit _isDemo flag, system uploadedBy, or legacy seed filenames.
+ * Checks explicit _isDemo flag or system uploadedBy only.
  */
 function isDemoLayer(layer) {
   const meta = layer.metadata;
   if (!meta) return false;
   if (meta._isDemo) return true;
   if (meta.uploadedBy === 'system') return true;
-  // Legacy: seed layers saved before _isDemo flag was added (uploaded with 'admin'
-  // uploadedBy but identifiable by their original seed filenames).
-  if (SEED_LAYER_FILENAMES.has(meta.originalFilename)) return true;
   return false;
 }
 

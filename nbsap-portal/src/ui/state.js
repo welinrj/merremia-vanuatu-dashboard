@@ -456,20 +456,11 @@ export function getDashboardLayers() {
 /**
  * Detects whether a layer is demo/sample data (not user-uploaded).
  */
-/** Filenames used by built-in seed layers — kept in sync with main.js */
-const _SEED_FILENAMES = new Set([
-  'demo_cca.geojson',
-  'demo_mpa.geojson',
-  'vut_invasive_merremia_efate_2026_v1.geojson',
-]);
-
 function isDemoLayer(layer) {
   const m = layer.metadata;
   if (!m) return false;
   if (m._isDemo) return true;
   if (m.uploadedBy === 'system') return true;
-  // Legacy: seed layers saved before _isDemo flag, identifiable by known filenames
-  if (_SEED_FILENAMES.has(m.originalFilename)) return true;
   return false;
 }
 
