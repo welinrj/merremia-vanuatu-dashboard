@@ -195,3 +195,18 @@ export function validateTORCompliance(layerMeta, geojson) {
 
   return { compliant: issues.length === 0, issues };
 }
+
+/**
+ * Escapes a string for safe insertion into HTML to prevent XSS.
+ * @param {string|null|undefined} str
+ * @returns {string}
+ */
+export function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}

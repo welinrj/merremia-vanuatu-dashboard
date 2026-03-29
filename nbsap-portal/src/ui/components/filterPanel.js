@@ -6,7 +6,7 @@
 import targetsConfig from '../../config/targets.js';
 import { targetIcon } from '../../config/icons.js';
 import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
-import { compute30x30Metrics, computeTarget1Metrics, computeTarget2Metrics, computeTargetMetrics } from '../../gis/areaCalc.js';
+import { compute30x30Metrics, computeTarget1Metrics, computeTarget2Metrics, computeTargetMetrics, getMetricsCacheGen } from '../../gis/areaCalc.js';
 import ENV from '../../config/env.js';
 
 /**
@@ -99,6 +99,7 @@ export function renderFilterPanel(container) {
 /* ── Target progress cache ─────────────────────────────────────────── */
 let _progressCache = null;
 let _progressLayerCount = -1;
+let _progressMetricsGen = -1; // tracks metrics cache generation to detect GeoJSON loads
 
 const ALL_FILTER = { targets: [], province: 'All', category: 'All', realm: 'All', year: 'All' };
 
@@ -110,8 +111,12 @@ const T4_SPECIES_KEYS = ['MEGAPODE', 'STARLING', 'FANTAIL', 'KINGFISHER', 'FLYIN
  */
 function _getTargetProgress() {
   const layers = getDashboardLayers();
-  if (_progressCache && layers.length === _progressLayerCount) return _progressCache;
+  const metricsGen = getMetricsCacheGen();
+  // Invalidate when layer count changes OR when metrics cache is busted
+  // (which happens after GeoJSON loads, layer mutations, or filter changes).
+  if (_progressCache && layers.length === _progressLayerCount && metricsGen === _progressMetricsGen) return _progressCache;
   _progressLayerCount = layers.length;
+  _progressMetricsGen = metricsGen;
 
   const baselines = ENV.nationalBaselines;
   const progress = {};

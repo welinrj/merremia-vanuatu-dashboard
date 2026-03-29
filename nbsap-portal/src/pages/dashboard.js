@@ -181,11 +181,18 @@ export function refreshDashboard() {
   if (filterContainer) renderFilterPanel(filterContainer);
 
 // Re-render KPIs with smooth transition: fade-out → spinner → compute → fade-in
+  // Cancel any in-flight KPI render from a previous refreshDashboard() call to
+  // prevent stale renders from overwriting the latest state.
+  if (_kpiTimer !== null) {
+    clearTimeout(_kpiTimer);
+    _kpiTimer = null;
+  }
   const kpiContainer = document.getElementById('kpi-container');
   if (kpiContainer) {
     kpiContainer.style.opacity = '0';
     kpiContainer.style.pointerEvents = 'none';
-    setTimeout(() => {
+    _kpiTimer = setTimeout(() => {
+      _kpiTimer = null;
       kpiContainer.innerHTML = `
         <div class="kpi-computing">
           <div class="loading-spinner" style="width:20px;height:20px;border-width:2px"></div>
@@ -551,6 +558,7 @@ function formatHa(val) {
  * if state has changed since the last render (via dirty flag).
  */
 let _dashboardDirty = true;
+let _kpiTimer = null; // tracks pending async KPI render — cancelled on re-render
 
 export function markDashboardDirty() {
   _dashboardDirty = true;

@@ -397,6 +397,11 @@ function getTrackedLayerIds() {
 function _invalidateTrackerCache() {
   _trackedIdsCache = null;
   _dashboardLayersCache = null;
+  // Also clear metrics cache: when the tracker changes, getDashboardLayers()
+  // may return a different set of layers. Without clearing metrics, the province
+  // breakdown would show stale cached values while the KPI correctly reports
+  // "No Data" — causing a contradictory UI state.
+  clearMetricsCache();
 }
 
 /**

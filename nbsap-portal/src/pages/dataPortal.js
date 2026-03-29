@@ -12,7 +12,7 @@ import { getAppState, removeLayer, updateLayerMeta } from '../ui/state.js';
 import { getLayer, deleteLayer, saveLayer, addAuditEntry, saveLayerMetadata, setSetting } from '../services/storage/index.js';
 import { openFeatureEditor, openNewFeatureEditor, closeFeatureEditor } from '../ui/components/featureEditor.js';
 import { isAdmin } from '../services/auth/index.js';
-import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness } from '../core/schema.js';
+import { validateTORCompliance, EXTENDED_METADATA_FIELDS, checkMetadataCompleteness, escHtml } from '../core/schema.js';
 import { showAlert, showConfirm, showPrompt } from '../ui/components/dialog.js';
 
 let portalSearch = '';
@@ -243,7 +243,7 @@ function buildLayerRow(l) {
         <div style="display:flex;align-items:center;gap:8px">
           <span style="width:4px;height:24px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
           <div>
-            <strong>${m.name || 'Untitled'}</strong>
+            <strong>${escHtml(m.name) || 'Untitled'}</strong>
             ${isRef ? '<span style="display:inline-block;background:#fef3cd;color:#856404;font-size:10px;font-weight:700;padding:0 5px;border-radius:10px;margin-left:5px;vertical-align:middle">REF</span>' : ''}
             ${metadataBadge(m)}
           </div>
@@ -427,7 +427,7 @@ function renderLayerDetails(layerId) {
     <div class="detail-header" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:10px;min-width:0">
         <span style="width:4px;height:28px;border-radius:2px;background:${catConfig.color || '#95a5a6'};flex-shrink:0"></span>
-        <h4 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.name}</h4>
+        <h4 style="margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(m.name)}</h4>
       </div>
       <button id="btn-close-sidebar" style="background:none;border:none;cursor:pointer;color:var(--text-secondary);padding:4px;line-height:1;flex-shrink:0" title="Close">&times;</button>
     </div>
@@ -466,10 +466,10 @@ function renderLayerDetails(layerId) {
           <tr><td>Total area</td><td><strong>${m.totalAreaHa.toFixed(2)} ha</strong></td></tr>`
           }
           <tr><td>30x30</td><td>${m.countsToward30x30 ? '<span class="badge badge-success">Yes</span>' : '<span class="badge" style="background:var(--gray-100);color:var(--text-secondary)">No</span>'}</td></tr>
-          ${m.description ? `<tr><td>Description</td><td style="font-size:12px">${m.description}</td></tr>` : ''}
-          ${m.custodianAgency ? `<tr><td>Custodian</td><td>${m.custodianAgency}</td></tr>` : ''}
-          ${m.dataSource ? `<tr><td>Data Source</td><td>${m.dataSource}</td></tr>` : ''}
-          ${m.accessClassification && m.accessClassification !== 'Public' ? `<tr><td>Access</td><td>${m.accessClassification}</td></tr>` : ''}
+          ${m.description ? `<tr><td>Description</td><td style="font-size:12px">${escHtml(m.description)}</td></tr>` : ''}
+          ${m.custodianAgency ? `<tr><td>Custodian</td><td>${escHtml(m.custodianAgency)}</td></tr>` : ''}
+          ${m.dataSource ? `<tr><td>Data Source</td><td>${escHtml(m.dataSource)}</td></tr>` : ''}
+          ${m.accessClassification && m.accessClassification !== 'Public' ? `<tr><td>Access</td><td>${escHtml(m.accessClassification)}</td></tr>` : ''}
         </table>
       </div>
     </div>

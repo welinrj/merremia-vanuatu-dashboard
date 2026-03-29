@@ -46,6 +46,16 @@ export function clearMetricsCache() {
   _metricsCache.clear();
 }
 
+/**
+ * Returns the current metrics cache generation counter.
+ * Consumers can use this to detect when to invalidate their own derived caches
+ * (e.g. filterPanel progress cache) without importing the full cache internals.
+ * @returns {number}
+ */
+export function getMetricsCacheGen() {
+  return _cacheGen;
+}
+
 function _cacheKey(prefix, extra, filters) {
   return `${_cacheGen}:${prefix}:${extra || ''}:${JSON.stringify(filters || {})}`;
 }

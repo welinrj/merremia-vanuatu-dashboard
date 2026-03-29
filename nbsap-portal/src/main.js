@@ -304,13 +304,32 @@ function subscribeToRealtimeUpdates() {
   });
 
   // Listen for settings changes (layer tracker + custom names sync)
-  onSettingsChanged((settings) => {
+  onSettingsChanged(async (settings) => {
     if (!initialLoadComplete) return;
 
     let changed = false;
     if (settings.layerTracker) {
       setLayerTracker(settings.layerTracker);
       changed = true;
+
+      // Race-condition fix: the tracker may reference layer IDs that arrived
+      // from another device but whose onLayersChanged event hasn't fired yet.
+      // Proactively load any tracked layer that isn't in local state so that
+      // getDashboardLayers() never returns [] while the tracker is non-empty.
+      const state = getAppState();
+      const existingIds = new Set(state.layers.map(l => l.id));
+      const missingIds = [];
+      for (const entries of Object.values(state.layerTracker)) {
+        for (const entry of entries) {
+          if (!existingIds.has(entry.layerId)) missingIds.push(entry.layerId);
+        }
+      }
+      if (missingIds.length > 0) {
+        await Promise.allSettled(missingIds.map(async (layerId) => {
+          const layer = await getLayer(layerId);
+          if (layer) addLayer(layer);
+        }));
+      }
     }
     if (settings.customLayerNames) {
       setCustomLayerNames(settings.customLayerNames);
