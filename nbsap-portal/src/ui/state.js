@@ -434,7 +434,17 @@ export function getDashboardLayers() {
 
   let result;
   if (hasUserLayers()) {
-    result = getUserLayers();
+    const userLayers = getUserLayers();
+    if (userLayers.length > 0) {
+      result = userLayers;
+    } else {
+      // Tracker has entries but none match currently loaded layers (stale IDs).
+      // The real-time onSettingsChanged listener can restore an old tracker from
+      // Firestore ~1s after initial load, causing getDashboardLayers() to flip
+      // from showing data to empty. Fall through to show all real non-demo layers.
+      const realLayers = appState.layers.filter(l => !isDemoLayer(l));
+      result = realLayers.length > 0 ? realLayers : appState.layers;
+    }
   } else {
     const realLayers = appState.layers.filter(l => !isDemoLayer(l));
     result = realLayers.length > 0 ? realLayers : appState.layers;
@@ -446,12 +456,21 @@ export function getDashboardLayers() {
 /**
  * Detects whether a layer is demo/sample data (not user-uploaded).
  */
+/** Filenames used by built-in seed layers — kept in sync with main.js */
+const _SEED_FILENAMES = new Set([
+  'demo_cca.geojson',
+  'demo_mpa.geojson',
+  'vut_invasive_merremia_efate_2026_v1.geojson',
+]);
+
 function isDemoLayer(layer) {
   const m = layer.metadata;
   if (!m) return false;
   if (m._isDemo) return true;
   if (m.uploadedBy === 'system') return true;
-  return (m.name || '').toLowerCase().startsWith('demo ');
+  // Legacy: seed layers saved before _isDemo flag, identifiable by known filenames
+  if (_SEED_FILENAMES.has(m.originalFilename)) return true;
+  return false;
 }
 
 /** Official Vanuatu provinces — only these appear in filters and breakdowns */
