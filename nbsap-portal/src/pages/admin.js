@@ -5,7 +5,7 @@
  * Data syncs in real time via Firestore across all devices.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
-import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer } from '../services/storage/index.js';
+import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer, recoverFromLocalCache } from '../services/storage/index.js';
 import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName, addLayer, removeLayer } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
@@ -328,6 +328,10 @@ async function renderAdminDashboard(page) {
               Full Restore
               <input type="file" id="btn-import-backup" accept=".json" style="display:none">
             </label>
+            <button class="btn btn-outline" id="btn-recover-cache" title="Recover datasets from this browser's local cache (IndexedDB)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
+              Recover from Cache
+            </button>
             <span id="backup-status" style="font-size:13px;color:var(--text-secondary);margin-left:4px"></span>
           </div>
         </div>
@@ -627,6 +631,57 @@ async function renderAdminDashboard(page) {
       statusEl.textContent = `Restore failed: ${err.message}`;
     }
     e.target.value = '';
+  });
+
+  // Recover datasets from browser's local IndexedDB cache
+  page.querySelector('#btn-recover-cache').addEventListener('click', async () => {
+    const statusEl = page.querySelector('#backup-status');
+    statusEl.textContent = 'Scanning local cache...';
+
+    let cached;
+    try {
+      cached = await recoverFromLocalCache();
+    } catch (err) {
+      statusEl.textContent = `Cache unavailable: ${err.message}`;
+      return;
+    }
+
+    if (cached.length === 0) {
+      statusEl.textContent = 'No datasets found in local cache.';
+      return;
+    }
+
+    const msg = `Found ${cached.length} dataset(s) in your browser cache:\n\n` +
+      cached.map(l => `• ${l.metadata?.name || l.id}`).join('\n') +
+      '\n\nRestore these to Firestore?';
+
+    if (!await showConfirm(msg, { title: 'Recover from Cache', okLabel: 'Restore', danger: false })) {
+      statusEl.textContent = 'Recovery cancelled.';
+      return;
+    }
+
+    statusEl.textContent = 'Restoring...';
+    let restored = 0;
+    let failed = 0;
+
+    for (const layer of cached) {
+      try {
+        await saveLayer(layer);
+        await addAuditEntry({
+          action: 'cache_recovery',
+          layer_id: layer.id,
+          filename: layer.metadata?.originalFilename || layer.id,
+          result: 'success'
+        });
+        restored++;
+      } catch (err) {
+        console.error(`Failed to restore layer ${layer.id}:`, err);
+        failed++;
+      }
+    }
+
+    statusEl.textContent = `Restored ${restored} dataset(s)${failed > 0 ? `, ${failed} failed` : ''}.`;
+    window.dispatchEvent(new CustomEvent('nbsap:refresh'));
   });
 
   // Export audit log as CSV

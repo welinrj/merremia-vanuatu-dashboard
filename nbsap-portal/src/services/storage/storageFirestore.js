@@ -18,6 +18,8 @@ import {
   doc,
   getDocs,
   getDoc,
+  getDocsFromCache,
+  getDocFromCache,
   setDoc,
   deleteDoc,
   onSnapshot,
@@ -308,6 +310,57 @@ export async function importBackup(backup) {
   }
 
   return { layersImported: (backup.layers || []).length };
+}
+
+/**
+ * Attempts to recover layer data from Firestore's offline IndexedDB cache.
+ * This can restore datasets that were previously loaded in this browser but
+ * are no longer on the Firestore server.
+ *
+ * Returns an array of { id, metadata, geojson } objects found in cache.
+ * Throws if the cache is unavailable (e.g. persistence is disabled).
+ */
+export async function recoverFromLocalCache() {
+  let layersSnap;
+  try {
+    layersSnap = await getDocsFromCache(collection(db, COL_LAYERS));
+  } catch (err) {
+    throw new Error(`Local cache unavailable: ${err.message}`);
+  }
+
+  if (layersSnap.empty) {
+    return [];
+  }
+
+  const layers = [];
+  for (const d of layersSnap.docs) {
+    const data = d.data();
+    if (!data.metadata) continue;
+    try {
+      const chunksSnap = await getDocsFromCache(
+        collection(db, COL_LAYERS, d.id, CHUNKS_SUB)
+      );
+      if (chunksSnap.empty) continue;
+
+      const sorted = chunksSnap.docs
+        .map(c => ({ idx: parseInt(c.id, 10), data: c.data().d }))
+        .sort((a, b) => a.idx - b.idx);
+
+      let json = '';
+      for (const chunk of sorted) {
+        json += chunk.data;
+        chunk.data = null;
+      }
+      const geojson = JSON.parse(json);
+      json = null;
+
+      layers.push({ id: d.id, metadata: data.metadata, geojson });
+    } catch (chunkErr) {
+      console.warn(`Cache recovery: skipping layer ${d.id} — ${chunkErr.message}`);
+    }
+  }
+
+  return layers;
 }
 
 export async function syncImport(backup) {
