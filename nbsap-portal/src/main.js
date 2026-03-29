@@ -161,6 +161,8 @@ async function loadAppData() {
 
   // Load layer METADATA first (fast — no GeoJSON chunks), then lazy-load GeoJSON
   // for the active target only. This prevents large datasets from blocking startup.
+  // Track whether the Firestore load succeeded so we don't corrupt the tracker on failure.
+  let firestoreLoadSucceeded = false;
   try {
     const stored = await withTimeout(listLayersMeta(), 15000);
 
@@ -173,6 +175,7 @@ async function loadAppData() {
       // setLayers returns IDs of duplicates that were removed during dedup
       const removedDupeIds = setLayers(realLayers);
       console.log(`Loaded metadata for ${realLayers.length} layers from Firestore (excluded ${demoLayers.length} demo layers)`);
+      firestoreLoadSucceeded = true;
 
       // Delete duplicate layers from Firestore in background
       if (removedDupeIds.length > 0) {
@@ -180,29 +183,35 @@ async function loadAppData() {
         cleanupDuplicateLayers(removedDupeIds);
       }
 
-      // Remove demo layers from Firestore in background so they don't persist
+      // Remove demo/seed layers from Firestore in background so they don't pollute metrics
       if (demoLayers.length > 0) {
+        console.log(`Removing ${demoLayers.length} seed/demo layer(s) from Firestore (real data present)`);
         cleanupDemoLayers(demoLayers);
       }
     } else if (stored.length > 0) {
       // Only demo data exists — load full GeoJSON for demo layers
       const demoFull = await withTimeout(listLayers(), 60000);
       setLayers(demoFull.filter(l => isDemoLayer(l)));
+      firestoreLoadSucceeded = true;
     } else {
       // No data at all — check for failed chunk loads, then fall back to demo
       try {
         const docCount = await withTimeout(countLayers(), 10000);
         if (docCount > 0) {
           console.warn(`Firestore has ${docCount} layer docs but metadata failed to load. Real-time listener will retry.`);
+          firestoreLoadSucceeded = true; // Layers exist, load failed transiently — don't corrupt tracker
         } else {
           await loadDemoData(base);
+          firestoreLoadSucceeded = true; // Empty DB, demo load is valid state
         }
       } catch {
         await loadDemoData(base);
+        firestoreLoadSucceeded = true;
       }
     }
   } catch (err) {
     console.warn('Failed to load stored layers:', err);
+    // Do NOT set firestoreLoadSucceeded — skip tracker cleanup to preserve user's data
     try {
       await loadDemoData(base);
     } catch (demoErr) {
@@ -210,8 +219,10 @@ async function loadAppData() {
     }
   }
 
-  // Clean up stale tracker entries that reference deleted layers
-  if (cleanStaleTrackerEntries()) {
+  // Only clean stale tracker entries when we successfully loaded from Firestore.
+  // If loading failed, appState.layers is empty/demo-only, and running cleanup would
+  // incorrectly delete all the user's tracker entries and overwrite Firestore.
+  if (firestoreLoadSucceeded && cleanStaleTrackerEntries()) {
     console.log('Cleaned stale tracker entries for previously deleted layers');
     setSetting('layerTracker', getAppState().layerTracker).catch(err =>
       console.warn('Failed to persist cleaned tracker:', err)
@@ -404,15 +415,29 @@ function withTimeout(promise, ms) {
 }
 
 /**
- * Detects whether a layer is old demo data (marked with _isDemo or 'Demo ' prefix).
- * Seed data uploaded by 'admin' is NOT considered demo.
+ * Filenames used by the built-in seed/demo layers.
+ * Used to identify old seed layers that were saved to Firestore before the
+ * _isDemo flag was introduced, so they can be cleaned up when real data arrives.
+ */
+const SEED_LAYER_FILENAMES = new Set([
+  'demo_cca.geojson',
+  'demo_mpa.geojson',
+  'vut_invasive_merremia_efate_2026_v1.geojson',
+]);
+
+/**
+ * Detects whether a layer is demo/seed data that should not count as real user data.
+ * Checks explicit _isDemo flag, system uploadedBy, or legacy seed filenames.
  */
 function isDemoLayer(layer) {
   const meta = layer.metadata;
   if (!meta) return false;
   if (meta._isDemo) return true;
-  const name = (meta.name || '').toLowerCase();
-  return name.startsWith('demo ') && meta.uploadedBy === 'system';
+  if (meta.uploadedBy === 'system') return true;
+  // Legacy: seed layers saved before _isDemo flag was added (uploaded with 'admin'
+  // uploadedBy but identifiable by their original seed filenames).
+  if (SEED_LAYER_FILENAMES.has(meta.originalFilename)) return true;
+  return false;
 }
 
 /**
@@ -497,7 +522,7 @@ async function loadDemoData(base) {
         validGeometryCount: withAreas.features.length,
         totalAreaHa: withAreas.features.reduce((s, f) => s + (f.properties.area_ha || 0), 0),
         status: 'Clean',
-        uploadedBy: 'admin',
+        uploadedBy: 'system',
         description: seed.description,
         custodianAgency: seed.custodianAgency,
         dataSource: seed.dataSource,
@@ -505,6 +530,7 @@ async function loadDemoData(base) {
         accessClassification: seed.accessClassification,
         dateCreated: '2026-03-16'
       });
+      meta._isDemo = true;
 
       const record = { id: meta.id, metadata: meta, geojson: withAreas };
       addLayer(record);
@@ -608,7 +634,7 @@ async function loadInvasiveSpeciesData() {
     validGeometryCount: withAreas.features.length,
     totalAreaHa: withAreas.features.reduce((s, f) => s + (f.properties.area_ha || 0), 0),
     status: 'Clean',
-    uploadedBy: 'admin',
+    uploadedBy: 'system',
     description: 'Remote sensing and field survey detections of Merremia peltata invasive vine coverage on Efate Island',
     custodianAgency: 'DEPC Vanuatu',
     dataSource: 'Field',
@@ -616,6 +642,7 @@ async function loadInvasiveSpeciesData() {
     accessClassification: 'Public',
     dateCreated: '2026-02-10'
   });
+  meta._isDemo = true;
 
   const record = { id: meta.id, metadata: meta, geojson: withAreas };
   addLayer(record);
