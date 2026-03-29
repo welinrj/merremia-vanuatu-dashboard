@@ -25,5 +25,6 @@ export const {
   importBackup,
   syncImport,
   onLayersChanged,
-  onSettingsChanged
+  onSettingsChanged,
+  recoverFromLocalCache
 } = firestoreStorage;
