@@ -5,7 +5,7 @@
  * Data syncs in real time via Firestore across all devices.
  */
 import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js';
-import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer, recoverFromLocalCache } from '../services/storage/index.js';
+import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer, recoverFromLocalCache, listLayersMeta } from '../services/storage/index.js';
 import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName, addLayer, removeLayer } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
@@ -331,6 +331,10 @@ async function renderAdminDashboard(page) {
             <button class="btn btn-outline" id="btn-recover-cache" title="Recover datasets from this browser's local cache (IndexedDB)">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.95"/></svg>
               Recover from Cache
+            </button>
+            <button class="btn btn-outline" id="btn-diagnose-firestore" title="List all raw layer documents in Firestore (no filtering)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Diagnose Firestore
             </button>
             <span id="backup-status" style="font-size:13px;color:var(--text-secondary);margin-left:4px"></span>
           </div>
@@ -682,6 +686,32 @@ async function renderAdminDashboard(page) {
 
     statusEl.textContent = `Restored ${restored} dataset(s)${failed > 0 ? `, ${failed} failed` : ''}.`;
     window.dispatchEvent(new CustomEvent('nbsap:refresh'));
+  });
+
+  // Diagnose: show all raw Firestore layer documents
+  page.querySelector('#btn-diagnose-firestore').addEventListener('click', async () => {
+    const statusEl = page.querySelector('#backup-status');
+    statusEl.textContent = 'Scanning Firestore...';
+    try {
+      const all = await listLayersMeta();
+      if (all.length === 0) {
+        statusEl.textContent = 'Firestore has 0 layer documents (empty).';
+        return;
+      }
+      const lines = all.map(l => {
+        const m = l.metadata || {};
+        const flags = [];
+        if (m._isDemo) flags.push('_isDemo');
+        if (m.uploadedBy) flags.push(`by:${m.uploadedBy}`);
+        if (m.originalFilename) flags.push(m.originalFilename);
+        return `• [${l.id}] ${m.name || '(no name)'} — ${flags.join(', ')}`;
+      });
+      const report = `Firestore has ${all.length} layer document(s):\n\n${lines.join('\n')}`;
+      alert(report);
+      statusEl.textContent = `${all.length} layer(s) found in Firestore.`;
+    } catch (err) {
+      statusEl.textContent = `Diagnose failed: ${err.message}`;
+    }
   });
 
   // Export audit log as CSV
