@@ -88,29 +88,49 @@ async function writeChunkedGeoJSON(layerId, geojsonObj) {
 }
 
 async function readChunkedGeoJSON(layerId) {
-  const chunksSnap = await getDocs(
-    collection(db, COL_LAYERS, layerId, CHUNKS_SUB)
-  );
+  const [parentSnap, chunksSnap] = await Promise.all([
+    getDoc(doc(db, COL_LAYERS, layerId)),
+    getDocs(collection(db, COL_LAYERS, layerId, CHUNKS_SUB))
+  ]);
 
   if (chunksSnap.empty) return null;
 
-  // Sort chunks by index
+  // Validate chunk count against metadata if available
+  const expectedChunks = parentSnap.exists() ? parentSnap.data()._chunkCount : null;
+  const actualChunks = chunksSnap.docs.length;
+
+  if (expectedChunks != null && actualChunks !== expectedChunks) {
+    console.warn(`Layer ${layerId}: expected ${expectedChunks} chunks but found ${actualChunks}. Data may be incomplete.`);
+    // Proceed anyway — partial data is better than none (user will see a warning)
+  }
+
+  // Sort chunks by index and detect gaps
   const sorted = chunksSnap.docs
     .map(d => ({ idx: parseInt(d.id, 10), data: d.data().d }))
     .sort((a, b) => a.idx - b.idx);
 
-  // For small payloads (< 5 MB), use simple concat + parse
-  // For larger payloads, still concat but free chunk refs as we go
-  // to reduce peak memory from 3× to ~2×.
+  // Check for missing chunk indices (gaps would produce corrupted JSON)
+  for (let i = 0; i < sorted.length; i++) {
+    if (sorted[i].idx !== i) {
+      console.warn(`Layer ${layerId}: chunk gap detected — expected index ${i} but found ${sorted[i].idx}. Skipping layer.`);
+      return null;
+    }
+  }
+
   let json = '';
   for (const chunk of sorted) {
     json += chunk.data;
     chunk.data = null; // release chunk string ref for GC
   }
 
-  const result = JSON.parse(json);
-  json = null; // release the combined string
-  return result;
+  try {
+    const result = JSON.parse(json);
+    json = null;
+    return result;
+  } catch (err) {
+    console.error(`Layer ${layerId}: JSON.parse failed — GeoJSON chunks may be corrupted:`, err.message);
+    return null; // Return null so the layer is skipped gracefully rather than crashing
+  }
 }
 
 async function deleteChunks(layerId) {
@@ -209,9 +229,21 @@ export async function getLayer(id) {
 
 export async function saveLayer(layerRecord) {
   const { id, metadata, geojson } = layerRecord;
+
+  // Guard: a missing or invalid ID would save to "undefined" in Firestore,
+  // causing duplicate corrupt documents and breaking future reads.
+  if (!id || typeof id !== 'string' || id === 'undefined') {
+    throw new Error(`saveLayer: invalid layer ID "${id}" — layer not saved`);
+  }
+  if (!geojson || !Array.isArray(geojson.features)) {
+    throw new Error(`saveLayer: layer "${id}" has no valid GeoJSON features array`);
+  }
+
   const parentRef = doc(db, COL_LAYERS, id);
 
-  // Write metadata to parent doc
+  // Write chunks first, then write the metadata doc with the confirmed chunk count.
+  // If chunk writing fails, the metadata doc is never created, so the layer
+  // will not appear in listLayersMeta() — preventing partial ghost layers.
   const chunkCount = await writeChunkedGeoJSON(id, geojson);
   await setDoc(parentRef, { metadata, _chunkCount: chunkCount });
 

@@ -200,16 +200,31 @@ function parseKMLGeometry(placemark) {
 function parseKMLPolygon(polygonEl) {
   const rings = [];
   const outerBoundary = polygonEl.querySelector('outerBoundaryIs');
-  if (outerBoundary) {
-    const coords = parseKMLCoords(outerBoundary.querySelector('coordinates'));
-    if (coords.length > 0) rings.push(coords);
+
+  if (!outerBoundary) return null; // Outer boundary is mandatory for a valid polygon
+
+  const outerCoords = parseKMLCoords(outerBoundary.querySelector('coordinates'));
+  // GeoJSON requires ≥4 positions for a closed ring (first = last), ≥3 unique points
+  if (outerCoords.length < 3) return null;
+
+  // Ensure the ring is closed (first coord === last coord)
+  const first = outerCoords[0];
+  const last = outerCoords[outerCoords.length - 1];
+  if (first[0] !== last[0] || first[1] !== last[1]) {
+    outerCoords.push([first[0], first[1]]); // close it
   }
+  rings.push(outerCoords);
+
   const innerBoundaries = polygonEl.querySelectorAll('innerBoundaryIs');
   for (const ib of innerBoundaries) {
     const coords = parseKMLCoords(ib.querySelector('coordinates'));
-    if (coords.length > 0) rings.push(coords);
+    if (coords.length < 3) continue;
+    const f = coords[0];
+    const l = coords[coords.length - 1];
+    if (f[0] !== l[0] || f[1] !== l[1]) coords.push([f[0], f[1]]);
+    rings.push(coords);
   }
-  if (rings.length === 0) return null;
+
   return { type: 'Polygon', coordinates: rings };
 }
 
@@ -221,13 +236,22 @@ function parseKMLCoords(coordsEl) {
   const text = coordsEl.textContent.trim();
   if (!text) return [];
 
-  return text.split(/\s+/).map(tuple => {
+  let dropped = 0;
+  const coords = text.split(/\s+/).map(tuple => {
+    if (!tuple) return null;
     const parts = tuple.split(',').map(Number);
     if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
       return parts.length >= 3 ? [parts[0], parts[1], parts[2]] : [parts[0], parts[1]];
     }
+    dropped++;
     return null;
   }).filter(Boolean);
+
+  if (dropped > 0) {
+    console.warn(`KML: dropped ${dropped} malformed coordinate tuple(s)`);
+  }
+
+  return coords;
 }
 
 /**
@@ -257,18 +281,41 @@ function parseCSV(text) {
   }
 
   const features = [];
+  let skippedInvalidCoords = 0;
+  let skippedOutsideVanuatu = 0;
+
+  // Vanuatu bounding box (generous buffer around EEZ)
+  const VUT_BBOX = { minLon: 166.0, maxLon: 171.5, minLat: -21.5, maxLat: -13.0 };
+
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
     const values = parseCSVRow(lines[i]);
+
+    // Warn on rows with fewer columns than headers (silent data loss risk)
+    if (values.length < headers.length) {
+      console.warn(`CSV row ${i + 1} has ${values.length} columns but header has ${headers.length} — missing values filled as empty`);
+    }
+
     const lat = parseFloat(values[latIdx]);
     const lon = parseFloat(values[lonIdx]);
 
-    if (isNaN(lat) || isNaN(lon)) continue;
+    // Strict coordinate bounds check
+    if (isNaN(lat) || isNaN(lon) ||
+        lat < -90 || lat > 90 ||
+        lon < -180 || lon > 180) {
+      skippedInvalidCoords++;
+      continue;
+    }
+
+    // Warn about points outside Vanuatu's bounding box (likely projection error)
+    const outsideVanuatu = lon < VUT_BBOX.minLon || lon > VUT_BBOX.maxLon ||
+                           lat < VUT_BBOX.minLat || lat > VUT_BBOX.maxLat;
+    if (outsideVanuatu) skippedOutsideVanuatu++;
 
     const props = {};
     for (let j = 0; j < headers.length; j++) {
       if (j === latIdx || j === lonIdx) continue;
-      props[headers[j].trim()] = values[j]?.trim() || '';
+      props[headers[j].trim()] = values[j]?.trim() ?? '';
     }
 
     features.push({
@@ -279,6 +326,19 @@ function parseCSV(text) {
   }
 
   if (features.length === 0) throw new Error('No valid features found in CSV (no rows with valid lat/lon)');
+
+  const warnings = [];
+  if (skippedInvalidCoords > 0) {
+    warnings.push(`Skipped ${skippedInvalidCoords} row(s) with invalid coordinates (out of ±90/±180 bounds)`);
+  }
+  if (skippedOutsideVanuatu > 0) {
+    warnings.push(`Warning: ${skippedOutsideVanuatu} point(s) fall outside Vanuatu's bounding box — check for projection errors`);
+  }
+
+  return Object.assign(
+    { type: 'FeatureCollection', features },
+    warnings.length ? { _parseWarnings: warnings } : {}
+  );
 
   return { type: 'FeatureCollection', features };
 }

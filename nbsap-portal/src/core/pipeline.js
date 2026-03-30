@@ -42,6 +42,11 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
   /** Yield to the main thread so the browser stays responsive during heavy processing. */
   const yieldToMain = () => new Promise(resolve => setTimeout(resolve, 0));
 
+  // Surface any warnings emitted by the file parser (e.g. CSV out-of-bounds coords)
+  if (Array.isArray(rawGeojson._parseWarnings)) {
+    report.warnings.push(...rawGeojson._parseWarnings);
+  }
+
   // STEP 1: Basic validation
   progress(1, 'Validating geometries...');
   const { cleaned: step1, stats, warnings: w1 } = basicValidation(rawGeojson);
@@ -62,6 +67,12 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
   // STEP 2: Detect CRS and reproject if needed
   progress(2, 'Checking CRS...');
   const detectedCRS = detectCRS(uploadOpts.prjText);
+
+  // Warn explicitly when CRS is assumed (no .prj file supplied)
+  if (!uploadOpts.prjText) {
+    report.warnings.push('No .prj file found — assuming WGS84 (EPSG:4326). If the data was captured in a projected CRS (e.g. UTM), coordinates will be incorrect. Re-upload with the .prj file included.');
+  }
+
   progress(2, `Detected CRS: ${detectedCRS}`);
 
   let step2 = step1;
@@ -70,7 +81,7 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     const { geojson: reproj, reprojected, error } = reprojectToWGS84(step1, detectedCRS);
     if (error) {
       report.warnings.push(error);
-      report.warnings.push('Unverified CRS — layer loaded but coordinates may be incorrect');
+      report.warnings.push('Reprojection failed — layer loaded but coordinates may be incorrect. Verify that the CRS is correct.');
     }
     step2 = reproj;
     if (reprojected) progress(2, 'Reprojection successful');
@@ -83,6 +94,16 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
   const { cleaned: step3, fixedCount, droppedCount, warnings: w3 } = fixGeometries(step2);
   report.warnings.push(...w3);
   progress(3, `Fixed: ${fixedCount}, Dropped: ${droppedCount}`);
+
+  // Guard: if all features were dropped during geometry fixing, abort
+  if (step3.features.length === 0) {
+    report.errors.push('All features were removed during geometry fixing — no valid geometries remain');
+    return {
+      geojson: step3,
+      metadata: createLayerMetadata({ name: uploadOpts.name, status: 'Failed' }),
+      report
+    };
+  }
 
   await yieldToMain();
 

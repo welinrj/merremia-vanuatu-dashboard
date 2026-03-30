@@ -8,7 +8,10 @@ export default {
     "status": ["status", "STATUS", "Status", "condition", "CONDITION", "state", "mgmt_status"],
     "source": ["source", "SOURCE", "Source", "data_src", "DATA_SRC", "origin", "ORIGIN", "provider"],
     "notes": ["notes", "NOTES", "Notes", "comments", "COMMENTS", "description", "DESCRIPTION", "desc", "DESC", "remarks", "REMARKS"],
-    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL"]
+    "presence": ["presence", "PRESENCE", "Presence", "seasonal", "SEASONAL"],
+    "coverage_category": ["coverage_category", "COVERAGE_CATEGORY", "cover_class", "density_class", "severity", "SEVERITY"],
+    "threat_level": ["threat_level", "THREAT_LEVEL", "threat", "THREAT", "risk_level", "RISK_LEVEL"],
+    "species": ["species", "SPECIES", "species_name", "SPECIES_NAME", "sci_name", "SCI_NAME", "taxon", "TAXON"]
   },
   "CCA": {
     "name": ["cca_name", "CCA_NAME", "community_area", "COMMUNITY_AREA", "tabu_name"],
@@ -86,7 +89,23 @@ export default {
   },
   "MERREMIA": {
     "name": ["site_name", "detection_id", "SITE_NAME", "patch_id"],
-    "type": ["detection_method", "confidence", "CONFIDENCE", "source_type"]
+    "type": ["detection_method", "confidence", "CONFIDENCE", "source_type"],
+    "coverage_category": ["coverage", "COVERAGE", "density", "DENSITY", "cover_class", "severity"]
+  },
+  "CROWN_OF_THORNS": {
+    "name": ["site_name", "SITE_NAME", "reef_name", "survey_site", "location"],
+    "type": ["outbreak_status", "survey_type", "method", "status"],
+    "coverage_category": ["density_class", "DENSITY", "outbreak_level", "severity"]
+  },
+  "MILE_A_MINUTE": {
+    "name": ["site_name", "SITE_NAME", "patch_name", "location", "plot_id"],
+    "type": ["infestation_type", "control_status", "method", "status"],
+    "coverage_category": ["coverage", "COVERAGE", "density", "cover_class", "severity"]
+  },
+  "SOLANUM_TORVUM": {
+    "name": ["site_name", "SITE_NAME", "patch_name", "location"],
+    "type": ["infestation_type", "control_status", "method", "status"],
+    "coverage_category": ["coverage", "COVERAGE", "density", "cover_class", "severity"]
   },
   "PESTICIDE": {
     "name": ["farm_name", "FARM_NAME", "site_name", "operator"],

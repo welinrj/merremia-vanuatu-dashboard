@@ -10,11 +10,11 @@ import ENV from '../config/env.js';
 /**
  * Parses a .prj file string to detect the CRS.
  * Returns EPSG code string if recognized, or the raw WKT.
- * @param {string} prjText - Contents of the .prj file
+ * @param {string|null} prjText - Contents of the .prj file, or null if missing
  * @returns {string} CRS identifier
  */
 export function detectCRS(prjText) {
-  if (!prjText) return 'EPSG:4326';
+  if (!prjText) return 'EPSG:4326'; // Caller should warn the user when null
   const text = prjText.trim();
 
   // Common WGS84 patterns
@@ -22,7 +22,12 @@ export function detectCRS(prjText) {
     return 'EPSG:4326';
   }
 
-  // Try to detect UTM zones
+  // GDA94 / GDA2020 — common in Pacific region data
+  if (/GDA.?94/i.test(text) || /GDA.?2020/i.test(text)) {
+    return 'EPSG:4283'; // GDA94 (very close to WGS84, same axes)
+  }
+
+  // Try to detect UTM zones (handles UTM Zone 58S, 59S — common for Vanuatu)
   const utmMatch = text.match(/UTM[_ ]?[Zz]one[_ ]?(\d+)([NS]?)/i);
   if (utmMatch) {
     const zone = parseInt(utmMatch[1], 10);
@@ -30,7 +35,7 @@ export function detectCRS(prjText) {
     return south ? `EPSG:${32700 + zone}` : `EPSG:${32600 + zone}`;
   }
 
-  // Return raw WKT if not recognized
+  // Return raw WKT for proj4 to parse — better than silently assuming EPSG:4326
   return text.length > 10 ? text : 'EPSG:4326';
 }
 
@@ -96,6 +101,15 @@ function reprojectGeometry(geometry, transformer) {
     };
   }
 
+  // GeometryCollection — reproject each nested geometry recursively
+  if (type === 'GeometryCollection') {
+    return {
+      type,
+      geometries: (geometry.geometries || []).map(g => reprojectGeometry(g, transformer))
+    };
+  }
+
+  console.warn(`reprojectGeometry: unsupported geometry type "${type}" — returning unchanged`);
   return geometry;
 }
 
@@ -114,12 +128,24 @@ export function basicValidation(geojson) {
   let nullCount = 0;
 
   for (const f of geojson.features || []) {
-    if (!f.geometry || !f.geometry.type || !f.geometry.coordinates) {
+    const geom = f.geometry;
+    if (!geom || !geom.type) {
       nullCount++;
       continue;
     }
 
-    const t = f.geometry.type;
+    // GeometryCollections use .geometries instead of .coordinates
+    const isCollection = geom.type === 'GeometryCollection';
+    if (!isCollection && !geom.coordinates) {
+      nullCount++;
+      continue;
+    }
+    if (isCollection && (!Array.isArray(geom.geometries) || geom.geometries.length === 0)) {
+      nullCount++;
+      continue;
+    }
+
+    const t = geom.type;
     typeCounts[t] = (typeCounts[t] || 0) + 1;
     validFeatures.push(f);
   }

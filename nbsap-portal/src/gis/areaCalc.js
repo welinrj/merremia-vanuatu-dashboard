@@ -265,9 +265,8 @@ export function compute30x30Metrics(layers, filters = {}) {
     }
   }
 
-  // Dissolve by realm for net coverage area
-  // Falls back to gross (sum) when dissolution is skipped for very large datasets
-  const tooLarge30 = totalFeatures > DISSOLVE_MAX_POLYGONS;
+  // Dissolve by realm for net coverage area (prevents double-counting overlapping PAs)
+  // dissolveFeatures returns null if >DISSOLVE_MAX_POLYGONS — falls back to gross sum
   const dissolvedTerrestrial = dissolveFeatures(terrestrialFeatures);
   const dissolvedMarine = dissolveFeatures(marineFeatures);
   const netTerrestrial = dissolvedTerrestrial ? computeAreaHa(dissolvedTerrestrial) : grossTerrestrial;
@@ -278,20 +277,22 @@ export function compute30x30Metrics(layers, filters = {}) {
   const marinePct = baselines.marine_ha > 0
     ? (netMarine / baselines.marine_ha) * 100 : 0;
 
-  // Province breakdown — skip per-province dissolution for very large datasets
+  // Province breakdown — always attempt per-province dissolution.
+  // Each province typically has far fewer features than the global count, so
+  // dissolution usually succeeds even when the national total exceeds the cap.
+  // This prevents double-counting within each province's reported area.
   const provinceBreakdown = Object.entries(provinceFeatures)
     .filter(([name]) => VALID_PROVINCES.has(name))
     .map(([name, data]) => {
-      let tNet, mNet;
-      if (tooLarge30) {
-        tNet = data.terrestrial.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
-        mNet = data.marine.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
-      } else {
-        const tDissolved = dissolveFeatures(data.terrestrial);
-        const mDissolved = dissolveFeatures(data.marine);
-        tNet = tDissolved ? computeAreaHa(tDissolved) : 0;
-        mNet = mDissolved ? computeAreaHa(mDissolved) : 0;
-      }
+      // Attempt dissolution; fall back to gross sum only if cap is exceeded for this province
+      const tDissolved = dissolveFeatures(data.terrestrial);
+      const mDissolved = dissolveFeatures(data.marine);
+      const tNet = tDissolved
+        ? computeAreaHa(tDissolved)
+        : data.terrestrial.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
+      const mNet = mDissolved
+        ? computeAreaHa(mDissolved)
+        : data.marine.reduce((s, f) => s + (f.properties.area_ha || 0), 0);
       return {
         province: name,
         terrestrial_ha: round2(tNet),

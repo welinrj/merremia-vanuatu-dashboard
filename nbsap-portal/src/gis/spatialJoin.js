@@ -125,6 +125,23 @@ export async function assignProvinces(featureCollection, provincesGeoJSON) {
           continue;
         }
       }
+
+      // Centroid missed all provinces — feature straddles a boundary or is offshore.
+      // Fall back to largest-intersection province for polygon/multipolygon features.
+      if (!matched) {
+        const geomType = feature.geometry?.type;
+        if (geomType === 'Polygon' || geomType === 'MultiPolygon') {
+          const fallback = _largestIntersectionProvince(feature, provinces);
+          if (fallback) {
+            features[i] = {
+              ...feature,
+              properties: { ...feature.properties, province: fallback }
+            };
+            matched = true;
+          }
+        }
+      }
+
       if (!matched) features[i] = feature;
     } else {
       features[i] = feature;
@@ -137,6 +154,40 @@ export async function assignProvinces(featureCollection, provincesGeoJSON) {
   }
 
   return { type: 'FeatureCollection', features };
+}
+
+/**
+ * Finds the province with the largest intersection area with the given feature.
+ * Used as a fallback when centroid-based assignment fails (e.g. cross-boundary features).
+ *
+ * @param {object} feature - GeoJSON polygon/multipolygon Feature
+ * @param {Array} provinces - Pre-computed province objects { feature, name, bbox }
+ * @returns {string|null} Province name or null if no intersection found
+ */
+function _largestIntersectionProvince(feature, provinces) {
+  let bestName = null;
+  let bestArea = 0;
+
+  for (const prov of provinces) {
+    // Quick bbox check before expensive intersection
+    const feat = turf.getCoords ? feature : feature; // keep reference
+    try {
+      const intersection = turf.intersect(
+        turf.featureCollection([feature, prov.feature])
+      );
+      if (intersection) {
+        const area = turf.area(intersection);
+        if (area > bestArea) {
+          bestArea = area;
+          bestName = prov.name;
+        }
+      }
+    } catch {
+      // Skip if intersection fails for this province
+    }
+  }
+
+  return bestName;
 }
 
 /**
