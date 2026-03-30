@@ -45,47 +45,71 @@ export function initDashboard() {
       <div class="dashboard-sidebar">
         <div id="filter-panel-container"></div>
         <div id="kpi-container"></div>
-<div class="sidebar-section-title" style="margin-top:4px">Last Updated</div>
-        <div id="last-updated-container" style="margin-bottom:8px">
-          <span class="last-updated-badge" title="Data last refreshed from Firestore">
-            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.58-4.7"/></svg>
-            <span id="last-updated-text">Syncing&hellip;</span>
-          </span>
-        </div>
-        <div class="sidebar-section-title">Export</div>
-        <div class="export-toolbar">
-          <button class="btn btn-sm btn-outline" id="btn-export-csv" title="${isAdmin() ? 'Export filtered data as CSV' : 'Request data access'}" style="position:relative">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            CSV
-          </button>
-          <button class="btn btn-sm btn-outline" id="btn-export-json" title="Export TOR reporting snapshot">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            JSON
-          </button>
-          <button class="btn btn-sm btn-outline" id="btn-export-png" title="Export map view">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-            PNG
-          </button>
-        </div>
-        <div class="sidebar-section-title">Print Maps</div>
-        <div class="export-toolbar">
-          <button class="btn btn-sm btn-outline" id="btn-print-target" title="Print map for the selected target" disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            Target
-          </button>
-          <button class="btn btn-sm btn-outline" id="btn-print-province" title="Print target maps by province (select a target first)" disabled>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-            By Province
-          </button>
-          <button class="btn btn-sm btn-outline" id="btn-print-species" title="Print T4 species maps (select T4 first)" disabled style="display:none">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
-            By Species
-          </button>
-          <button class="btn btn-sm btn-primary" id="btn-print-all" title="Print maps for all 9 NBSAP targets">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-            All Targets
-          </button>
-        </div>
+
+        <!-- ── Action dock (export + print) ───────────────── -->
+        <div class="sidebar-action-dock">
+
+          <div class="sidebar-action-group">
+            <div class="sidebar-action-group-header">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Export Data
+            </div>
+            <div class="sidebar-action-row">
+              <button class="sidebar-action-btn" id="btn-export-csv"
+                title="${isAdmin() ? 'Download filtered data as CSV' : 'Request data access'}">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                CSV
+              </button>
+              <button class="sidebar-action-btn" id="btn-export-json"
+                title="Export GBF reporting snapshot as JSON">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                JSON
+              </button>
+              <button class="sidebar-action-btn sidebar-action-btn-accent" id="btn-export-png"
+                title="Export professional A4 map PNG with cartographic template">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                Map PNG
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-action-group">
+            <div class="sidebar-action-group-header">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              Print Maps
+            </div>
+            <div class="sidebar-action-row">
+              <button class="sidebar-action-btn" id="btn-print-target"
+                title="Print cartographic map for the selected target" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+                Target
+              </button>
+              <button class="sidebar-action-btn" id="btn-print-province"
+                title="Print province-by-province maps (select a target first)" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                Province
+              </button>
+              <button class="sidebar-action-btn" id="btn-print-species"
+                title="Print T4 species distribution maps" disabled style="display:none">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+                Species
+              </button>
+              <button class="sidebar-action-btn sidebar-action-btn-primary" id="btn-print-all"
+                title="Generate print-quality maps for all 9 NBSAP targets">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="8" height="8" rx="1"/><rect x="14" y="2" width="8" height="8" rx="1"/><rect x="2" y="14" width="8" height="8" rx="1"/><rect x="14" y="14" width="8" height="8" rx="1"/></svg>
+                All Targets
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-sync-bar">
+            <span class="last-updated-badge" title="Data last refreshed from Firestore">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-.58-4.7"/></svg>
+              <span id="last-updated-text">Syncing&hellip;</span>
+            </span>
+          </div>
+
+        </div><!-- /.sidebar-action-dock -->
       </div>
       <div class="dashboard-main">
         <div id="exec-summary-container"></div>
