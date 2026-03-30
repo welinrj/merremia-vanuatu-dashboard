@@ -179,6 +179,26 @@ export function fixGeometries(geojson) {
   for (const feature of geojson.features) {
     const geomType = feature.geometry.type;
 
+    // GeometryCollection — recursively fix any polygon geometries inside
+    if (geomType === 'GeometryCollection') {
+      const fixedGeometries = (feature.geometry.geometries || []).map(g => {
+        if (!g.type.includes('Polygon')) return g;
+        try {
+          const fake = { type: 'Feature', geometry: g, properties: {} };
+          const buffered = turf.buffer(fake, 0, { units: 'meters' });
+          return buffered?.geometry || g;
+        } catch {
+          return g;
+        }
+      });
+      resultFeatures.push({
+        type: 'Feature',
+        geometry: { type: 'GeometryCollection', geometries: fixedGeometries },
+        properties: feature.properties
+      });
+      continue;
+    }
+
     // Only fix polygons and multipolygons
     if (!geomType.includes('Polygon')) {
       resultFeatures.push(feature);

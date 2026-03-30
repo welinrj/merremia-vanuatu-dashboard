@@ -2,12 +2,73 @@
  * Filter Panel component.
  * Renders target, province, realm filters.
  * Dispatches filter change events to update map, KPIs, tables, and exports.
+ *
+ * Also manages URL-based deep links so any filtered view can be shared or
+ * bookmarked.  URL params:
+ *   ?t=T3          — active target code
+ *   &prov=Shefa    — selected province (omitted when "All")
+ *   &realm=marine  — selected realm   (omitted when "All")
+ *   &yr=2023       — selected year    (omitted when "All")
  */
 import targetsConfig from '../../config/targets.js';
 import { targetIcon } from '../../config/icons.js';
 import { getAppState, updateFilters, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeTarget1Metrics, computeTarget2Metrics, computeTargetMetrics, getMetricsCacheGen } from '../../gis/areaCalc.js';
 import ENV from '../../config/env.js';
+
+// ── URL deep-link helpers ─────────────────────────────────────────────────────
+
+/**
+ * Reads filter values from the current URL search params.
+ * Returns a partial filter object, or null if no relevant params are present.
+ */
+export function readFiltersFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  const out    = {};
+
+  const t = params.get('t');
+  if (t) out.targets = t.split(',').map(s => s.trim()).filter(Boolean);
+
+  const prov = params.get('prov');
+  if (prov) out.province = prov;
+
+  const realm = params.get('realm');
+  if (realm) out.realm = realm;
+
+  const yr = params.get('yr');
+  if (yr) out.year = yr;
+
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/**
+ * Writes the current filter state into the browser URL (no page reload).
+ * Omits params that equal their default values so the URL stays clean.
+ * @param {object} filters
+ */
+export function writeFiltersToURL(filters) {
+  const params = new URLSearchParams();
+
+  if (filters.targets && filters.targets.length > 0) {
+    params.set('t', filters.targets.join(','));
+  }
+  if (filters.province && filters.province !== 'All') {
+    params.set('prov', filters.province);
+  }
+  if (filters.realm && filters.realm !== 'All') {
+    params.set('realm', filters.realm);
+  }
+  if (filters.year && filters.year !== 'All') {
+    params.set('yr', filters.year);
+  }
+
+  const qs      = params.toString();
+  const newURL  = qs
+    ? `${window.location.pathname}?${qs}${window.location.hash}`
+    : `${window.location.pathname}${window.location.hash}`;
+
+  history.replaceState(null, '', newURL);
+}
 
 /**
  * Renders the filter panel into a container element.
@@ -22,7 +83,13 @@ export function renderFilterPanel(container) {
     <div class="filter-panel">
       <div class="filter-panel-header">
         <span>Filters</span>
-        <button class="btn btn-sm btn-outline" id="btn-clear-filters">Clear</button>
+        <div style="display:flex;gap:4px">
+          <button class="btn btn-sm btn-outline" id="btn-copy-link" title="Copy shareable link with current filters">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+            Link
+          </button>
+          <button class="btn btn-sm btn-outline" id="btn-clear-filters">Clear</button>
+        </div>
       </div>
 
       <div class="filter-group">
@@ -77,22 +144,55 @@ export function renderFilterPanel(container) {
       e.preventDefault();
       const code = el.dataset.code;
       updateFilters({ targets: [code] });
+      writeFiltersToURL(getAppState().filters);
     });
   });
 
   // Province filter
   container.querySelector('#filter-province').addEventListener('change', (e) => {
     updateFilters({ province: e.target.value });
+    writeFiltersToURL(getAppState().filters);
   });
 
   // Realm filter
   container.querySelector('#filter-realm').addEventListener('change', (e) => {
     updateFilters({ realm: e.target.value });
+    writeFiltersToURL(getAppState().filters);
   });
 
   // Clear button
   container.querySelector('#btn-clear-filters').addEventListener('click', () => {
     updateFilters({ targets: ['T3'], province: 'All', category: 'All', realm: 'All', year: 'All' });
+    writeFiltersToURL(getAppState().filters);
+  });
+
+  // Copy link button — copies the current URL (with filter params) to clipboard
+  container.querySelector('#btn-copy-link').addEventListener('click', (e) => {
+    writeFiltersToURL(getAppState().filters);
+    const btn = e.currentTarget;
+    navigator.clipboard.writeText(window.location.href).then(() => {
+      const orig = btn.innerHTML;
+      btn.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        Copied!`;
+      btn.style.color = 'var(--success)';
+      btn.style.borderColor = 'var(--success)';
+      setTimeout(() => {
+        btn.innerHTML = orig;
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }, 2000);
+    }).catch(() => {
+      // Fallback for browsers without clipboard API
+      const ta = document.createElement('textarea');
+      ta.value = window.location.href;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    });
   });
 }
 

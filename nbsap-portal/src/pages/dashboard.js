@@ -3,14 +3,16 @@
  * Per-target results, analytics, map, charts, and export buttons.
  * Shows target-specific breakdowns when a single target is selected.
  */
-import { renderFilterPanel } from '../ui/components/filterPanel.js';
+import { renderFilterPanel, readFiltersFromURL, writeFiltersToURL } from '../ui/components/filterPanel.js';
+import { renderReportCard } from '../ui/components/reportCard.js';
+import { renderTrendChart } from '../ui/components/trendChart.js';
 import { renderKPIWidgets, animateKPINumbers } from '../ui/components/kpiWidgets.js';
 import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js';
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
 import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpeciesMaps } from '../ui/components/printMap.js';
 import { compute30x30Metrics, computeTargetMetrics, computeTarget1Metrics } from '../gis/areaCalc.js';
-import { getAppState, getDashboardLayers } from '../ui/state.js';
+import { getAppState, getDashboardLayers, updateFilters } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
 import ENV from '../config/env.js';
 import TARGETS_CONFIG from '../config/targets.js';
@@ -109,11 +111,27 @@ export function initDashboard() {
             </div>
           </div>
           <div id="category-breakdown-container" style="margin-top:20px"></div>
+          <div id="trend-chart-container" style="margin-top:20px"></div>
           <div id="context-panel-container"></div>
         </div>
       </div>
     </div>
   `;
+
+  // Apply URL filter state (deep link / bookmark support)
+  const urlFilters = readFiltersFromURL();
+  if (urlFilters) updateFilters(urlFilters);
+
+  // Allow report card cards and other components to switch target
+  window.addEventListener('nbsap:set-target', (e) => {
+    const code = e.detail?.target;
+    if (code) {
+      updateFilters({ targets: [code] });
+      writeFiltersToURL(getAppState().filters);
+      // Scroll to map so the user sees the result
+      document.getElementById('map')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  });
 
   // Initialize map
   setTimeout(() => {
@@ -301,8 +319,14 @@ export function refreshDashboard() {
     if (catContainer) {
       renderCategoryBreakdown(catContainer, metrics);
     }
+
+    // Render time-series trend chart for the selected target
+    const trendContainer = document.getElementById('trend-chart-container');
+    if (trendContainer) {
+      renderTrendChart(trendContainer, targetCode);
+    }
   } else {
-    // Multiple or no targets — show T3 if included
+    // Multiple or no targets — show T3 provincial breakdown + full report card
     const t3Active = activeTargets.length === 0 || activeTargets.includes('T3');
 
     if (t3Active) {
@@ -314,7 +338,12 @@ export function refreshDashboard() {
       if (chartContainer) chartContainer.innerHTML = '';
     }
 
-    if (catContainer) renderAllTargetsSummary(catContainer);
+    // Replace the old summary with the full GBF 2030 Report Card
+    if (catContainer) renderReportCard(catContainer);
+
+    // Clear trend chart in multi-target view
+    const trendContainer = document.getElementById('trend-chart-container');
+    if (trendContainer) trendContainer.innerHTML = '';
   }
 
   // Always render the Vanuatu quick-reference context strip
