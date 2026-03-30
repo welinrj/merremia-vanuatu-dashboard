@@ -8,6 +8,7 @@ import { login, logout, getAuthState, isAdmin } from '../services/auth/index.js'
 import { getAuditLog, exportBackup, importBackup, syncImport, addAuditEntry, getSetting, setSetting, getLayer, saveLayer, deleteLayer, recoverFromLocalCache, listLayersMeta } from '../services/storage/index.js';
 import { getAppState, setAdminState, trackLayer, untrackLayer, setLayerTracker, getExpectedLayerName, setCustomLayerName, addLayer, removeLayer } from '../ui/state.js';
 import { openUploadWizard } from '../ui/components/uploadWizard.js';
+import { openExportDialog } from '../ui/components/datasetExport.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
 import { showConfirm } from '../ui/components/dialog.js';
@@ -564,25 +565,12 @@ async function renderAdminDashboard(page) {
     });
   });
 
-  // Export backup
+  // Export structured dataset (GeoJSON / GeoPackage by target)
   page.querySelector('#btn-export-backup').addEventListener('click', async () => {
     const statusEl = page.querySelector('#backup-status');
-    statusEl.textContent = 'Exporting...';
-    try {
-      const backup = await exportBackup();
-      const json = JSON.stringify(backup, null, 2);
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `nbsap-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      a.click();
-      URL.revokeObjectURL(url);
-
-      await addAuditEntry({ action: 'export_backup', result: 'success' });
-      statusEl.textContent = 'Backup exported successfully';
-    } catch (err) {
-      statusEl.textContent = `Error: ${err.message}`;
+    const exported = await openExportDialog(statusEl);
+    if (exported) {
+      await addAuditEntry({ action: 'export_dataset', result: 'success' });
     }
   });
 
