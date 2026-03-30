@@ -5,7 +5,7 @@
 import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
 import { getMap } from './mapView.js';
-import { showAlert } from './dialog.js';
+import { showAlert, showConfirm } from './dialog.js';
 import { exportMapTemplate } from './mapTemplate.js';
 import targetsConfig from '../../config/targets.js';
 
@@ -157,11 +157,11 @@ export async function exportMapPNG() {
 
   } catch (err) {
     console.error('Map PNG export failed:', err);
-    if (window.confirm(
-      'PNG export could not complete.\n\nPress OK to open the Print dialog instead.'
-    )) {
-      window.print();
-    }
+    const usePrint = await showConfirm(
+      'Map PNG export could not complete due to browser security restrictions on tile images.\n\nPress OK to open the Print dialog — choose "Save as PDF" or take a screenshot instead.',
+      { title: 'Export Error', okLabel: 'Open Print Dialog', cancelLabel: 'Cancel' }
+    );
+    if (usePrint) window.print();
   }
 }
 
