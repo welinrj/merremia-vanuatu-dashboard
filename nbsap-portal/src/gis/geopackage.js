@@ -12,9 +12,14 @@ let _SQL = null;
 /** Lazily initialise sql.js (downloads WASM once). */
 async function getSQL() {
   if (_SQL) return _SQL;
-  const baseUrl = (import.meta.env && import.meta.env.BASE_URL) || './';
+  // Derive WASM URL from the page location (not the JS module URL) because
+  // the WASM sits alongside index.html in public/, while the JS chunk is
+  // in assets/. Using import.meta.url or './' from inside the chunk resolves
+  // to the wrong directory on GitHub Pages.
+  const pagePath = window.location.pathname;
+  const base = pagePath.substring(0, pagePath.lastIndexOf('/') + 1);
   _SQL = await initSqlJs({
-    locateFile: file => `${baseUrl}${file}`
+    locateFile: file => `${base}${file}`
   });
   return _SQL;
 }
