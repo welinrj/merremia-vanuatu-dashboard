@@ -141,6 +141,13 @@ export async function runPipeline(rawGeojson, uploadOpts, provincesGeojson, onPr
     step5 = await assignProvinces(step4, provincesGeojson);
     const assigned = step5.features.filter(f => f.properties.province).length;
     progress(5, `Province assigned to ${assigned}/${step5.features.length} features`);
+    const unassigned = step5.features.length - assigned;
+    if (unassigned > 0) {
+      report.warnings.push(
+        `${unassigned} feature(s) could not be assigned to a province — they will be excluded from provincial breakdowns. ` +
+        'Check that all features fall within Vanuatu\'s province boundaries.'
+      );
+    }
   } else {
     report.warnings.push('No provinces boundary data — province assignment skipped');
     progress(5, 'Skipped — no provinces data');

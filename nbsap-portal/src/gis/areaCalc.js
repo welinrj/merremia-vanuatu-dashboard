@@ -788,7 +788,10 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
   }
   const tooLarge = estimatedFeatures > DISSOLVE_MAX_POLYGONS;
 
-  // Only collect feature arrays when dissolution is possible (small datasets)
+  // Only collect ALL-features / realm-level arrays when dissolution is feasible.
+  // Per-province and per-category arrays are always collected: individual groups
+  // rarely exceed the dissolution cap even when the national total does, so
+  // skipping them would cause double-counting in the breakdowns.
   const allFeatures = tooLarge ? null : [];
   const realmFeatures = tooLarge ? null : { terrestrial: [], marine: [] };
 
@@ -846,20 +849,18 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
         provinceGross[prov].terrestrial += areaHa;
         provinceGross[prov].tCount++;
       }
-      if (!tooLarge) {
-        if (!provinceFeatures[prov]) provinceFeatures[prov] = { terrestrial: [], marine: [] };
-        if (realm === 'marine') provinceFeatures[prov].marine.push(f);
-        else provinceFeatures[prov].terrestrial.push(f);
-      }
+      // Province feature refs — always collected so per-province dissolution is
+      // always attempted, even when the national total exceeds the dissolution cap.
+      if (!provinceFeatures[prov]) provinceFeatures[prov] = { terrestrial: [], marine: [] };
+      if (realm === 'marine') provinceFeatures[prov].marine.push(f);
+      else provinceFeatures[prov].terrestrial.push(f);
 
-      // Category grouping — always track gross; only keep refs when small
+      // Category grouping — always keep refs for per-category dissolution
       if (!categoryGross[cat]) categoryGross[cat] = { area: 0, count: 0 };
       categoryGross[cat].area += areaHa;
       categoryGross[cat].count++;
-      if (!tooLarge) {
-        if (!categoryFeatures[cat]) categoryFeatures[cat] = [];
-        categoryFeatures[cat].push(f);
-      }
+      if (!categoryFeatures[cat]) categoryFeatures[cat] = [];
+      categoryFeatures[cat].push(f);
 
       // Type/species grouping
       const typeName = f.properties.type || f.properties.species_name || f.properties.name || meta.name || 'Unknown';
@@ -888,21 +889,17 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
     netMarine = dissolvedMarine ? computeAreaHa(dissolvedMarine) : grossMarine;
   }
 
-  // Province breakdown
+  // Province breakdown — always attempt per-province dissolution.
+  // Individual provinces typically have far fewer features than the national
+  // total, so dissolution succeeds even when tooLarge is true nationally.
   const provinceBreakdown = Object.entries(provinceGross)
     .filter(([name]) => VALID_PROVINCES.has(name))
     .map(([name, data]) => {
-      let tNet, mNet;
-      if (tooLarge) {
-        tNet = data.terrestrial;
-        mNet = data.marine;
-      } else {
-        const pf = provinceFeatures[name];
-        const tDissolved = pf ? dissolveFeatures(pf.terrestrial) : null;
-        const mDissolved = pf ? dissolveFeatures(pf.marine) : null;
-        tNet = tDissolved ? computeAreaHa(tDissolved) : data.terrestrial;
-        mNet = mDissolved ? computeAreaHa(mDissolved) : data.marine;
-      }
+      const pf = provinceFeatures[name];
+      const tDissolved = pf ? dissolveFeatures(pf.terrestrial) : null;
+      const mDissolved = pf ? dissolveFeatures(pf.marine) : null;
+      const tNet = tDissolved ? computeAreaHa(tDissolved) : data.terrestrial;
+      const mNet = mDissolved ? computeAreaHa(mDissolved) : data.marine;
       return {
         province: name,
         terrestrial_ha: round2(tNet),
@@ -912,18 +909,12 @@ export function computeTargetMetrics(layers, targetCode, filters = {}) {
       };
     }).sort((a, b) => b.total_ha - a.total_ha);
 
-  // Category breakdown
+  // Category breakdown — always attempt per-category dissolution
   const dissolvedByCategory = {};
   const categoryBreakdown = [];
   for (const [cat, gross] of Object.entries(categoryGross)) {
-    let dissolved = null;
-    let netCatArea;
-    if (tooLarge) {
-      netCatArea = gross.area;
-    } else {
-      dissolved = dissolveFeatures(categoryFeatures[cat] || []);
-      netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
-    }
+    const dissolved = dissolveFeatures(categoryFeatures[cat] || []);
+    const netCatArea = dissolved ? computeAreaHa(dissolved) : gross.area;
     dissolvedByCategory[cat] = dissolved;
     categoryBreakdown.push({
       category: cat,
