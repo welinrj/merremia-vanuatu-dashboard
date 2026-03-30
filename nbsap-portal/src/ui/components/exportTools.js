@@ -6,6 +6,8 @@ import { getAppState, getDashboardLayers } from '../state.js';
 import { compute30x30Metrics, computeGeneralMetrics } from '../../gis/areaCalc.js';
 import { getMap } from './mapView.js';
 import { showAlert } from './dialog.js';
+import { exportMapTemplate } from './mapTemplate.js';
+import targetsConfig from '../../config/targets.js';
 
 /**
  * Exports the current summary table as CSV, respecting active filters.
@@ -96,16 +98,8 @@ export function exportTORSnapshot() {
 }
 
 /**
- * Exports the current map view as a PNG.
- *
- * Strategy:
- *   1. Reload every visible tile with crossOrigin='anonymous' so the canvas
- *      is not tainted (Leaflet loads tiles without CORS by default).
- *   2. Composite tile layer + vector overlay (canvas) + SVG overlay onto one canvas.
- *   3. Try canvas.toBlob() — if it still throws a SecurityError (some CDNs
- *      don't return CORS headers) fall back to a vector-only export on a
- *      plain ocean-blue background which always works.
- *   4. Last resort: trigger window.print() so the user can Save as PDF.
+ * Exports the current map view as a professional A4-landscape PNG
+ * using the cartographic template (header, map, sidebar, footer).
  */
 export async function exportMapPNG() {
   const leafletMap = getMap();
@@ -116,237 +110,59 @@ export async function exportMapPNG() {
   }
 
   try {
-    const size = leafletMap.getSize();
-    const dpr  = Math.min(window.devicePixelRatio || 1, 2); // cap at 2× for memory
+    const state   = getAppState();
+    const layers  = getDashboardLayers();
+    const filters = state.filters;
 
-    // ── Collect tile sources before touching the canvas ──────────────────
-    const mapPane      = mapEl.querySelector('.leaflet-map-pane');
-    const mapTransform = _parseTransform(mapPane);
-    const tilePane     = mapEl.querySelector('.leaflet-tile-pane');
-    const tileItems    = []; // { src, x, y, w, h }
-
-    if (tilePane) {
-      for (const container of tilePane.querySelectorAll('.leaflet-tile-container')) {
-        const cT = _parseTransform(container);
-        for (const tile of container.querySelectorAll('img.leaflet-tile')) {
-          if (!tile.src || tile.naturalWidth === 0) continue;
-          const tT = _parseTransform(tile);
-          tileItems.push({
-            src: tile.src,
-            x: mapTransform.x + cT.x + tT.x,
-            y: mapTransform.y + cT.y + tT.y,
-            w: tile.width || 256,
-            h: tile.height || 256
-          });
-        }
+    // ── Derive title / subtitle from active target ────────────────────────
+    const activeTargets = filters.targets || [];
+    let title    = 'Vanuatu NBSAP Conservation Areas';
+    let subtitle = '';
+    if (activeTargets.length === 1) {
+      const tCode = activeTargets[0];
+      const tConf = targetsConfig.targets.find(t => t.code === tCode);
+      if (tConf) {
+        title    = `${tCode}: ${tConf.name}`;
+        subtitle = tConf.description || '';
       }
     }
-
-    // ── Load tiles with crossOrigin to avoid tainting the canvas ─────────
-    const tileImages = await Promise.all(
-      tileItems.map(item =>
-        _loadImageCORS(item.src)
-          .then(img => ({ img, ...item }))
-          .catch(() => null) // skip tiles that fail CORS (CDN without CORS headers)
-      )
-    );
-
-    // ── Load SVG overlays as images (blob URL, always safe) ──────────────
-    const overlayPane = mapEl.querySelector('.leaflet-overlay-pane');
-    const mapRect     = mapEl.getBoundingClientRect();
-    const svgImages   = [];
-    for (const svg of mapEl.querySelectorAll('.leaflet-overlay-pane svg')) {
-      try {
-        const svgBlob = new Blob(
-          [new XMLSerializer().serializeToString(svg)],
-          { type: 'image/svg+xml;charset=utf-8' }
-        );
-        const svgUrl = URL.createObjectURL(svgBlob);
-        const img    = await _loadImage(svgUrl);
-        URL.revokeObjectURL(svgUrl);
-        const r = svg.getBoundingClientRect();
-        svgImages.push({ img, x: r.left - mapRect.left, y: r.top - mapRect.top, w: r.width, h: r.height });
-      } catch (_) { /* skip */ }
+    if (filters.province && filters.province !== 'All') {
+      subtitle = [subtitle, `Province: ${filters.province}`].filter(Boolean).join('  ·  ');
+    }
+    if (filters.realm && filters.realm !== 'All') {
+      subtitle = [subtitle, `Realm: ${filters.realm}`].filter(Boolean).join('  ·  ');
     }
 
-    // ── Build canvas ──────────────────────────────────────────────────────
-    const canvas = _makeCanvas(size.x, size.y, dpr);
-    const ctx    = canvas.ctx;
+    // ── Build legend items from visible layers ────────────────────────────
+    const legendLayers = layers
+      .filter(l => {
+        const meta = l.metadata;
+        if (activeTargets.length > 0 && !meta.targets.some(t => activeTargets.includes(t))) return false;
+        if (filters.category && filters.category !== 'All' && meta.category !== filters.category) return false;
+        return true;
+      })
+      .slice(0, 16) // cap legend at 16 items
+      .map(l => ({
+        label:   l.metadata.name,
+        color:   l.metadata.color || '#006B3F',
+        symbol:  l.metadata.geometryType === 'Point' ? 'point' : 'polygon',
+        area_ha: l.metadata.totalAreaHa || null,
+      }));
 
-    // Background
-    ctx.fillStyle = '#e8f4f8'; // ocean blue — visible if tiles fail
-    ctx.fillRect(0, 0, size.x, size.y);
-
-    // Tile layer
-    for (const item of tileImages) {
-      if (!item) continue;
-      try { ctx.drawImage(item.img, item.x, item.y, item.w, item.h); } catch (_) { /* skip */ }
-    }
-
-    // Vector canvas overlays (GeoJSON polygons/lines rendered by Leaflet)
-    for (const cvs of mapEl.querySelectorAll('.leaflet-overlay-pane canvas')) {
-      if (!cvs.width || !cvs.height) continue;
-      try {
-        const pT = _parseTransform(overlayPane);
-        const cT = _parseTransform(cvs);
-        ctx.drawImage(cvs, mapTransform.x + pT.x + cT.x, mapTransform.y + pT.y + cT.y);
-      } catch (_) { /* tainted — skip */ }
-    }
-
-    // SVG overlays (province boundaries, tooltips)
-    for (const item of svgImages) {
-      try { ctx.drawImage(item.img, item.x, item.y, item.w, item.h); } catch (_) { /* skip */ }
-    }
-
-    _drawAttribution(ctx, size);
-
-    // ── Export ────────────────────────────────────────────────────────────
-    const ok = await _downloadCanvas(canvas.el, 'nbsap-map.png');
-    if (!ok) {
-      // Canvas tainted despite CORS attempt — vector-only fallback
-      await _exportVectorOnly(mapEl, mapTransform, overlayPane, svgImages, size, dpr, mapRect);
-    }
+    await exportMapTemplate(leafletMap, mapEl, {
+      title,
+      subtitle,
+      layers: legendLayers,
+    });
 
   } catch (err) {
     console.error('Map PNG export failed:', err);
-    _printFallback();
-  }
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/** Creates a 2× (retina) canvas and returns { el, ctx }. */
-function _makeCanvas(w, h, dpr) {
-  const el  = document.createElement('canvas');
-  el.width  = w * dpr;
-  el.height = h * dpr;
-  const ctx = el.getContext('2d');
-  ctx.scale(dpr, dpr);
-  return { el, ctx };
-}
-
-/** Draws an attribution bar at the bottom of the canvas. */
-function _drawAttribution(ctx, size) {
-  ctx.fillStyle = 'rgba(255,255,255,0.82)';
-  ctx.fillRect(0, size.y - 22, size.x, 22);
-  ctx.fillStyle = '#444';
-  ctx.font = '11px sans-serif';
-  ctx.fillText(
-    'Vanuatu NBSAP GIS Portal — ' + new Date().toLocaleDateString('en-GB'),
-    8, size.y - 7
-  );
-}
-
-/**
- * Fallback: render only the vector overlays on a plain background.
- * Never tainted because GeoJSON canvas layers are drawn from local data.
- */
-async function _exportVectorOnly(mapEl, mapTransform, overlayPane, svgImages, size, dpr, mapRect) {
-  const canvas = _makeCanvas(size.x, size.y, dpr);
-  const ctx    = canvas.ctx;
-
-  ctx.fillStyle = '#d6eaf5';
-  ctx.fillRect(0, 0, size.x, size.y);
-
-  // Note banner
-  ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.fillRect(4, 4, 280, 22);
-  ctx.fillStyle = '#555';
-  ctx.font = '11px sans-serif';
-  ctx.fillText('Background tiles omitted (cross-origin restriction)', 8, 19);
-
-  for (const cvs of mapEl.querySelectorAll('.leaflet-overlay-pane canvas')) {
-    if (!cvs.width || !cvs.height) continue;
-    try {
-      const pT = _parseTransform(overlayPane);
-      const cT = _parseTransform(cvs);
-      ctx.drawImage(cvs, mapTransform.x + pT.x + cT.x, mapTransform.y + pT.y + cT.y);
-    } catch (_) { /* skip */ }
-  }
-
-  for (const item of svgImages) {
-    try { ctx.drawImage(item.img, item.x, item.y, item.w, item.h); } catch (_) { /* skip */ }
-  }
-
-  _drawAttribution(ctx, size);
-
-  const ok = await _downloadCanvas(canvas.el, 'nbsap-map.png');
-  if (!ok) _printFallback();
-}
-
-/**
- * Attempts to download the canvas as a PNG.
- * Returns true on success, false if the canvas is still tainted (SecurityError).
- */
-function _downloadCanvas(canvas, filename) {
-  return new Promise(resolve => {
-    try {
-      canvas.toBlob(blob => {
-        if (!blob) { resolve(false); return; }
-        const url = URL.createObjectURL(blob);
-        const a   = document.createElement('a');
-        a.href    = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-        resolve(true);
-      }, 'image/png');
-    } catch (secErr) {
-      // SecurityError: canvas tainted by cross-origin images
-      console.warn('Canvas tainted —', secErr.message);
-      resolve(false);
+    if (window.confirm(
+      'PNG export could not complete.\n\nPress OK to open the Print dialog instead.'
+    )) {
+      window.print();
     }
-  });
-}
-
-/**
- * Loads an image with crossOrigin='anonymous'.
- * Prevents canvas tainting when the CDN supports CORS (OSM, CartoDB, Esri do).
- */
-function _loadImageCORS(src) {
-  return new Promise((resolve, reject) => {
-    const img    = new Image();
-    img.crossOrigin = 'anonymous';
-    img.onload  = () => resolve(img);
-    img.onerror = reject;
-    img.src     = src;
-  });
-}
-
-/** Offer browser Print as a last resort. */
-function _printFallback() {
-  if (window.confirm(
-    'PNG export could not complete due to browser security restrictions on tile images.\n\n' +
-    'Press OK to open the Print dialog — choose "Save as PDF" or take a screenshot instead.'
-  )) {
-    window.print();
   }
-}
-
-/** Parses CSS translate3d/translate transform into {x, y} offsets. */
-function _parseTransform(el) {
-  if (!el) return { x: 0, y: 0 };
-  const st = el.style?.transform || window.getComputedStyle(el).transform || '';
-  // translate3d(Xpx, Ypx, 0px) or translate(Xpx, Ypx) or matrix(...)
-  const m3d = st.match(/translate3d\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/);
-  if (m3d) return { x: parseFloat(m3d[1]), y: parseFloat(m3d[2]) };
-  const m2d = st.match(/translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px/);
-  if (m2d) return { x: parseFloat(m2d[1]), y: parseFloat(m2d[2]) };
-  const matrix = st.match(/matrix\([^,]+,[^,]+,[^,]+,[^,]+,\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)/);
-  if (matrix) return { x: parseFloat(matrix[1]), y: parseFloat(matrix[2]) };
-  return { x: 0, y: 0 };
-}
-
-/** Promise-wrapper for loading an image. */
-function _loadImage(src) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = reject;
-    img.src = src;
-  });
 }
 
 function downloadFile(content, filename, mimeType) {
