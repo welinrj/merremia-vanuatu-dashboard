@@ -9,10 +9,9 @@
  * - For production government deployment, swap to authApiToken provider
  */
 
-// Default passphrase: "vanuatu2024" — SHA-256 hash
-// IMPORTANT: Change this before production deployment via the Admin settings panel,
-// or set nbsap_admin_hash in localStorage to a SHA-256 hash of your chosen passphrase.
-// The default exists only for first-time setup and is widely known from the source code.
+// IMPORTANT: Set nbsap_admin_hash in localStorage to a SHA-256 hash of your chosen
+// passphrase before production deployment. Use the Admin settings panel to change it.
+// The built-in default is for first-time setup only and should be replaced immediately.
 const DEFAULT_HASH = 'fcc1682b158fe80d089f1627dd31cf5fa6bf2162058ac3e688d24fe03cc538f8';
 
 const SESSION_KEY = 'nbsap_admin_session';
@@ -20,11 +19,18 @@ const SESSION_KEY = 'nbsap_admin_session';
 let isAuthenticated = sessionStorage.getItem(SESSION_KEY) === '1';
 let currentUser = isAuthenticated ? 'admin' : null;
 
-// Rate limiting: max 5 attempts per 15 minutes
+// Rate limiting: max 5 attempts per 15 minutes, persisted in localStorage
+// so reloading the page does not reset the lockout.
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 15 * 60 * 1000;
-let _loginAttempts = 0;
-let _lockoutUntil = 0;
+const _ATTEMPTS_KEY = 'nbsap_login_attempts';
+const _LOCKOUT_KEY  = 'nbsap_lockout_until';
+
+function _getAttempts() { return parseInt(localStorage.getItem(_ATTEMPTS_KEY) || '0', 10); }
+function _getLockout()  { return parseInt(localStorage.getItem(_LOCKOUT_KEY)  || '0', 10); }
+function _setAttempts(n) { localStorage.setItem(_ATTEMPTS_KEY, String(n)); }
+function _setLockout(ts) { localStorage.setItem(_LOCKOUT_KEY,  String(ts)); }
+function _resetAttempts() { localStorage.removeItem(_ATTEMPTS_KEY); localStorage.removeItem(_LOCKOUT_KEY); }
 
 /**
  * Computes SHA-256 hash of a string.
@@ -57,8 +63,9 @@ export async function login(passphrase) {
   }
 
   const now = Date.now();
-  if (now < _lockoutUntil) {
-    const remaining = Math.ceil((_lockoutUntil - now) / 60000);
+  const lockoutUntil = _getLockout();
+  if (now < lockoutUntil) {
+    const remaining = Math.ceil((lockoutUntil - now) / 60000);
     return { success: false, error: `Too many attempts. Try again in ${remaining} minute${remaining !== 1 ? 's' : ''}.` };
   }
 
@@ -66,20 +73,20 @@ export async function login(passphrase) {
   const storedHash = getPassphraseHash();
 
   if (hash === storedHash) {
-    _loginAttempts = 0;
-    _lockoutUntil = 0;
+    _resetAttempts();
     isAuthenticated = true;
     currentUser = 'admin';
     sessionStorage.setItem(SESSION_KEY, '1');
     return { success: true };
   }
 
-  _loginAttempts += 1;
-  if (_loginAttempts >= MAX_ATTEMPTS) {
-    _lockoutUntil = Date.now() + LOCKOUT_MS;
-    _loginAttempts = 0;
+  const attempts = _getAttempts() + 1;
+  if (attempts >= MAX_ATTEMPTS) {
+    _setLockout(Date.now() + LOCKOUT_MS);
+    _setAttempts(0);
     return { success: false, error: 'Too many failed attempts. Locked out for 15 minutes.' };
   }
+  _setAttempts(attempts);
 
   return { success: false, error: 'Invalid passphrase' };
 }

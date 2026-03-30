@@ -12,6 +12,14 @@ import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
 import { showConfirm } from '../ui/components/dialog.js';
 
+/** Escape HTML special chars to prevent XSS when inserting user data into innerHTML. */
+const escHtml = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
+
 /** Safe accessor for Vite's BASE_URL */
 function getBaseUrl() {
   try { return (import.meta.env && import.meta.env.BASE_URL) || './'; }
@@ -370,12 +378,12 @@ async function renderAdminDashboard(page) {
                 <tbody>
                   ${auditLog.map(e => `
                     <tr>
-                      <td style="font-size:12px;color:var(--text-secondary)">${new Date(e.timestamp).toLocaleString()}</td>
-                      <td style="text-transform:capitalize;font-weight:500">${e.action || ''}</td>
-                      <td style="font-size:12px">${e.filename || e.layer_id || ''}</td>
-                      <td>${e.category || ''}</td>
-                      <td>${(e.targets || []).map(t => `<span class="badge badge-info" style="margin-right:2px">${t}</span>`).join('')}</td>
-                      <td><span class="badge badge-${(e.result || '').toLowerCase()}">${e.result || ''}</span></td>
+                      <td style="font-size:12px;color:var(--text-secondary)">${escHtml(new Date(e.timestamp).toLocaleString())}</td>
+                      <td style="text-transform:capitalize;font-weight:500">${escHtml(e.action)}</td>
+                      <td style="font-size:12px">${escHtml(e.filename || e.layer_id)}</td>
+                      <td>${escHtml(e.category)}</td>
+                      <td>${(e.targets || []).map(t => `<span class="badge badge-info" style="margin-right:2px">${escHtml(t)}</span>`).join('')}</td>
+                      <td><span class="badge badge-${escHtml((e.result || '').toLowerCase())}">${escHtml(e.result)}</span></td>
                     </tr>
                   `).join('')}
                 </tbody>
@@ -587,8 +595,10 @@ async function renderAdminDashboard(page) {
     statusEl.textContent = 'Syncing...';
 
     try {
+      if (file.size > 500 * 1024 * 1024) throw new Error('File too large (max 500 MB)');
       const text = await file.text();
       const backup = JSON.parse(text);
+      if (typeof backup !== 'object' || backup === null || Array.isArray(backup)) throw new Error('Invalid backup format');
       const result = await syncImport(backup);
 
       await addAuditEntry({
@@ -619,8 +629,11 @@ async function renderAdminDashboard(page) {
     statusEl.textContent = 'Restoring...';
 
     try {
+      if (file.size > 500 * 1024 * 1024) throw new Error('File too large (max 500 MB)');
       const text = await file.text();
       const backup = JSON.parse(text);
+      if (typeof backup !== 'object' || backup === null || Array.isArray(backup)) throw new Error('Invalid backup format');
+      if (backup.version !== 1) throw new Error(`Unsupported backup version: ${backup.version}`);
       const result = await importBackup(backup);
 
       await addAuditEntry({

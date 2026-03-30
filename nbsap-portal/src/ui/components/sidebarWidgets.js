@@ -1,6 +1,13 @@
 /**
  * Sidebar widgets: Priority Targets and Latest Activity.
  */
+/** Escape HTML special chars to prevent XSS when inserting user data into innerHTML. */
+const escHtml = s => String(s == null ? '' : s)
+  .replace(/&/g, '&amp;')
+  .replace(/</g, '&lt;')
+  .replace(/>/g, '&gt;')
+  .replace(/"/g, '&quot;')
+  .replace(/'/g, '&#39;');
 import targetsConfig from '../../config/targets.js';
 import { getDashboardLayers, updateFilters } from '../state.js';
 import { getAuditLog } from '../../services/storage/index.js';
@@ -146,12 +153,12 @@ async function _fetchAndRenderActivity(container) {
     const detail = e.filename || e.category || '';
     return `
       <div class="activity-item">
-        <span class="activity-icon" style="color:${actionInfo.color}">${actionInfo.icon}</span>
+        <span class="activity-icon" style="color:${escHtml(actionInfo.color)}">${actionInfo.icon}</span>
         <div class="activity-body">
-          <span class="activity-action">${actionInfo.label}</span>
-          ${detail ? `<span class="activity-detail" title="${detail}">${truncate(detail, 28)}</span>` : ''}
+          <span class="activity-action">${escHtml(actionInfo.label)}</span>
+          ${detail ? `<span class="activity-detail" title="${escHtml(detail)}">${escHtml(truncate(detail, 28))}</span>` : ''}
         </div>
-        <span class="activity-time" title="${e.timestamp || ''}">${timeStr}</span>
+        <span class="activity-time" title="${escHtml(e.timestamp)}">${escHtml(timeStr)}</span>
       </div>`;
   }).join('');
 
