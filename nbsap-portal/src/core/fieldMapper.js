@@ -68,12 +68,28 @@ export function mapFeatureProperties(rawProps, layerDefaults) {
   const type = normalizeText(findMappedValue(rawProps, 'type', category)) || category;
   const realm = normalizeText(findMappedValue(rawProps, 'realm', category)) || layerDefaults.realm || 'terrestrial';
   const province = normalizeText(findMappedValue(rawProps, 'province', category)) || '';
+
+  // Year: accept ISO date strings and plain integers
   const yearRaw = findMappedValue(rawProps, 'year', category);
-  const year = yearRaw ? parseInt(yearRaw, 10) || null : null;
+  let year = null;
+  if (yearRaw != null && yearRaw !== '') {
+    const parsed = parseInt(String(yearRaw), 10);
+    year = isNaN(parsed) ? null : parsed;
+  }
+
   const status = normalizeText(findMappedValue(rawProps, 'status', category)) || 'Unknown';
   const source = normalizeText(findMappedValue(rawProps, 'source', category)) || '';
   const notes = normalizeText(findMappedValue(rawProps, 'notes', category)) || '';
   const presence = normalizeText(findMappedValue(rawProps, 'presence', category)) || '';
+
+  // Invasive/threat-specific optional fields
+  const coverageCategoryRaw = findMappedValue(rawProps, 'coverage_category', category);
+  const coverageCategory = normalizeText(coverageCategoryRaw) || null;
+  const threatLevelRaw = findMappedValue(rawProps, 'threat_level', category);
+  const threatLevel = normalizeText(threatLevelRaw) || null;
+  // Species field (for species distribution layers)
+  const speciesRaw = findMappedValue(rawProps, 'species', category);
+  const species = normalizeText(speciesRaw) || null;
 
   const result = {
     name,
@@ -90,7 +106,13 @@ export function mapFeatureProperties(rawProps, layerDefaults) {
     original_filename: layerDefaults.originalFilename || '',
     uploaded_by: layerDefaults.uploadedBy || 'admin'
   };
+
+  // Conditionally include optional fields (avoid polluting clean records with null values)
   if (presence) result.presence = presence;
+  if (coverageCategory) result.coverage_category = coverageCategory;
+  if (threatLevel) result.threat_level = threatLevel;
+  if (species) result.species = species;
+
   return result;
 }
 

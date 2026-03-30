@@ -13,6 +13,7 @@
  */
 import * as turf from '@turf/turf';
 import ENV from '../config/env.js';
+import { CATEGORIES } from '../config/categories.js';
 
 /**
  * Dissolves/unions an array of polygon features into one combined geometry per realm.
@@ -39,7 +40,15 @@ export async function dissolveByRealm(layers, onProgress) {
       const type = f.geometry.type;
       if (!type.includes('Polygon')) continue;
 
-      const realm = f.properties?.realm || meta.realm || 'terrestrial';
+      // Consistent realm resolution: feature props → layer meta → category default → 'terrestrial'
+      // Matches areaCalc.js _resolveRealm() to prevent metric divergence between modules
+      let realm = f.properties?.realm;
+      if (!realm) realm = (meta.realm && meta.realm !== 'terrestrial') ? meta.realm : null;
+      if (!realm) {
+        const cat = meta.category ? CATEGORIES[meta.category] : null;
+        realm = cat?.defaultRealm || meta.realm || 'terrestrial';
+      }
+
       const target = realm === 'marine' ? 'marine' : 'terrestrial';
       byRealm[target].push(f);
     }
