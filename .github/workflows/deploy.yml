@@ -71,17 +71,17 @@ jobs:
 
       - name: Deploy Firestore security rules
         env:
-          GOOGLE_APPLICATION_CREDENTIALS_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
-          if [ -z "$GOOGLE_APPLICATION_CREDENTIALS_JSON" ]; then
-            echo "⚠️  FIREBASE_SERVICE_ACCOUNT secret not configured — skipping Firestore rules deployment."
-            echo "To enable: add FIREBASE_SERVICE_ACCOUNT secret (Firebase Console → Project Settings → Service Accounts → Generate key)"
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT_JSON" ]; then
+            echo "⚠️  FIREBASE_SERVICE_ACCOUNT secret not configured — skipping."
             exit 0
           fi
-          echo "$GOOGLE_APPLICATION_CREDENTIALS_JSON" > /tmp/sa.json
+          # Write JSON safely using Python to avoid shell interpretation issues
+          python3 -c "import os; open('/tmp/sa.json','w').write(os.environ['FIREBASE_SERVICE_ACCOUNT_JSON'])"
           export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
           firebase deploy --only firestore:rules --project vanuatu-nbsap-dashboard-9909a --non-interactive
-          rm /tmp/sa.json
+          rm -f /tmp/sa.json
 
   deploy:
     needs: build
