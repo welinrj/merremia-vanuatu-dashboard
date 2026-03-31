@@ -10,7 +10,7 @@
  * @param {object} ctx - report context
  * @returns {string}
  */
-import { fmtHa, fmtPct } from '../reportUtils.js';
+import { fmtHa, fmtPct, checkIcon } from '../reportUtils.js';
 import ENV from '../../../../config/env.js';
 
 const BL = ENV.nationalBaselines;
@@ -54,7 +54,7 @@ export function renderAnnexes(ctx) {
       </thead>
       <tbody>
         ${checks.map(([label, pass]) => `<tr>
-          <td style="text-align:center;font-size:16px">${pass ? '✅' : '❌'}</td>
+          <td style="text-align:center;padding:6px 4px">${checkIcon(pass)}</td>
           <td class="${pass ? 'check-pass' : 'check-fail'}">${label}</td>
         </tr>`).join('')}
       </tbody>

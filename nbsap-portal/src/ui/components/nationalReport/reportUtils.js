@@ -131,6 +131,32 @@ export function sectionLabel(num, title) {
   return `<div class="section-label">Section ${num}</div><h2>${title}</h2>`;
 }
 
+/**
+ * Compliance check icon — Tabler Icons (MIT).
+ * Renders a circle-check (pass) or circle-x (fail) inline SVG.
+ * Replaces emoji ✅/❌ so icons print cleanly and look professional.
+ * @param {boolean} pass
+ * @returns {string} SVG HTML string
+ */
+export function checkIcon(pass) {
+  if (pass) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+      fill="none" stroke="#2E7D32" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+      style="display:inline-block;vertical-align:middle">
+      <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+      <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+      <path d="M9 12l2 2l4 -4" />
+    </svg>`;
+  }
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+    fill="none" stroke="#C62828" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+    style="display:inline-block;vertical-align:middle">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M10 10l4 4m0 -4l-4 4" />
+  </svg>`;
+}
+
 /** Inline footnote marker — renders a superscript with title tooltip */
 export function footnote(n, text) {
   return `<sup title="${text}" style="color:#006B3F;cursor:help;font-weight:700">[${n}]</sup>`;

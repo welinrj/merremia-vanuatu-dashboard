@@ -214,12 +214,133 @@ export function generateNationalReport() {
 </head>
 <body>
 
-<!-- ── Print / PDF toolbar (hidden on print) ── -->
+<!-- ── Toolbar (hidden on print) ── -->
 <div class="no-print">
-  <span class="toc-toggle" onclick="document.getElementById('toc-panel')?.scrollIntoView({behavior:'smooth'})">↓ Jump to contents</span>
+  <span class="toc-toggle" onclick="document.querySelector('.section')?.scrollIntoView({behavior:'smooth'})">↓ Jump to contents</span>
   <button class="btn btn-outline" onclick="window.close()">✕ Close</button>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Print / Save PDF</button>
+
+  <!-- Download picker -->
+  <div style="position:relative" id="dl-wrap">
+    <button class="btn btn-primary" onclick="toggleDlMenu(event)" aria-haspopup="true" aria-expanded="false" id="dl-btn">
+      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none"
+        stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"
+        style="vertical-align:middle;margin-right:5px;margin-top:-2px">
+        <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+        <path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/>
+        <path d="M7 11l5 5l5 -5"/>
+        <path d="M12 4l0 12"/>
+      </svg>
+      Download Report ▾
+    </button>
+
+    <div id="dl-menu" role="menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);
+      background:#fff;border:1px solid #CBD2D9;border-radius:10px;padding:6px;min-width:220px;
+      box-shadow:0 6px 20px rgba(0,0,0,0.13);z-index:500">
+
+      <!-- PDF option -->
+      <button onclick="window.print()" role="menuitem" style="display:flex;align-items:center;gap:10px;
+        width:100%;padding:10px 12px;border:none;background:none;cursor:pointer;border-radius:6px;
+        font-size:13px;font-weight:600;color:#1A202C;text-align:left" onmouseover="this.style.background='#F0F7F4'" onmouseout="this.style.background='none'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="#C62828" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+          <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+          <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+          <path d="M9 17c0 -1 .889 -2 2 -2s2 .889 2 2c0 1.116 -.958 2 -2 2l-2 0l0 -4" />
+        </svg>
+        <div>
+          <div>Print / Save as PDF</div>
+          <div style="font-size:10px;color:#9AA5B4;font-weight:400">Use browser print dialog</div>
+        </div>
+      </button>
+
+      <div style="height:1px;background:#E4E7EB;margin:4px 6px"></div>
+
+      <!-- Word option -->
+      <button onclick="downloadWord()" role="menuitem" style="display:flex;align-items:center;gap:10px;
+        width:100%;padding:10px 12px;border:none;background:none;cursor:pointer;border-radius:6px;
+        font-size:13px;font-weight:600;color:#1A202C;text-align:left" onmouseover="this.style.background='#F0F7F4'" onmouseout="this.style.background='none'">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke="#1565C0" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
+          <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+          <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+          <path d="M9 13l1.5 6l1.5 -4l1.5 4l1.5 -6" />
+        </svg>
+        <div>
+          <div>Download as Word (.doc)</div>
+          <div style="font-size:10px;color:#9AA5B4;font-weight:400">Opens in Microsoft Word</div>
+        </div>
+      </button>
+    </div>
+  </div>
 </div>
+
+<script>
+  function toggleDlMenu(e) {
+    e.stopPropagation();
+    const menu = document.getElementById('dl-menu');
+    const btn  = document.getElementById('dl-btn');
+    const open = menu.style.display !== 'none';
+    menu.style.display = open ? 'none' : 'block';
+    btn.setAttribute('aria-expanded', String(!open));
+  }
+  document.addEventListener('click', function() {
+    const menu = document.getElementById('dl-menu');
+    const btn  = document.getElementById('dl-btn');
+    if (menu) { menu.style.display = 'none'; }
+    if (btn)  { btn.setAttribute('aria-expanded', 'false'); }
+  });
+  function downloadWord() {
+    /* Capture full page HTML and wrap it as a Word-compatible document.
+       Uses the application/msword MIME type — Word/LibreOffice open these
+       directly. For true .docx generation add a server-side endpoint in
+       future (government server migration). */
+    const reportTitle = document.title;
+    const bodyHtml    = document.body.innerHTML;
+    const styles      = Array.from(document.styleSheets)
+      .map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\\n'); } catch(_) { return ''; } })
+      .join('\\n');
+
+    const wordHtml = \`<!DOCTYPE html>
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <meta name="ProgId" content="Word.Document">
+  <meta name="Generator" content="Vanuatu NBSAP GIS Portal">
+  <title>\${reportTitle}</title>
+  <!--[if gte mso 9]>
+  <xml><w:WordDocument><w:View>Print</w:View><w:Zoom>90</w:Zoom></w:WordDocument></xml>
+  <![endif]-->
+  <style>
+    /* Word page margins */
+    @page WordSection1 { size:21.0cm 29.7cm; margin:2.54cm 2.54cm 2.54cm 2.54cm; }
+    div.WordSection1   { page:WordSection1; }
+    \${styles}
+    /* Suppress toolbar in Word */
+    .no-print { display:none !important; }
+    body { font-size:11pt; }
+  </style>
+</head>
+<body class="WordSection1">
+\${bodyHtml}
+</body>
+</html>\`;
+
+    const filename = reportTitle.replace(/[^a-zA-Z0-9\\s-]/g, '').trim().replace(/\\s+/g, '-') + '.doc';
+    const blob = new Blob(['\\ufeff', wordHtml], { type: 'application/msword;charset=utf-8' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+</script>
 
 ${SECTIONS.join('\n')}
 
