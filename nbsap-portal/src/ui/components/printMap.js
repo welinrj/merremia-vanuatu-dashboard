@@ -2793,17 +2793,20 @@ function initPrintLeafletMap(containerId, targetCode, layers, provincesGeojson, 
       if (provBounds.isValid()) {
         printMap.fitBounds(provBounds, { padding: [30, 30], maxZoom: 12 });
       }
+    } else if (featureGroup.getLayers().length > 0) {
+      // Prefer data layer bounds — zoom in to where the features are
+      const fBounds = featureGroup.getBounds();
+      if (fBounds.isValid()) {
+        printMap.fitBounds(fBounds, { padding: [40, 40], maxZoom: 12 });
+      } else if (provincesGeojson) {
+        const nationalBounds = L.geoJSON(provincesGeojson).getBounds();
+        if (nationalBounds.isValid()) printMap.fitBounds(nationalBounds, { padding: [40, 40], maxZoom: 10 });
+      }
     } else if (provincesGeojson) {
-      // National view: always fit to the full country extent so all islands are visible,
-      // even if some feature groups were not rendered or are concentrated in one region
+      // No data features yet — fall back to national extent
       const nationalBounds = L.geoJSON(provincesGeojson).getBounds();
       if (nationalBounds.isValid()) {
         printMap.fitBounds(nationalBounds, { padding: [40, 40], maxZoom: 10 });
-      }
-    } else if (featureGroup.getLayers().length > 0) {
-      const bounds = featureGroup.getBounds();
-      if (bounds.isValid()) {
-        printMap.fitBounds(bounds, { padding: [40, 40], maxZoom: 12 });
       }
     }
   }, 200);

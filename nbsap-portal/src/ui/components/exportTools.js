@@ -155,6 +155,14 @@ export async function exportMapPNG() {
     const totalHa = (tHa + mHa).toLocaleString('en', { minimumFractionDigits:2, maximumFractionDigits:2 });
     const summary = `Total area: ${totalHa} ha  |  ${totalFeats} records across ${layerCnt} dataset${layerCnt!==1?'s':''}`;
 
+    // ── Fit map to feature bounds so layers appear clearly in the export ─────
+    const exportBounds = _computeFeatureBounds(visLayers.filter(l => !l.metadata?.isReference));
+    if (exportBounds) {
+      leafletMap.fitBounds(exportBounds, { padding: [30, 30], maxZoom: 13, animate: false });
+      // Wait for tiles + vector canvas to fully repaint before capturing
+      await new Promise(r => setTimeout(r, 800));
+    }
+
     await exportMapTemplate(leafletMap, mapEl, {
       title, subtitle, targetCode:tCode, stats, legendItems,
       summary, provinceRows:provRows, categoryRows,
@@ -171,6 +179,39 @@ export async function exportMapPNG() {
 }
 
 // ── Internal ──────────────────────────────────────────────────────────────────
+
+/**
+ * Computes [SW, NE] lat/lng bounds from all features in the given layers.
+ * Returns null if no valid coordinates are found.
+ */
+function _computeFeatureBounds(layers) {
+  let minLat = 90, maxLat = -90, minLng = 180, maxLng = -180, found = false;
+  for (const layer of layers) {
+    for (const f of (layer.geojson?.features || [])) {
+      for (const [lng, lat] of _flatCoords(f.geometry)) {
+        if (lat < -90 || lat > 90 || lng < -180 || lng > 180) continue;
+        minLat = Math.min(minLat, lat); maxLat = Math.max(maxLat, lat);
+        minLng = Math.min(minLng, lng); maxLng = Math.max(maxLng, lng);
+        found = true;
+      }
+    }
+  }
+  return found ? [[minLat, minLng], [maxLat, maxLng]] : null;
+}
+
+function _flatCoords(geom) {
+  if (!geom) return [];
+  switch (geom.type) {
+    case 'Point':           return [geom.coordinates];
+    case 'MultiPoint':
+    case 'LineString':      return geom.coordinates;
+    case 'MultiLineString':
+    case 'Polygon':         return geom.coordinates.flat();
+    case 'MultiPolygon':    return geom.coordinates.flat(2);
+    default:                return [];
+  }
+}
+
 function _dl(content, filename, mime) {
   const url = URL.createObjectURL(new Blob([content], { type:mime }));
   const a = document.createElement('a'); a.href=url; a.download=filename;
