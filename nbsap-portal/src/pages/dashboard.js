@@ -11,6 +11,7 @@ import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
 import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpeciesMaps } from '../ui/components/printMap.js';
+import { generateNationalReport } from '../ui/components/nationalReport.js';
 import { compute30x30Metrics, computeTargetMetrics, computeTarget1Metrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers, updateFilters } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
@@ -69,6 +70,20 @@ export function initDashboard() {
                 title="Export professional A4 map PNG with cartographic template">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                 Map PNG
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-action-group">
+            <div class="sidebar-action-group-header">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              National Report
+            </div>
+            <div class="sidebar-action-row">
+              <button class="sidebar-action-btn sidebar-action-btn-report" id="btn-national-report"
+                title="Generate CBD-compliant National Biodiversity Status Report with all targets, province tables, and data inventory" style="flex:1">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Generate National Report
               </button>
             </div>
           </div>
@@ -164,6 +179,8 @@ export function initDashboard() {
   }, 50);
 
   // Export buttons
+  document.getElementById('btn-national-report').addEventListener('click', generateNationalReport);
+
   document.getElementById('btn-export-csv').addEventListener('click', () => {
     if (isAdmin()) {
       exportCSV();

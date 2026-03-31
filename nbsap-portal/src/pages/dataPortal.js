@@ -470,6 +470,8 @@ function renderLayerDetails(layerId) {
           ${m.custodianAgency ? `<tr><td>Custodian</td><td>${escHtml(m.custodianAgency)}</td></tr>` : ''}
           ${m.dataSource ? `<tr><td>Data Source</td><td>${escHtml(m.dataSource)}</td></tr>` : ''}
           ${m.accessClassification && m.accessClassification !== 'Public' ? `<tr><td>Access</td><td>${escHtml(m.accessClassification)}</td></tr>` : ''}
+          ${m.approvalStatus && m.approvalStatus !== 'Draft' ? `<tr><td>Approval</td><td><span style="color:${m.approvalStatus==='Official'||m.approvalStatus==='Approved'?'var(--success)':'var(--warning)'};font-weight:600">${escHtml(m.approvalStatus)}</span></td></tr>` : ''}
+          ${m.cbdIndicator ? `<tr><td>CBD Indicator</td><td style="font-size:11px;font-family:monospace">${escHtml(m.cbdIndicator)}</td></tr>` : ''}
         </table>
       </div>
     </div>

@@ -28,12 +28,14 @@ export async function dissolveByRealm(layers, onProgress) {
   const progress = onProgress || (() => {});
 
   // Collect features by realm from T3 layers marked countsToward30x30
+  // (or conservation categories that implicitly count toward 30x30)
+  const T3_CONSERVATION_CATS = new Set(['CCA', 'MPA', 'PA', 'OECM', 'LMMA']);
   const byRealm = { terrestrial: [], marine: [] };
 
   for (const layer of layers) {
     const meta = layer.metadata;
-    if (!meta.countsToward30x30) continue;
     if (!meta.targets || !meta.targets.includes('T3')) continue;
+    if (!meta.countsToward30x30 && !T3_CONSERVATION_CATS.has(meta.category)) continue;
 
     for (const f of (layer.geojson?.features || [])) {
       if (!f.geometry) continue;

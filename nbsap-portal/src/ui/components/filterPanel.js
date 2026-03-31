@@ -237,19 +237,33 @@ function _getTargetProgress() {
         progress.T1 = m.total_pct || 0;
       } else if (t.code === 'T2') {
         const m = computeTarget2Metrics(layers, ALL_FILTER);
-        progress.T2 = m.restoration_pct || 0;
+        // Show restoration progress if restoration data exists;
+        // otherwise show % of terrestrial area assessed for degradation
+        if (m.restoration_ha > 0) {
+          progress.T2 = m.restoration_pct || 0;
+        } else {
+          progress.T2 = baselines.terrestrial_ha > 0
+            ? Math.min((m.degraded_ha / baselines.terrestrial_ha) * 100, 100)
+            : 0;
+        }
       } else if (t.code === 'T4') {
-        // Species mapped / total species
+        // Count specific species categories; fall back to generic T4 layers
         const m = computeTargetMetrics(layers, 'T4', ALL_FILTER);
-        const mapped = T4_SPECIES_KEYS.filter(k =>
+        const specificMapped = T4_SPECIES_KEYS.filter(k =>
           m.categoryBreakdown.some(c => c.category === k && c.features > 0)
         ).length;
+        // Generic layers (SPECIES_DIST, KBA) each count as one species slot
+        const genericMapped = specificMapped === 0
+          ? Math.min(m.categoryBreakdown.filter(c => c.features > 0).length, T4_SPECIES_KEYS.length)
+          : 0;
+        const mapped = Math.min(specificMapped + genericMapped, T4_SPECIES_KEYS.length);
         progress.T4 = (mapped / T4_SPECIES_KEYS.length) * 100;
       } else {
-        // Targets without explicit goals: show province coverage (X/6 provinces)
+        // Targets without explicit area goals: show mapped area as % of terrestrial baseline
         const m = computeTargetMetrics(layers, t.code, ALL_FILTER);
-        const totalProvinces = 6;
-        progress[t.code] = (m.provinceBreakdown.length / totalProvinces) * 100;
+        progress[t.code] = m.totalAreaHa > 0
+          ? Math.min((m.totalAreaHa / baselines.terrestrial_ha) * 100, 100)
+          : 0;
       }
     } catch (_) {
       progress[t.code] = null;

@@ -78,7 +78,11 @@ export function createLayerMetadata(opts = {}) {
     spatialResolution: opts.spatialResolution || '',
     dataLimitations: opts.dataLimitations || '',
     updateFrequency: opts.updateFrequency || '',
-    accessClassification: opts.accessClassification || 'Public'
+    accessClassification: opts.accessClassification || 'Public',
+    // CBD / data authority traceability fields
+    accuracyLevel: opts.accuracyLevel || '',
+    approvalStatus: opts.approvalStatus || 'Draft',
+    cbdIndicator: opts.cbdIndicator || ''
   };
 }
 
@@ -101,7 +105,11 @@ export const EXTENDED_METADATA_FIELDS = [
   { key: 'spatialResolution',   label: 'Spatial Resolution',    hint: 'Pixel size or scale', required: false },
   { key: 'dataLimitations',     label: 'Data Limitations',      hint: 'Coverage gaps, known constraints', required: false },
   { key: 'updateFrequency',     label: 'Update Frequency',      hint: 'Revision cycle', type: 'select', options: ['Annual', 'Biennial', 'Project-based', 'One-time', 'As needed'], required: false },
-  { key: 'accessClassification', label: 'Access Classification', hint: 'Sensitivity level', type: 'select', options: ['Public', 'Restricted', 'Confidential'], required: true }
+  { key: 'accessClassification', label: 'Access Classification', hint: 'Sensitivity level', type: 'select', options: ['Public', 'Restricted', 'Confidential'], required: true },
+  // CBD traceability
+  { key: 'accuracyLevel',       label: 'Positional Accuracy',   hint: 'e.g. ±10m GPS, ±50m digitized, ±1km satellite', required: false },
+  { key: 'approvalStatus',      label: 'Approval Status',       hint: 'Data authority sign-off', type: 'select', options: ['Draft', 'Under Review', 'Approved', 'Official'], required: false },
+  { key: 'cbdIndicator',        label: 'CBD/GBF Indicator',     hint: 'e.g. B.4.1 (30×30 terrestrial), B.4.2 (30×30 marine)', required: false }
 ];
 
 /**

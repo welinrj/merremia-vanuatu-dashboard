@@ -752,6 +752,7 @@ function renderStep4(body) {
       <tr><td><b>Status</b></td><td><span class="badge badge-${escHtml(meta.status.toLowerCase())}">${escHtml(meta.status)}</span></td></tr>
       <tr><td><b>30x30</b></td><td>${meta.countsToward30x30 ? 'Yes' : 'No'}</td></tr>
       <tr><td><b>Reference</b></td><td>${meta.isReference ? 'Yes (visual only)' : 'No'}</td></tr>
+      <tr><td><b>Approval</b></td><td><span class="badge" style="background:${meta.approvalStatus==='Official'||meta.approvalStatus==='Approved'?'var(--success-light)':'var(--gray-100)'};color:${meta.approvalStatus==='Official'||meta.approvalStatus==='Approved'?'var(--success)':'var(--text-secondary)'}">${escHtml(meta.approvalStatus||'Draft')}</span></td></tr>
     </table>
 
     <div class="card" style="margin-bottom:12px">
