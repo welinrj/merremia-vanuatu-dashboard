@@ -29,7 +29,7 @@ const T4_SPECIES_KEYS = ['MEGAPODE', 'STARLING', 'FANTAIL', 'KINGFISHER', 'FLYIN
 const MILESTONES = {
   T1:  { label: '100% land & sea covered by biodiversity-inclusive spatial plans', threshold: 100, unit: '%' },
   T2:  { label: '≥30% of degraded ecosystems restored',                           threshold: 30,  unit: '%' },
-  T3:  { label: '≥30% terrestrial & ≥30% marine area effectively conserved',      threshold: 30,  unit: '%' },
+  T3:  { label: '≥30% terrestrial, ≥30% marine & ≥30% combined area conserved',   threshold: 30,  unit: '%' },
   T4:  { label: 'All 6 key Vanuatu species mapped',                               threshold: 100, unit: '%' },
   T6:  { label: 'IAS priority areas mapped & under management',                   threshold: null, unit: null },
   T7:  { label: 'Pesticide & pollution zones mapped',                             threshold: null, unit: null },
@@ -85,9 +85,10 @@ export function renderReportCard(container) {
         switch (t.code) {
           case 'T3': {
             const m = compute30x30Metrics(layers, ALL_FILTER);
-            value        = Math.min(m.terrestrial_pct, m.marine_pct);
-            displayValue = `${m.terrestrial_pct.toFixed(1)}% T &nbsp;·&nbsp; ${m.marine_pct.toFixed(1)}% M`;
-            secondaryText = `${_fmtHa(m.terrestrial_ha)} ha terrestrial · ${_fmtHa(m.marine_ha)} ha marine`;
+            // Status = worst of all three required conditions (all must reach 30%)
+            value        = Math.min(m.terrestrial_pct, m.marine_pct, m.combined_pct);
+            displayValue = `${m.terrestrial_pct.toFixed(1)}% T &nbsp;·&nbsp; ${m.marine_pct.toFixed(1)}% M &nbsp;·&nbsp; ${m.combined_pct.toFixed(1)}% C`;
+            secondaryText = `${_fmtHa(m.terrestrial_ha)} ha land · ${_fmtHa(m.marine_ha)} ha sea · ${_fmtHa(m.combined_ha)} ha combined`;
             break;
           }
           case 'T1': {

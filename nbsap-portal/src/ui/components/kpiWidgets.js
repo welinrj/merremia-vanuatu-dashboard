@@ -318,119 +318,148 @@ function renderTarget3KPIs(container, layers, filters) {
   const m = compute30x30Metrics(layers, filters);
   const baselines = ENV.nationalBaselines;
 
-  const tPctClamped = Math.min(m.terrestrial_pct, 100);
-  const mPctClamped = Math.min(m.marine_pct, 100);
+  // ── Per-target progress toward 30% (fill % of the progress bar) ─────────────
+  const tProgressPct  = Math.min((m.terrestrial_pct / 30) * 100, 100);
+  const mProgressPct  = Math.min((m.marine_pct      / 30) * 100, 100);
+  const cProgressPct  = Math.min((m.combined_pct    / 30) * 100, 100);
 
-  // 30% target amounts in hectares
-  const tTarget30Ha = baselines.terrestrial_ha * 0.3;
-  const mTarget30Ha = baselines.marine_ha * 0.3;
+  // ── Hectare gaps to 30% ──────────────────────────────────────────────────────
+  const tGapHa = Math.max(0, baselines.terrestrial_ha * 0.3 - m.terrestrial_ha);
+  const mGapHa = Math.max(0, baselines.marine_ha      * 0.3 - m.marine_ha);
+  const cGapHa = Math.max(0, m.combined_target_ha         - m.combined_ha);
 
-  // Progress toward 30% target (e.g. 5% of 30% = 16.7% of target achieved)
-  const tProgressPct = m.terrestrial_pct > 0 ? (m.terrestrial_pct / 30 * 100) : 0;
-  const mProgressPct = m.marine_pct > 0 ? (m.marine_pct / 30 * 100) : 0;
+  // ── Which conditions are met? ────────────────────────────────────────────────
+  const tMet = m.terrestrial_remaining_pct <= 0;
+  const mMet = m.marine_remaining_pct      <= 0;
+  const cMet = m.combined_remaining_pct    <= 0;
+  const allMet = tMet && mMet && cMet;
 
-  // Remaining ha to reach 30%
-  const tGapHa = Math.max(0, tTarget30Ha - m.terrestrial_ha);
-  const mGapHa = Math.max(0, mTarget30Ha - m.marine_ha);
+  // ── Status badge for each target ────────────────────────────────────────────
+  function statusBadge(met) {
+    return met
+      ? `<span style="font-size:11px;font-weight:700;color:#065f46;background:#dcfce7;border:1px solid #86efac;padding:1px 8px;border-radius:10px;white-space:nowrap">✓ Target met</span>`
+      : `<span style="font-size:11px;font-weight:600;color:#92400e;background:#fef3c7;border:1px solid #fcd34d;padding:1px 8px;border-radius:10px;white-space:nowrap">In progress</span>`;
+  }
 
-  // Combined totals
-  const combinedTotalHa = baselines.terrestrial_ha + baselines.marine_ha;
-  const combinedTarget30Ha = combinedTotalHa * 0.3;
-  const combinedCurrentHa = m.terrestrial_ha + m.marine_ha;
-  const combinedGapHa = Math.max(0, combinedTarget30Ha - combinedCurrentHa);
-  const combinedPct = combinedTotalHa > 0 ? (combinedCurrentHa / combinedTotalHa) * 100 : 0;
-  const combinedProgressPct = combinedPct > 0 ? (combinedPct / 30 * 100) : 0;
+  // ── Progress bar row ─────────────────────────────────────────────────────────
+  function progressRow(fillPct, colorClass, gradient) {
+    const style = gradient
+      ? `width:${fillPct.toFixed(1)}%;background:${gradient}`
+      : `width:${fillPct.toFixed(1)}%`;
+    return `
+      <div class="progress-bar-container" style="margin-top:6px">
+        <div class="progress-bar-fill ${colorClass}" style="${style}">
+          ${fillPct >= 5 ? fillPct.toFixed(1) + '%' : ''}
+        </div>
+      </div>`;
+  }
 
-  // Show gross vs net indicator only when they differ
-  const tHasOverlap = m.gross_terrestrial_ha > 0 && Math.abs(m.gross_terrestrial_ha - m.terrestrial_ha) > 1;
-  const mHasOverlap = m.gross_marine_ha > 0 && Math.abs(m.gross_marine_ha - m.marine_ha) > 1;
+  // ── Overall status banner ────────────────────────────────────────────────────
+  const bannerColor = allMet ? '#065f46' : '#92400e';
+  const bannerBg    = allMet ? '#f0fdf4' : '#fffbeb';
+  const bannerBorder= allMet ? '#86efac' : '#fcd34d';
+  const bannerText  = allMet
+    ? '🎉 All three 30×30 conditions met! Vanuatu has achieved Target 3.'
+    : `${[tMet, mMet, cMet].filter(Boolean).length} of 3 conditions met — ${
+        [!tMet && 'terrestrial', !mMet && 'marine', !cMet && 'combined'].filter(Boolean).join(', ')
+      } still require action.`;
 
   container.innerHTML = `
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-value">${formatNumber(m.terrestrial_ha)}</div>
-        <div class="kpi-label">Terrestrial (ha)</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value marine">${formatNumber(m.marine_ha)}</div>
-        <div class="kpi-label">Marine (ha)</div>
-      </div>
+    <!-- Overall status banner -->
+    <div style="padding:10px 14px;margin-bottom:12px;border-radius:8px;border:1px solid ${bannerBorder};background:${bannerBg};font-size:13px;font-weight:600;color:${bannerColor}">
+      ${bannerText}
+    </div>
 
+    <div class="kpi-grid">
+
+      <!-- KPI summary cards -->
       <div class="kpi-card">
         <div class="kpi-value" style="color:#065f46">${m.terrestrial_pct.toFixed(2)}%</div>
-        <div class="kpi-label">% of Total Land</div>
+        <div class="kpi-label">% Terrestrial Protected</div>
         <div class="kpi-sublabel">${formatNumber(m.terrestrial_ha)} of ${formatNumber(baselines.terrestrial_ha)} ha</div>
       </div>
       <div class="kpi-card">
         <div class="kpi-value marine">${m.marine_pct.toFixed(2)}%</div>
-        <div class="kpi-label">% of Total Sea</div>
+        <div class="kpi-label">% Marine Protected</div>
         <div class="kpi-sublabel">${formatNumber(m.marine_ha)} of ${formatNumber(baselines.marine_ha)} ha</div>
       </div>
-
-      <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Terrestrial: ${m.terrestrial_pct.toFixed(2)}% of 30% target (${tProgressPct.toFixed(1)}% achieved)</div>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill terrestrial"
-               style="width: ${Math.min(tProgressPct, 100).toFixed(1)}%">
-            ${m.terrestrial_pct >= 1 ? m.terrestrial_pct.toFixed(1) + '%' : ''}
-          </div>
-        </div>
-        <div class="kpi-sublabel" style="margin-top:4px">
-          ${m.terrestrial_remaining_pct > 0
-            ? `${m.terrestrial_remaining_pct.toFixed(2)}% remaining (${formatNumber(tGapHa)} ha needed)`
-            : 'Target reached!'}
-        </div>
+      <div class="kpi-card">
+        <div class="kpi-value" style="color:#0369a1">${m.combined_pct.toFixed(2)}%</div>
+        <div class="kpi-label">% Combined Protected</div>
+        <div class="kpi-sublabel">${formatNumber(m.combined_ha)} of ${formatNumber(m.combined_baseline_ha)} ha</div>
       </div>
-
-      <div class="kpi-card wide">
-        <div class="kpi-label" style="margin-bottom:6px">Marine: ${m.marine_pct.toFixed(2)}% of 30% target (${mProgressPct.toFixed(1)}% achieved)</div>
-        <div class="progress-bar-container">
-          <div class="progress-bar-fill marine"
-               style="width: ${Math.min(mProgressPct, 100).toFixed(1)}%">
-            ${m.marine_pct >= 1 ? m.marine_pct.toFixed(1) + '%' : ''}
-          </div>
-        </div>
-        <div class="kpi-sublabel" style="margin-top:4px">
-          ${m.marine_remaining_pct > 0
-            ? `${m.marine_remaining_pct.toFixed(2)}% remaining (${formatNumber(mGapHa)} ha needed)`
-            : 'Target reached!'}
-        </div>
-      </div>
-
       <div class="kpi-card">
         <div class="kpi-value">${m.total_features}</div>
-        <div class="kpi-label">Data Records</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-value">${m.provinceBreakdown.length}</div>
-        <div class="kpi-label">Provinces</div>
-        <div class="kpi-sublabel">With conservation areas</div>
+        <div class="kpi-label">Conservation Areas</div>
+        <div class="kpi-sublabel">${m.provinceBreakdown.length} province${m.provinceBreakdown.length !== 1 ? 's' : ''}</div>
       </div>
 
-      <div class="kpi-card wide" style="background:var(--surface-alt, #f0fdf4);border:1px solid #bbf7d0">
-        <div style="font-weight:600;font-size:13px;color:#065f46;margin-bottom:8px">
-          Combined: ${combinedPct.toFixed(2)}% of Vanuatu's total spatial zone
-        </div>
-        <div class="progress-bar-container" style="height:20px">
-          <div class="progress-bar-fill terrestrial"
-               style="width: ${Math.min(combinedProgressPct, 100).toFixed(1)}%;background:linear-gradient(90deg, #065f46, #0ea5e9)">
-            ${combinedPct >= 0.5 ? combinedPct.toFixed(1) + '%' : ''}
+      <!-- Required Condition 1: Terrestrial -->
+      <div class="kpi-card wide" style="border-left:4px solid #16a34a">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="font-weight:600;font-size:13px;color:#166534">
+            Required Condition 1 — Terrestrial: ${m.terrestrial_pct.toFixed(2)}% of 30% target
           </div>
+          ${statusBadge(tMet)}
         </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--text-secondary)">
-          <span>${formatNumber(combinedCurrentHa)} ha conserved of ${formatNumber(combinedTotalHa)} ha total</span>
-          <span>30% target = ${formatNumber(combinedTarget30Ha)} ha</span>
-        </div>
-        <div style="margin-top:6px;font-size:12px;font-weight:500;color:${combinedProgressPct >= 100 ? '#065f46' : '#b45309'}">
-          ${combinedGapHa > 0
-            ? `${formatNumber(combinedGapHa)} ha remaining to reach 30% (${combinedProgressPct.toFixed(1)}% of target achieved)`
-            : 'Target reached!'}
+        ${progressRow(tProgressPct, 'terrestrial', null)}
+        <div class="kpi-sublabel" style="margin-top:5px">
+          ${tMet
+            ? `All ${formatNumber(baselines.terrestrial_ha * 0.3)} ha required are conserved`
+            : `${m.terrestrial_remaining_pct.toFixed(2)}% remaining — ${formatNumber(tGapHa)} ha still needed`}
+          &nbsp;·&nbsp; Baseline: ${formatNumber(baselines.terrestrial_ha)} ha land area
+          ${m.gross_terrestrial_ha > 0 && Math.abs(m.gross_terrestrial_ha - m.terrestrial_ha) > 1
+            ? ` &nbsp;·&nbsp; <em>Overlaps removed: gross ${formatNumber(m.gross_terrestrial_ha)} ha → net ${formatNumber(m.terrestrial_ha)} ha</em>`
+            : ''}
         </div>
       </div>
+
+      <!-- Required Condition 2: Marine -->
+      <div class="kpi-card wide" style="border-left:4px solid #0284c7">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="font-weight:600;font-size:13px;color:#075985">
+            Required Condition 2 — Marine: ${m.marine_pct.toFixed(2)}% of 30% target
+          </div>
+          ${statusBadge(mMet)}
+        </div>
+        ${progressRow(mProgressPct, 'marine', null)}
+        <div class="kpi-sublabel" style="margin-top:5px">
+          ${mMet
+            ? `All ${formatNumber(baselines.marine_ha * 0.3)} ha required are conserved`
+            : `${m.marine_remaining_pct.toFixed(2)}% remaining — ${formatNumber(mGapHa)} ha still needed`}
+          &nbsp;·&nbsp; Baseline: ${formatNumber(baselines.marine_ha)} ha EEZ
+          ${m.gross_marine_ha > 0 && Math.abs(m.gross_marine_ha - m.marine_ha) > 1
+            ? ` &nbsp;·&nbsp; <em>Overlaps removed: gross ${formatNumber(m.gross_marine_ha)} ha → net ${formatNumber(m.marine_ha)} ha</em>`
+            : ''}
+        </div>
+      </div>
+
+      <!-- Required Condition 3: Combined land + sea -->
+      <div class="kpi-card wide" style="border-left:4px solid #7c3aed">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+          <div style="font-weight:600;font-size:13px;color:#5b21b6">
+            Required Condition 3 — Combined land &amp; sea: ${m.combined_pct.toFixed(2)}% of 30% target
+          </div>
+          ${statusBadge(cMet)}
+        </div>
+        ${progressRow(cProgressPct, 'terrestrial', 'linear-gradient(90deg, #16a34a, #0284c7)')}
+        <div class="kpi-sublabel" style="margin-top:5px">
+          ${cMet
+            ? `All ${formatNumber(m.combined_target_ha)} ha required are conserved`
+            : `${m.combined_remaining_pct.toFixed(2)}% remaining — ${formatNumber(cGapHa)} ha still needed`}
+          &nbsp;·&nbsp; Baseline: ${formatNumber(m.combined_baseline_ha)} ha total (land + EEZ)
+          &nbsp;·&nbsp; 30% target = ${formatNumber(m.combined_target_ha)} ha
+        </div>
+      </div>
+
     </div>
 
     <div class="kpi-methodology-note">
-      National baselines: ${formatNumber(baselines.terrestrial_ha)} ha terrestrial, ${formatNumber(baselines.marine_ha)} ha marine.
+      GBF Target 3 (30×30) requires <strong>all three conditions</strong> independently:
+      ≥30% of terrestrial/inland water area, ≥30% of marine/coastal area, and ≥30% of combined
+      land and sea area. Areas dissolved per UNEP-WCMC methodology — overlapping protected areas
+      counted only once. National baselines: ${formatNumber(baselines.terrestrial_ha)} ha land,
+      ${formatNumber(baselines.marine_ha)} ha EEZ.
     </div>
   `;
 }

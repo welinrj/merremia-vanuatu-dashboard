@@ -48,10 +48,14 @@ const ENV = {
   sliverThresholdM2: 5,
   simplifyTolerance: 0.0001,
 
-  /** National baseline areas for 30x30 calculations (hectares) */
+  /**
+   * National baseline areas for 30x30 calculations (hectares).
+   * terrestrial_ha: Vanuatu total land area — 12,189 km² (UN Stats, 2020)
+   * marine_ha:      Vanuatu EEZ — 663,251 km² (VLIZ Maritime Boundaries, 2023)
+   */
   nationalBaselines: {
-    terrestrial_ha: 1219000,
-    marine_ha: 66300000
+    terrestrial_ha: 1218900,
+    marine_ha: 66325100
   },
 
   /** Default map center and zoom for Vanuatu */

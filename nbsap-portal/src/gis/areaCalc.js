@@ -311,6 +311,11 @@ export function compute30x30Metrics(layers, filters = {}) {
       };
     }).sort((a, b) => b.total_ha - a.total_ha);
 
+  // Combined (terrestrial + marine) metrics — required third 30x30 condition
+  const combinedHa = netTerrestrial + netMarine;
+  const combinedBaselineHa = baselines.terrestrial_ha + baselines.marine_ha;
+  const combinedPct = combinedBaselineHa > 0 ? (combinedHa / combinedBaselineHa) * 100 : 0;
+
   const result = {
     // Net (dissolved) — official coverage figures
     terrestrial_ha: round2(netTerrestrial),
@@ -319,6 +324,12 @@ export function compute30x30Metrics(layers, filters = {}) {
     marine_pct: round3(marinePct),
     terrestrial_remaining_pct: round3(Math.max(0, 30 - terrestrialPct)),
     marine_remaining_pct: round3(Math.max(0, 30 - marinePct)),
+    // Combined land + sea — the third required 30x30 condition
+    combined_ha: round2(combinedHa),
+    combined_pct: round3(combinedPct),
+    combined_remaining_pct: round3(Math.max(0, 30 - combinedPct)),
+    combined_baseline_ha: round2(combinedBaselineHa),
+    combined_target_ha: round2(combinedBaselineHa * 0.3),
     // Gross (sum) — for transparency
     gross_terrestrial_ha: round2(grossTerrestrial),
     gross_marine_ha: round2(grossMarine),

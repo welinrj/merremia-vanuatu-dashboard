@@ -23,7 +23,7 @@ export default {
       "name": "Target 3: 30×30 Conservation",
       "icon": "\u{1F30F}",
       "color": "#2E7D32",
-      "description": "Conserve and effectively manage at least 30% of terrestrial, inland water, and marine areas by 2030 through protected areas and other effective area-based conservation measures (CCAs, MPAs, LMMAs, Custom Forest Tabu Areas, OECMs).",
+      "description": "Conserve and effectively manage at least 30% of terrestrial/inland water areas, at least 30% of marine/coastal areas, AND at least 30% of combined land and sea area by 2030 — three independent conditions that must all be achieved. Uses protected areas and other effective area-based conservation measures (CCAs, MPAs, LMMAs, Custom Forest Tabu Areas, OECMs). All three percentages are calculated on dissolved (non-overlapping) area per UNEP-WCMC methodology.",
       "isMetricTarget": true,
       "recommendedCategories": ["CCA", "MPA", "PA", "OECM", "LMMA"]
     },
