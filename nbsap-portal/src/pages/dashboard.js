@@ -11,7 +11,7 @@ import { initMap, updateMapLayers, resizeMap } from '../ui/components/mapView.js
 import { renderProvinceChart, renderProvinceTable } from '../ui/components/charts.js';
 import { exportCSV, exportTORSnapshot, exportMapPNG } from '../ui/components/exportTools.js';
 import { openPrintMap, openPrintAllMaps, openPrintProvinceMaps, openPrintSpeciesMaps } from '../ui/components/printMap.js';
-import { generateNationalReport } from '../ui/components/nationalReport.js';
+import { generateNationalReport } from '../ui/components/nationalReport/index.js';
 import { compute30x30Metrics, computeTargetMetrics, computeTarget1Metrics } from '../gis/areaCalc.js';
 import { getAppState, getDashboardLayers, updateFilters } from '../ui/state.js';
 import { CATEGORIES } from '../config/categories.js';
