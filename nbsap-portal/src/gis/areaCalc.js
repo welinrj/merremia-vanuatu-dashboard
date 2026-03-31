@@ -202,6 +202,13 @@ function dissolveChunked(polygons) {
 // ─── 30x30 METRICS (Target 3) ───────────────────────────────────────────────
 
 /**
+ * Conservation categories that implicitly count toward 30x30 when tagged with T3.
+ * Layers with these categories and T3 in their targets count even without the
+ * explicit countsToward30x30 flag — which historically defaulted to false on upload.
+ */
+const T3_CONSERVATION_CATS = new Set(['CCA', 'MPA', 'PA', 'OECM', 'LMMA']);
+
+/**
  * Computes 30x30 metrics with polygon dissolution per UNEP-WCMC methodology.
  *
  * - Overlapping terrestrial areas dissolved into single coverage polygon
@@ -230,8 +237,10 @@ export function compute30x30Metrics(layers, filters = {}) {
   for (const layer of layers) {
     const meta = layer.metadata;
     if (meta.isReference) continue;
-    if (!meta.countsToward30x30) continue;
     if (!meta.targets || !meta.targets.includes('T3')) continue;
+    // Count if explicitly flagged OR if it's a conservation category (handles layers
+    // uploaded before the countsToward30x30 flag was defaulted correctly)
+    if (!meta.countsToward30x30 && !T3_CONSERVATION_CATS.has(meta.category)) continue;
 
     const features = (layer.geojson?.features || []).filter(f => {
       if (filters.province && filters.province !== 'All') {

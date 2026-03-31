@@ -106,9 +106,14 @@ export function renderReportCard(container) {
           }
           case 'T4': {
             const m = computeTargetMetrics(layers, 'T4', ALL_FILTER);
-            const mapped = T4_SPECIES_KEYS.filter(k =>
+            const specificMapped = T4_SPECIES_KEYS.filter(k =>
               m.categoryBreakdown.some(c => c.category === k && c.features > 0)
             ).length;
+            // Generic layers (SPECIES_DIST, KBA) count as one slot each when no specific keys found
+            const genericMapped = specificMapped === 0
+              ? Math.min(m.categoryBreakdown.filter(c => c.features > 0).length, T4_SPECIES_KEYS.length)
+              : 0;
+            const mapped = Math.min(specificMapped + genericMapped, T4_SPECIES_KEYS.length);
             value        = (mapped / T4_SPECIES_KEYS.length) * 100;
             displayValue = `${mapped} / ${T4_SPECIES_KEYS.length} species`;
             secondaryText = `${m.totalFeatures} occurrence records`;
