@@ -7,6 +7,7 @@
  * @returns {string}
  */
 import { fmtHa, fmtPct, fmtN, statusFor, progressBar, dualBar, badge, kpiCard, provRows, dataGap } from '../reportUtils.js';
+import { getTargetIcon } from '../reportIcons.js';
 import { CATEGORIES } from '../../../../config/categories.js';
 import targetsConfig from '../../../../config/targets.js';
 import { MILESTONES } from './s02_execSummary.js';
@@ -23,7 +24,7 @@ export function renderGBFTargets(ctx) {
     if (!m) return `
       <div class="target-section" style="opacity:0.65">
         <div class="target-header">
-          <span class="target-icon">${t.icon || ''}</span>
+          <span class="target-icon">${getTargetIcon(t.code, t.color, 28)}</span>
           <span class="target-code" style="color:${t.color}">${t.code}</span>
           <div class="target-info">
             <div class="target-name">${t.name.replace(/^Target \d+:\s*/,'')}</div>
@@ -140,7 +141,7 @@ export function renderGBFTargets(ctx) {
     return `
       <div class="target-section">
         <div class="target-header">
-          <span class="target-icon">${t.icon || ''}</span>
+          <span class="target-icon">${getTargetIcon(t.code, t.color, 28)}</span>
           <span class="target-code" style="color:${t.color}">${t.code}</span>
           <div class="target-info">
             <div class="target-name">${t.name.replace(/^Target \d+:\s*/, '')}</div>
