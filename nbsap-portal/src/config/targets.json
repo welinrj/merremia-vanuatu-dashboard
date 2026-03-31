@@ -17,7 +17,7 @@
     {
       "code": "T3",
       "name": "Target 3: 30x30 Conservation",
-      "description": "Ensure at least 30% of terrestrial and 30% of marine areas are effectively conserved through protected areas and OECMs.",
+      "description": "Ensure at least 30% of terrestrial areas, at least 30% of marine areas, AND at least 30% of combined terrestrial and marine areas are effectively conserved through protected areas and OECMs — three independent conditions that must all be achieved.",
       "isMetricTarget": true,
       "recommendedCategories": ["CCA", "MPA", "PA", "OECM"]
     },

@@ -18,7 +18,7 @@ const BL = ENV.nationalBaselines;
 const MILESTONES = {
   T1: { threshold: 100, unit: '%', label: '100% land & sea covered by spatial plans' },
   T2: { threshold: 30,  unit: '%', label: '≥30% of degraded ecosystems restored' },
-  T3: { threshold: 30,  unit: '%', label: '≥30% terrestrial & ≥30% marine conserved' },
+  T3: { threshold: 30,  unit: '%', label: '≥30% terrestrial, ≥30% marine & ≥30% combined conserved' },
   T4: { threshold: 100, unit: '%', label: 'All 6 key species distribution maps complete' },
 };
 
@@ -90,7 +90,7 @@ export function generateNationalReport() {
   // Summary status per target
   function tValue(code) {
     const m = tMetrics[code]; if (!m) return null;
-    if (code === 'T3') return Math.min(m.terrestrial_pct, m.marine_pct);
+    if (code === 'T3') return Math.min(m.terrestrial_pct, m.marine_pct, m.combined_pct);
     if (code === 'T1') return m.total_pct;
     if (code === 'T2') return m.restoration_pct;
     if (code === 'T4') {
@@ -106,13 +106,15 @@ export function generateNationalReport() {
   // CBD compliance checks
   const checks = [
     ['Spatial data uploaded for ≥1 NBSAP target', targetsActive > 0],
-    ['% terrestrial area protected (T3) calculated', t3.terrestrial_pct > 0],
-    ['% marine area protected (T3) calculated', t3.marine_pct > 0],
+    ['% terrestrial area protected (T3) calculated', t3.terrestrial_pct >= 0],
+    ['% marine area protected (T3) calculated', t3.marine_pct >= 0],
+    ['% combined land+sea area protected (T3) calculated', t3.combined_pct >= 0],
     ['Province breakdown available', t3.provinceBreakdown?.length > 0],
     ['Dataset custodian recorded on ≥1 layer', layers.some(l => l.metadata?.custodianAgency)],
     ['UNEP-WCMC polygon dissolution applied', true],
     ['GBF Core Indicator B.4.1 (30×30 terrestrial) tracked', t3.terrestrial_pct >= 0],
     ['GBF Core Indicator B.4.2 (30×30 marine) tracked', t3.marine_pct >= 0],
+    ['GBF Core Indicator B.4.3 (30×30 combined) tracked', t3.combined_pct >= 0],
     ['Metadata completeness (CRS recorded)', layers.some(l => l.metadata?.detectedCRS)],
     ['Data traceability (upload timestamp)', layers.every(l => l.metadata?.uploadTimestamp)],
   ];
@@ -221,11 +223,13 @@ footer{background:#004D2C;color:rgba(255,255,255,0.7);font-size:11px;text-align:
 <div class="page page-break">
   <div class="section">
     <h2>Executive Summary</h2>
-    <div class="kpi-grid">
+    <div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
       <div class="kpi"><div class="kpi-value" style="color:#006B3F">${_fmtPct(t3.terrestrial_pct)}</div><div class="kpi-label">Terrestrial Protected (T3)</div></div>
       <div class="kpi"><div class="kpi-value" style="color:#0072BC">${_fmtPct(t3.marine_pct)}</div><div class="kpi-label">Marine Protected (T3)</div></div>
+      <div class="kpi"><div class="kpi-value" style="color:#5b21b6">${_fmtPct(t3.combined_pct)}</div><div class="kpi-label">Combined Protected (T3)</div></div>
       <div class="kpi"><div class="kpi-value">${_fmtHa(t3.terrestrial_ha)}</div><div class="kpi-label">Terrestrial Net Area</div></div>
       <div class="kpi"><div class="kpi-value">${_fmtHa(t3.marine_ha)}</div><div class="kpi-label">Marine Net Area</div></div>
+      <div class="kpi"><div class="kpi-value">${_fmtHa(t3.combined_ha)}</div><div class="kpi-label">Combined Net Area</div></div>
     </div>
     <table>
       <thead><tr><th>Target</th><th>Name</th><th>Status</th><th>Progress</th><th>GBF 2030 Milestone</th></tr></thead>
@@ -268,11 +272,16 @@ footer{background:#004D2C;color:rgba(255,255,255,0.7);font-size:11px;text-align:
 
       let stats = '';
       if (t.code === 'T3') {
-        stats = `<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">
-          <div class="kpi"><div class="kpi-value" style="color:#006B3F">${_fmtPct(m.terrestrial_pct)}</div><div class="kpi-label">% Terrestrial</div></div>
-          <div class="kpi"><div class="kpi-value" style="color:#0072BC">${_fmtPct(m.marine_pct)}</div><div class="kpi-label">% Marine</div></div>
+        const tMet = m.terrestrial_remaining_pct <= 0;
+        const mMet = m.marine_remaining_pct      <= 0;
+        const cMet = m.combined_remaining_pct    <= 0;
+        stats = `<div class="kpi-grid" style="grid-template-columns:repeat(6,1fr)">
+          <div class="kpi"><div class="kpi-value" style="color:#006B3F">${_fmtPct(m.terrestrial_pct)}</div><div class="kpi-label">% Terrestrial${tMet ? ' ✓' : ''}</div></div>
+          <div class="kpi"><div class="kpi-value" style="color:#0072BC">${_fmtPct(m.marine_pct)}</div><div class="kpi-label">% Marine${mMet ? ' ✓' : ''}</div></div>
+          <div class="kpi"><div class="kpi-value" style="color:#5b21b6">${_fmtPct(m.combined_pct)}</div><div class="kpi-label">% Combined${cMet ? ' ✓' : ''}</div></div>
           <div class="kpi"><div class="kpi-value">${_fmtHa(m.terrestrial_ha)}</div><div class="kpi-label">Terrestrial (net)</div></div>
           <div class="kpi"><div class="kpi-value">${_fmtHa(m.marine_ha)}</div><div class="kpi-label">Marine (net)</div></div>
+          <div class="kpi"><div class="kpi-value">${_fmtHa(m.combined_ha)}</div><div class="kpi-label">Combined (net)</div></div>
         </div>`;
       } else if (t.code === 'T1') {
         stats = `<div class="kpi-grid" style="grid-template-columns:repeat(4,1fr)">

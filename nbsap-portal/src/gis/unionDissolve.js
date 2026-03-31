@@ -171,13 +171,24 @@ export async function computeDissolvedMetrics(layers, onProgress) {
   const mPct = baselines.marine_ha > 0
     ? (stats.marine_area_ha / baselines.marine_ha) * 100 : 0;
 
+  // Combined (terrestrial + marine) — required third 30x30 condition
+  const combinedHa = stats.terrestrial_area_ha + stats.marine_area_ha;
+  const combinedBaselineHa = baselines.terrestrial_ha + baselines.marine_ha;
+  const combinedPct = combinedBaselineHa > 0 ? (combinedHa / combinedBaselineHa) * 100 : 0;
+
   return {
     terrestrial_ha: stats.terrestrial_area_ha,
     marine_ha: stats.marine_area_ha,
     terrestrial_pct: Math.round(tPct * 1000) / 1000,
     marine_pct: Math.round(mPct * 1000) / 1000,
-    terrestrial_remaining_pct: Math.round((30 - tPct) * 1000) / 1000,
-    marine_remaining_pct: Math.round((30 - mPct) * 1000) / 1000,
+    terrestrial_remaining_pct: Math.round(Math.max(0, 30 - tPct) * 1000) / 1000,
+    marine_remaining_pct: Math.round(Math.max(0, 30 - mPct) * 1000) / 1000,
+    // Combined land + sea — the third required 30x30 condition
+    combined_ha: Math.round(combinedHa * 100) / 100,
+    combined_pct: Math.round(combinedPct * 1000) / 1000,
+    combined_remaining_pct: Math.round(Math.max(0, 30 - combinedPct) * 1000) / 1000,
+    combined_baseline_ha: Math.round(combinedBaselineHa * 100) / 100,
+    combined_target_ha: Math.round(combinedBaselineHa * 0.3 * 100) / 100,
     terrestrial_dissolved: terrestrial,
     marine_dissolved: marine,
     stats
