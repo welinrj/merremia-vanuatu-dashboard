@@ -6,6 +6,7 @@
  * @returns {string}
  */
 import { fmtHa, fmtPct, fmtN, statusFor, progressBar, badge, kpiCard } from '../reportUtils.js';
+import { getTargetIcon } from '../reportIcons.js';
 import targetsConfig from '../../../../config/targets.js';
 
 const MILESTONES = {
@@ -34,7 +35,7 @@ export function renderExecSummary(ctx) {
       : '';
     return `<tr>
       <td><span style="color:${t.color};font-weight:800">${t.code}</span></td>
-      <td>${t.icon || ''} ${t.name.replace(/^Target \d+:\s*/, '')}</td>
+      <td>${getTargetIcon(t.code, t.color, 18)} ${t.name.replace(/^Target \d+:\s*/, '')}</td>
       <td>${badge(st.label, st.color, st.bg)}</td>
       <td style="min-width:120px">${pctText}${barHtml}</td>
       <td style="font-size:11px;color:#616E7C">${ms?.label || 'Mapping / presence target'}</td>
