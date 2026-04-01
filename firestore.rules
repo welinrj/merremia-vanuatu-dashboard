@@ -113,6 +113,21 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    // ─── ProDoc / Fisheries Dashboard collections ────────────────────────────
+    // Staff-facing project document tracker. Auth is handled at the application
+    // level (passphrase-based), so open read/write access is used here,
+    // consistent with the NBSAP portal collection pattern.
+
+    // Project activities catalogue
+    match /prodoc_activities/{activityId} {
+      allow read, write: if true;
+    }
+
+    // Quarterly progress records (keyed as {activityId}_{year}_{quarter})
+    match /quarterly_progress/{progressId} {
+      allow read, write: if true;
+    }
+
     // NBSAP admin datasets — stored without target assignment
     // for reference data, baselines, or cross-target datasets
     match /nbsap_admin_datasets/{datasetId} {
