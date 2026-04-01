@@ -195,6 +195,10 @@ export async function getQuarterlyProgress(
 
 /**
  * Fetch all QuarterlyProgress records for a given year and quarter.
+ *
+ * Uses a single-field query on `year` only (no composite index required),
+ * then filters by quarter client-side. This avoids a Firestore composite
+ * index that would otherwise need to be manually deployed.
  */
 export async function listQuarterlyProgressForYear(
   year: number,
@@ -209,11 +213,11 @@ export async function listQuarterlyProgressForYear(
     const q = query(
       collection(db, PROGRESS_COLLECTION),
       where('year', '==', year),
-      where('quarter', '==', quarter),
     )
     const snap = await getDocs(q)
-
-    return snap.docs.map((d) => d.data() as QuarterlyProgress)
+    const all = snap.docs.map((d) => d.data() as QuarterlyProgress)
+    // Filter by quarter client-side — avoids needing a composite index
+    return quarter ? all.filter((r) => r.quarter === quarter) : all
   } catch (err) {
     console.error(
       `proDocStore: Failed to fetch progress list for ${year} ${quarter}.`,
