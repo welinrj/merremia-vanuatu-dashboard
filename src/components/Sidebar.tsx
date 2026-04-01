@@ -11,19 +11,25 @@ interface SidebarProps {
   user: UserProfile | null
 }
 
-const staffNavItems = [
-  { id: 'gis-database', label: 'GIS Database' },
-  { id: 'protected-areas', label: 'CCAs & MPAs' },
-]
-
 const publicNavItems = [
   { id: 'datasets', label: 'Datasets' },
-  { id: 'about', label: 'About' },
+  { id: 'prodoc-tracker', label: 'ProDoc Tracker' },
+]
+
+const managementNavItems = [
+  { id: 'gis-database', label: 'GIS Database' },
+  { id: 'protected-areas', label: 'CCAs & MPAs' },
+  { id: 'fisheries-dashboard', label: 'Fisheries Dashboard' },
+  { id: 'me-dashboard', label: 'M&E Dashboard' },
+  { id: 'activity-planner', label: 'Activity Planner' },
+  { id: 'quarterly-log', label: 'Quarterly Log' },
+  { id: 'risk-register', label: 'Risk Register' },
+  { id: 'file-manager', label: 'File Manager' },
+  { id: 'activity-calendar', label: 'Activity Calendar' },
+  { id: 'messages', label: 'Messages' },
 ]
 
 const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, onNavigate, staffAuth, onLogout, user }) => {
-  const navItems = activePage === 'staff' ? staffNavItems : publicNavItems
-
   return (
     <aside className={`sidebar${activePage === 'public' ? ' public-sidebar' : ''}`}>
       <div className="sidebar-header">
@@ -44,8 +50,9 @@ const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, on
         </div>
       </div>
       <nav className="sidebar-nav">
+        <div className="sidebar-section-label">PUBLIC</div>
         <ul>
-          {navItems.map((item) => (
+          {publicNavItems.map((item) => (
             <li key={item.id}>
               <button
                 className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
@@ -57,6 +64,24 @@ const Sidebar: FC<SidebarProps> = ({ activePage, activeSection, onPageChange, on
             </li>
           ))}
         </ul>
+        {(activePage === 'staff' || staffAuth) && (
+          <>
+            <div className="sidebar-section-label">MANAGEMENT</div>
+            <ul>
+              {managementNavItems.map((item) => (
+                <li key={item.id}>
+                  <button
+                    className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
+                    onClick={() => onNavigate(item.id)}
+                    title={item.label}
+                  >
+                    {item.label}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </nav>
       <div className="sidebar-footer">
         {activePage === 'public' && (
