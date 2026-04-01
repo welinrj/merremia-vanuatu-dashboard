@@ -172,23 +172,51 @@ export function renderCover(ctx) {
 
     <!-- At-a-glance statistics -->
     <div class="cover-stats">
+      <!-- GIS Datasets: Heroicons "circle-stack" (database) -->
       <div class="cover-stat cover-stat--blue">
-        <div class="cover-stat-icon">📊</div>
+        <div class="cover-stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="6" rx="8.25" ry="3.25"/>
+            <path d="M3.75 6v4c0 1.795 3.694 3.25 8.25 3.25S20.25 11.795 20.25 10V6"/>
+            <path d="M3.75 10v4c0 1.795 3.694 3.25 8.25 3.25S20.25 15.795 20.25 14v-4"/>
+            <path d="M3.75 14v4c0 1.795 3.694 3.25 8.25 3.25S20.25 19.795 20.25 18v-4"/>
+          </svg>
+        </div>
         <div class="cover-stat-value">${layers.length}</div>
         <div class="cover-stat-label">GIS Datasets</div>
       </div>
+      <!-- Spatial Features: Heroicons "map-pin" -->
       <div class="cover-stat cover-stat--teal">
-        <div class="cover-stat-icon">📍</div>
+        <div class="cover-stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+            <path d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 0 1 15 0Z"/>
+          </svg>
+        </div>
         <div class="cover-stat-value">${general.totalFeatures?.toLocaleString() || '0'}</div>
         <div class="cover-stat-label">Spatial Features</div>
       </div>
+      <!-- Targets with Data: Heroicons "chart-bar-square" -->
       <div class="cover-stat cover-stat--amber">
-        <div class="cover-stat-icon">🎯</div>
+        <div class="cover-stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0 0 20.25 18V6A2.25 2.25 0 0 0 18 3.75H6A2.25 2.25 0 0 0 3.75 6v12A2.25 2.25 0 0 0 6 20.25Z"/>
+          </svg>
+        </div>
         <div class="cover-stat-value">${targetsActive}/9</div>
         <div class="cover-stat-label">Targets with Data</div>
       </div>
+      <!-- CBD Checks Passed: Heroicons "shield-check" -->
       <div class="cover-stat cover-stat--green">
-        <div class="cover-stat-icon">✅</div>
+        <div class="cover-stat-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 12.75 11.25 15 15 9.75m-3-7.036A11.959 11.959 0 0 1 3.598 6 11.99 11.99 0 0 0 3 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285Z"/>
+          </svg>
+        </div>
         <div class="cover-stat-value">${passed}/${checks.length}</div>
         <div class="cover-stat-label">CBD Checks Passed</div>
       </div>
