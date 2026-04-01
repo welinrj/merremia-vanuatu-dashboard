@@ -305,8 +305,6 @@ ${SECTIONS.join('\n')}
   <div class="footer-logos">
     <img class="footer-logo" src="${lb}cbd-logo.png" alt="CBD" onerror="this.style.display='none'">
     <img class="footer-logo" src="${lb}depc-logo.png" alt="DEPC" onerror="this.style.display='none'">
-    <img class="footer-logo" src="${lb}undp-logo.png" alt="UNDP" onerror="this.style.display='none'">
-    <img class="footer-logo" src="${lb}gef-logo.png" alt="GEF" onerror="this.style.display='none'">
   </div>
 </footer>
 
