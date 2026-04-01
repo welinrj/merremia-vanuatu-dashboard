@@ -14,6 +14,7 @@ interface SidebarProps {
 const publicNavItems = [
   { id: 'datasets', label: 'Datasets' },
   { id: 'prodoc-tracker', label: 'ProDoc Tracker' },
+  { id: 'about', label: 'About' },
 ]
 
 const managementNavItems = [
