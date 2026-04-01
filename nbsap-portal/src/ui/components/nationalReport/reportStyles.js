@@ -59,16 +59,17 @@ a  { color: #006B3F; text-decoration: underline; }
 
 /* ── Toolbar (hidden on print) ────────────────────────────────────────── */
 .no-print {
-  display: flex; gap: 10px; justify-content: flex-end; align-items: center;
-  padding: 12px 36px; background: #F1F3F5;
+  display: flex; gap: 8px; justify-content: flex-end; align-items: center;
+  padding: 10px 32px; background: #F1F3F5;
   border-bottom: 1px solid #CBD2D9;
   position: sticky; top: 0; z-index: 200;
 }
-.toc-toggle { font-size: 12px; color: #4A5568; cursor: pointer; margin-right: auto; text-decoration: underline; }
-.btn { padding: 8px 20px; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.toc-toggle { font-size: 12px; color: #4A5568; cursor: pointer; margin-right: auto; text-decoration: underline; white-space: nowrap; }
+.btn { padding: 8px 16px; border: none; border-radius: 6px; font-size: 12.5px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; white-space: nowrap; transition: opacity 0.15s; }
 .btn-primary { background: #006B3F; color: #fff; }
 .btn-outline { background: #fff; color: #006B3F; border: 1.5px solid #006B3F; }
-.btn:hover   { opacity: 0.87; }
+.btn:hover   { opacity: 0.83; }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
 /* ── Body page geometric watermark ────────────────────────────────────── */
 body {
