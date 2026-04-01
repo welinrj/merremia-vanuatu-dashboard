@@ -8,12 +8,22 @@ import './App.css'
 
 const GISDatabase = lazy(() => import('./components/portal/GISDatabase'))
 const ProtectedAreas = lazy(() => import('./components/portal/ProtectedAreas'))
+const FisheriesDashboard = lazy(() => import('./components/portal/FisheriesDashboard'))
 const PublicDataPortal = lazy(() => import('./components/public/PublicDataPortal'))
 
 const sectionTitles: Record<string, string> = {
   'gis-database': 'GIS Database',
   'protected-areas': 'CCAs & MPAs',
+  'fisheries-dashboard': 'Fisheries Dashboard',
+  'me-dashboard': 'M&E Dashboard',
+  'activity-planner': 'Activity Planner',
+  'quarterly-log': 'Quarterly Log',
+  'risk-register': 'Risk Register',
+  'file-manager': 'File Manager',
+  'activity-calendar': 'Activity Calendar',
+  messages: 'Messages',
   datasets: 'Datasets',
+  'prodoc-tracker': 'ProDoc Tracker',
   about: 'About',
 }
 
@@ -41,7 +51,7 @@ function App() {
       return
     }
     setActivePage(page)
-    setActiveSection(page === 'staff' ? 'gis-database' : 'datasets')
+    setActiveSection(page === 'staff' ? 'fisheries-dashboard' : 'datasets')
   }
 
   const handleLogout = () => {
@@ -60,7 +70,7 @@ function App() {
         onSuccess={(user) => {
           setStaffAuth(true)
           setCurrentUser(user)
-          setActiveSection('gis-database')
+          setActiveSection('fisheries-dashboard')
         }}
         onCancel={() => {
           setActivePage('public')
@@ -89,14 +99,28 @@ function App() {
         />
         <div className="dashboard-content">
           <Suspense fallback={<div style={{ padding: '2rem', color: '#6b7280' }}>Loading...</div>}>
-          {/* Staff page sections */}
-          {activeSection === 'gis-database' && (
-            <GISDatabase />
-          )}
+          {/* Staff / Management sections */}
+          {activeSection === 'gis-database' && <GISDatabase />}
           {activeSection === 'protected-areas' && <ProtectedAreas />}
+          {activeSection === 'fisheries-dashboard' && <FisheriesDashboard />}
+          {(activeSection === 'me-dashboard' ||
+            activeSection === 'activity-planner' ||
+            activeSection === 'quarterly-log' ||
+            activeSection === 'risk-register' ||
+            activeSection === 'file-manager' ||
+            activeSection === 'activity-calendar' ||
+            activeSection === 'messages') && (
+            <div className="placeholder-section">
+              <h3>{sectionTitles[activeSection]}</h3>
+              <p style={{ marginTop: '0.75rem', color: '#6b7280' }}>
+                This section is under development.
+              </p>
+            </div>
+          )}
 
           {/* Public page sections */}
           {activeSection === 'datasets' && <PublicDataPortal />}
+          {activeSection === 'prodoc-tracker' && <FisheriesDashboard />}
           {activeSection === 'about' && (
             <div className="placeholder-section">
               <h3>VCAP2 Public Data Portal</h3>
