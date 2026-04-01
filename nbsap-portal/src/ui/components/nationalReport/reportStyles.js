@@ -200,7 +200,8 @@ body {
 .cover-stat--amber::before  { background: linear-gradient(90deg,#f59e0b,#fcd34d); }
 .cover-stat--green  { background: rgba(34,197,94,0.18); }
 .cover-stat--green::before  { background: linear-gradient(90deg,#22c55e,#86efac); }
-.cover-stat-icon  { font-size: 16px; margin-bottom: 6px; opacity: 0.85; }
+.cover-stat-icon  { width: 24px; height: 24px; margin: 0 auto 8px; opacity: 0.9; color: rgba(255,255,255,0.95); }
+.cover-stat-icon svg { width: 24px; height: 24px; display: block; }
 .cover-stat-value { font-size: 26px; font-weight: 900; color: #fff; line-height: 1; }
 .cover-stat-label { font-size: 9.5px; color: rgba(255,255,255,0.65); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 5px; line-height: 1.3; }
 
