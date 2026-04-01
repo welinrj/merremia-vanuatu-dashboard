@@ -203,6 +203,9 @@ export function generateNationalReport() {
 
   const { monthYear, dateStr, now, passed, checks, logoBase: lb } = ctx;
 
+  // Safe filename base
+  const fileSlug = `Vanuatu-NBSAP-Report-${monthYear.replace(/\s+/g, '-')}`;
+
   const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,15 +214,81 @@ export function generateNationalReport() {
   <title>Vanuatu NBSAP National Biodiversity Status Report — ${monthYear}</title>
   <meta name="description" content="Vanuatu National Biodiversity Status Report — GBF 2030 Progress, NBSAP Implementation, CBD 7th National Report. Generated ${dateStr}.">
   <style>${getReportStyles()}</style>
+  <!-- html-docx-js: client-side HTML → DOCX conversion (MIT) -->
+  <script src="https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.js"><\/script>
 </head>
 <body>
 
-<!-- ── Print / PDF toolbar (hidden on print) ── -->
+<!-- ── Download toolbar (hidden on print) ── -->
 <div class="no-print">
   <span class="toc-toggle" onclick="document.getElementById('toc-panel')?.scrollIntoView({behavior:'smooth'})">↓ Jump to contents</span>
   <button class="btn btn-outline" onclick="window.close()">✕ Close</button>
-  <button class="btn btn-primary" onclick="window.print()">🖨 Print / Save PDF</button>
+  <button class="btn btn-outline" id="btn-docx" onclick="downloadDocx()">
+    <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <line x1="12" y1="18" x2="12" y2="12"/>
+      <polyline points="9 15 12 18 15 15"/>
+    </svg>Download DOCX
+  </button>
+  <button class="btn btn-primary" onclick="downloadPdf()">
+    <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px;fill:white" viewBox="0 0 24 24" fill="none"
+         stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+      <polyline points="14 2 14 8 20 8"/>
+      <path d="M9 13h6M9 17h3"/>
+    </svg>Download PDF
+  </button>
 </div>
+
+<script>
+/* ── PDF download: sets filename hint then triggers browser print dialog ── */
+function downloadPdf() {
+  const prev = document.title;
+  document.title = ${JSON.stringify(fileSlug)};
+  window.print();
+  // Restore after slight delay (some browsers restore before print closes)
+  setTimeout(() => { document.title = prev; }, 2000);
+}
+
+/* ── DOCX download: converts full HTML → DOCX via html-docx-js ─────────── */
+function downloadDocx() {
+  const btn = document.getElementById('btn-docx');
+  if (!window.htmlDocx) {
+    alert('DOCX library not loaded yet — please wait a moment and try again, or check your internet connection.');
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  try {
+    // Build a clean HTML string: strip the toolbar so it doesn't appear in the doc
+    const clone = document.documentElement.cloneNode(true);
+    clone.querySelector('.no-print')?.remove();
+    // Remove the CDN script tag (not needed in the document)
+    clone.querySelectorAll('script').forEach(s => s.remove());
+    const docHtml = '<!DOCTYPE html>' + clone.outerHTML;
+
+    const blob = window.htmlDocx.asBlob(docHtml, {
+      orientation: 'portrait',
+      margins: { top: 720, right: 720, bottom: 720, left: 720 },
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = ${JSON.stringify(fileSlug + '.docx')};
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch (err) {
+    alert('DOCX generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/><\\/svg>Download DOCX';
+  }
+}
+<\/script>
 
 ${SECTIONS.join('\n')}
 
