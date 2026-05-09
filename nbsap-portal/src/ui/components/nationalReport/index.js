@@ -64,6 +64,7 @@ import { renderAnnexes }          from './sections/s15_annexes.js';
 
 // ── Styles ───────────────────────────────────────────────────────────────────
 import { getReportStyles } from './reportStyles.js';
+import { showAlert } from '../dialog.js';
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const ALL_FILTER = {
@@ -177,7 +178,7 @@ export function generateNationalReport() {
     ctx = buildContext(logoBase);
   } catch (err) {
     console.error('[nationalReport] Failed to build report context:', err);
-    alert('Error generating report: ' + err.message);
+    showAlert('Error generating report: ' + err.message, { title: 'Report Error' });
     return;
   }
 
@@ -256,7 +257,7 @@ function downloadPdf() {
 function downloadDocx() {
   const btn = document.getElementById('btn-docx');
   if (!window.htmlDocx) {
-    alert('DOCX library not loaded yet — please wait a moment and try again, or check your internet connection.');
+    showAlert('DOCX library not loaded yet — please wait a moment and try again, or check your internet connection.', { title: 'Library Not Ready' });
     return;
   }
   btn.disabled = true;
@@ -282,7 +283,7 @@ function downloadDocx() {
     document.body.removeChild(a);
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   } catch (err) {
-    alert('DOCX generation failed: ' + err.message);
+    showAlert('DOCX generation failed: ' + err.message, { title: 'Export Error' });
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<svg style="width:14px;height:14px;vertical-align:-2px;margin-right:5px" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><polyline points="9 15 12 18 15 15"/><\\/svg>Download DOCX';
@@ -313,7 +314,7 @@ ${SECTIONS.join('\n')}
 
   const w = window.open('', '_blank', 'width=1140,height=900,scrollbars=yes');
   if (!w) {
-    alert('Pop-up blocked. Please allow pop-ups for this site and try again.');
+    showAlert('Pop-up blocked. Please allow pop-ups for this site and try again.', { title: 'Pop-up Blocked' });
     return;
   }
   w.document.write(html);

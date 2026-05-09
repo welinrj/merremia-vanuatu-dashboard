@@ -11,7 +11,7 @@ import { openUploadWizard } from '../ui/components/uploadWizard.js';
 import { openExportDialog } from '../ui/components/datasetExport.js';
 import EXPECTED_LAYERS from '../config/expectedLayers.js';
 import { CATEGORIES } from '../config/categories.js';
-import { showConfirm } from '../ui/components/dialog.js';
+import { showConfirm, showAlert } from '../ui/components/dialog.js';
 
 /** Escape HTML special chars to prevent XSS when inserting user data into innerHTML. */
 const escHtml = s => String(s == null ? '' : s)
@@ -708,7 +708,7 @@ async function renderAdminDashboard(page) {
         return `• [${l.id}] ${m.name || '(no name)'} — ${flags.join(', ')}`;
       });
       const report = `Firestore has ${all.length} layer document(s):\n\n${lines.join('\n')}`;
-      alert(report);
+      showAlert(report, { title: 'Firestore Layer Inventory' });
       statusEl.textContent = `${all.length} layer(s) found in Firestore.`;
     } catch (err) {
       statusEl.textContent = `Diagnose failed: ${err.message}`;
@@ -844,7 +844,7 @@ async function doMerge(expectedId, page) {
   } catch (err) {
     console.error('Merge failed:', err);
     if (mergeBtn) { mergeBtn.disabled = false; mergeBtn.textContent = 'Merge'; }
-    alert(`Merge failed: ${err.message}`);
+    showAlert(`Merge failed: ${err.message}`, { title: 'Merge Error' });
   }
 }
 
@@ -891,7 +891,7 @@ async function doUndoMerge(expectedId, page) {
   } catch (err) {
     console.error('Undo merge failed:', err);
     if (undoBtn) { undoBtn.disabled = false; undoBtn.textContent = '\u21b5 Undo'; }
-    alert(`Undo failed: ${err.message}`);
+    showAlert(`Undo failed: ${err.message}`, { title: 'Undo Error' });
   }
 }
 

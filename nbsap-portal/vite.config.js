@@ -16,6 +16,13 @@ export default defineConfig({
     outDir: 'dist',
     assetsDir: 'assets',
     sourcemap: false,
+    // Strip console.log calls from production builds — keeps internal layer
+    // counts and Firestore operation details out of the browser console.
+    // console.warn and console.error are preserved for runtime diagnostics.
+    esbuild: {
+      drop: ['debugger'],
+      pure: ['console.log']
+    },
     rollupOptions: {
       output: {
         manualChunks: {

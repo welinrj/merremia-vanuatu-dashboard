@@ -26,14 +26,18 @@ import {
   writeBatch
 } from 'firebase/firestore';
 
-// Same Firebase config as the main app
+// Firebase config loaded from environment variables (set in .env, never committed).
+// Fallback to the public project values for GitHub Pages deployments where .env
+// is not available — Firebase apiKey is safe to expose (security is enforced via
+// Firestore Security Rules, not by keeping the key secret). For government server
+// deployments, set VITE_FIREBASE_* env vars and remove the fallback strings.
 const firebaseConfig = {
-  apiKey: 'AIzaSyB2OGgiXUUhyt1aKdHsqIaMS3NDN-tZOdU',
-  authDomain: 'vanuatu-nbsap-dashboard-9909a.firebaseapp.com',
-  projectId: 'vanuatu-nbsap-dashboard-9909a',
-  storageBucket: 'vanuatu-nbsap-dashboard-9909a.firebasestorage.app',
-  messagingSenderId: '778670993904',
-  appId: '1:778670993904:web:219c671804326d953aed35',
+  apiKey:            import.meta.env.VITE_FIREBASE_API_KEY            || 'AIzaSyB2OGgiXUUhyt1aKdHsqIaMS3NDN-tZOdU',
+  authDomain:        import.meta.env.VITE_FIREBASE_AUTH_DOMAIN        || 'vanuatu-nbsap-dashboard-9909a.firebaseapp.com',
+  projectId:         import.meta.env.VITE_FIREBASE_PROJECT_ID         || 'vanuatu-nbsap-dashboard-9909a',
+  storageBucket:     import.meta.env.VITE_FIREBASE_STORAGE_BUCKET     || 'vanuatu-nbsap-dashboard-9909a.firebasestorage.app',
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '778670993904',
+  appId:             import.meta.env.VITE_FIREBASE_APP_ID             || '1:778670993904:web:219c671804326d953aed35',
 };
 
 // Use a separate app name to avoid conflicts if both portals load on the same page
