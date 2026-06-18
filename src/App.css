@@ -324,6 +324,16 @@
   }
 }
 
+.login-coat-of-arms {
+  width: 110px;
+  height: auto;
+  margin-bottom: 1.25rem;
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  filter: drop-shadow(0 4px 14px rgba(0, 0, 0, 0.35));
+}
+
 .login-brand img {
   width: 148px;
   height: 148px;
