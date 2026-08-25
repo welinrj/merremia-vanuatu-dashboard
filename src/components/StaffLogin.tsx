@@ -114,6 +114,11 @@ const StaffLogin: FC<StaffLoginProps> = ({ onSuccess, onCancel }) => {
 
   const brandPanel = (
     <div className="login-brand">
+      <img
+        className="login-coat-of-arms"
+        src={`${import.meta.env.BASE_URL}vanuatu-coat-of-arms.svg`}
+        alt="Vanuatu Coat of Arms"
+      />
       <img src={vcap2Logo} alt="VCAP2" />
       <h1>VCAP2 Staff Portal</h1>
       <p>Adaptation to Climate Change in the Coastal Zone of Vanuatu Phase II</p>
